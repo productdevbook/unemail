@@ -14,7 +14,7 @@ A modern, TypeScript-first email sending library with support for multiple provi
 - **AWS SES** - Amazon Simple Email Service
 - **Resend** - Modern email API for developers
 - **HTTP API** - Custom HTTP API endpoints for email delivery
-- **MailCrab** - Local development email testing
+- **MailCrab** - Local development email testing (via SMTP provider)
 
 > 📢 **Want to add a provider?** We welcome pull requests for new providers! See the [Creating Custom Email Providers](#creating-custom-email-providers) section for guidance.
 
@@ -111,10 +111,25 @@ const emailService = createEmailService({
 
 ```typescript
 import { createEmailService } from 'unemail'
-import mailcrabProvider from 'unemail/providers/mailcrab'
+import smtpProvider from 'unemail/providers/smtp'
 
 const emailService = createEmailService({
-  provider: mailcrabProvider({
+  provider: smtpProvider({
+    host: 'localhost',
+    port: 1025, // default MailCrab port
+    secure: false // typically false for development
+  })
+})
+```
+
+### SMTP Provider
+
+```typescript
+import { createEmailService } from 'unemail'
+import smtpProvider from 'unemail/providers/smtp'
+
+const emailService = createEmailService({
+  provider: smtpProvider({
     host: 'localhost',
     port: 1025, // default MailCrab port
     secure: false // typically false for development

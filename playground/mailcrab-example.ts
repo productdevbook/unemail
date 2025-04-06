@@ -3,13 +3,13 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createEmailService } from 'unemail'
-import mailcrabProvider from 'unemail/providers/mailcrab'
+import smtpProvider from 'unemail/providers/smtp'
 
 /**
  * This example demonstrates how to use unemail with MailCrab
  *
  * To run this example:
- * 1. Start MailCrab: docker run -p 1025:1025 -p 1080:1080 marlonb/mailcrab
+ * 1. Start MailCrab: docker run -p 1025:1025 -p 1080 marlonb/mailcrab
  * 2. Run this file: ts-node examples/mailcrab-example.ts
  * 3. Check the emails at http://localhost:1080
  */
@@ -18,13 +18,13 @@ import mailcrabProvider from 'unemail/providers/mailcrab'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Create MailCrab provider with configuration
-const mailcrabInstance = mailcrabProvider({
+// Create SMTP provider configured for MailCrab
+const mailcrabInstance = smtpProvider({
   host: 'localhost',
   port: 1025, // Default MailCrab SMTP port
 })
 
-// Create an email service with the MailCrab provider instance
+// Create an email service with the SMTP provider instance for MailCrab
 const emailService = createEmailService({
   provider: mailcrabInstance,
   debug: true, // Enable debug logging

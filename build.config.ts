@@ -4,7 +4,7 @@ export default defineBuildConfig({
   entries: [
     'src/index',
     { input: 'src/providers/http', name: 'providers/http' },
-    { input: 'src/providers/mailcrab', name: 'providers/mailcrab' },
+    { input: 'src/providers/smtp', name: 'providers/smtp' },
     { input: 'src/providers/aws-ses', name: 'providers/aws-ses' },
     { input: 'src/providers/resend', name: 'providers/resend' },
     { input: 'src/providers', name: 'providers/base' },
