@@ -2,6 +2,7 @@
   "name": "unemail",
   "type": "module",
   "version": "0.0.1",
+  "private": false,
   "packageManager": "pnpm@10.7.1",
   "description": "A modern TypeScript email library with zero dependencies, supporting multiple providers including AWS SES, Resend, MailCrab, and HTTP APIs",
   "author": "productdevbook <hi@productdevbook.com>",
