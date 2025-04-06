@@ -279,7 +279,7 @@ else {
 ### Prerequisites
 
 - Node.js 20.x or higher
-- pnpm (recommended) or npm
+- pnpm
 
 ### Local Development
 

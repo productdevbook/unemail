@@ -77,12 +77,15 @@
     "example:resend": "node ./playground/resend-example.ts",
     "prepare:mailcrab": "chmod +x ./scripts/setup-mailcrab.mjs && npm run build",
     "prepare": "npm run build",
-    "prepublishOnly": "npm run test"
+    "prepublishOnly": "npm run test",
+    "bumpp": "bumpp package.json",
+    "release": "pnpm build && pnpm publish --no-git-checks --access public"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.11.0",
     "@types/node": "^22.14.0",
     "@vitest/coverage-v8": "^3.1.1",
+    "bumpp": "^10.1.0",
     "dotenv": "^16.4.7",
     "eslint": "^9.24.0",
     "ts-node": "^10.9.2",
