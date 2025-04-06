@@ -1,6 +1,6 @@
 import type { EmailOptions } from 'unemail/types'
 import { createEmailService, EmailService } from 'unemail'
-import mailcrabProvider from 'unemail/providers/mailcrab'
+import smtpProvider from 'unemail/providers/smtp'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -10,10 +10,10 @@ const mockIsAvailable = vi.fn()
 const mockValidateCredentials = vi.fn()
 const mockInitialize = vi.fn()
 
-// Mock the mailcrab provider
-vi.mock('unemail/providers/mailcrab', () => ({
+// Mock the smtp provider
+vi.mock('unemail/providers/smtp', () => ({
   default: () => ({
-    name: 'mailcrab-mock',
+    name: 'smtp-mock',
     features: {
       attachments: true,
       html: true,
@@ -35,7 +35,7 @@ describe('emailService', () => {
 
     // Create a fresh email service with the provider factory
     emailService = createEmailService({
-      provider: mailcrabProvider,
+      provider: smtpProvider,
       debug: true,
     })
   })
@@ -79,7 +79,7 @@ describe('emailService', () => {
         messageId: 'test-id',
         sent: true,
         timestamp: new Date(),
-        provider: 'mailcrab-mock',
+        provider: 'smtp-mock',
       },
     }
 
