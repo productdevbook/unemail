@@ -336,13 +336,13 @@ After running the CLI, you can:
 - View all sent emails in the MailCrab web UI at http://localhost:1080
 - Stop/start the container with `docker stop unemail-mailcrab` and `docker start unemail-mailcrab`
 
-## License
-
-[MIT](./LICENSE) License © [productdevbook](https://github.com/productdevbook)
-
 ## Credits
 
 This project's architecture and provider pattern was inspired by [unjs/unstorage](https://github.com/unjs/unstorage), which uses a similar approach for storage drivers.
+
+## License
+
+[MIT](./LICENSE) License © [productdevbook](https://github.com/productdevbook)
 
 <!-- Badges -->
 
