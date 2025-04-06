@@ -145,13 +145,13 @@ await emailService.sendEmail({
   subject: 'Test email',
   text: 'Plain text content',
   html: '<p>HTML content</p>',
-  
+
   // SMTP-specific options
   priority: 'high', // 'high', 'normal', or 'low'
   dsn: {
     success: true, // Request successful delivery notification
     failure: true, // Request failure notification
-    delay: true    // Request delay notification
+    delay: true // Request delay notification
   }
 })
 ```

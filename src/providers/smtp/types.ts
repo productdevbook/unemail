@@ -7,13 +7,13 @@ export interface SmtpEmailOptions extends EmailOptions {
   // SMTP specific options
   dsn?: {
     /** Request successful delivery notification */
-    success?: boolean 
+    success?: boolean
     /** Request notification on failure */
     failure?: boolean
     /** Request notification on delay */
     delay?: boolean
   }
-  
+
   /** Message priority: 'high', 'normal', or 'low' */
   priority?: 'high' | 'normal' | 'low'
 }
