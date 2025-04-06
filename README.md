@@ -1,24 +1,309 @@
 # unemail
 
-> A lightweight, zero-dependency email library for TypeScript – built for modern APIs and local development.
+A modern, TypeScript-first email sending library with support for multiple providers and ESM-only architecture.
 
----
+## Features
 
-**unemail** is a TypeScript-first email library designed with simplicity, extensibility, and developer experience in mind.
+- 📦 **Multiple Providers** - Support for various email services including AWS SES, MailCrab, HTTP APIs, and more
+- 🔌 **Provider Pattern** - Easily extend with custom providers
+- 🔄 **Type-safe** - Full TypeScript support with generics and strict typing
+- 📤 **ESM Only** - Modern ES modules architecture
+- 🧪 **Well-tested** - Comprehensive test suite for all components
+- 📄 **Zero External Dependencies** - Core functionality has no runtime dependencies
+- 🔒 **Error Handling** - Consistent error handling across all providers
 
-- 💡 Zero dependencies – no Nodemailer or SMTP complexity  
-- 🔌 Provider-based architecture – easily plug in your own HTTP or SMTP providers  
-- 🧪 Built-in support for MailCrab for local development  
-- 📨 HTML emails, attachments, custom headers, and more  
-- 🧩 Full type safety with an intuitive API
+## Installation
 
----
+```bash
+# Using npm
+npm install unemail
 
-## ⚠️ Coming soon...
+# Using yarn
+yarn add unemail
 
-We're actively building the first stable version.  
-👉 [Follow the discussion and give feedback here](https://github.com/productdevbook/unemail/issues/1)
+# Using pnpm
+pnpm add unemail
+```
 
----
+## Quick Start
 
-Stay tuned and star the repo to get updates! ⭐
+```typescript
+import { createEmailService } from 'unemail'
+import httpProvider from 'unemail/providers/http'
+
+// Create a service with your preferred provider
+const emailService = createEmailService({
+  provider: httpProvider({
+    endpoint: 'https://api.example.com/email',
+    apiKey: 'your-api-key'
+  })
+})
+
+// Send an email
+const result = await emailService.sendEmail({
+  from: { email: 'sender@example.com', name: 'Sender Name' },
+  to: { email: 'recipient@example.com', name: 'Recipient Name' },
+  subject: 'Hello from unemail',
+  text: 'This is a test email sent using unemail library',
+  html: '<p>This is a test email sent using <strong>unemail</strong> library</p>'
+})
+
+if (result.success) {
+  console.log('Email sent successfully!', result.data.messageId)
+}
+else {
+  console.error('Failed to send email:', result.error)
+}
+```
+
+## Available Providers
+
+### AWS SES Provider
+
+```typescript
+import { createEmailService } from 'unemail'
+import awsSesProvider from 'unemail/providers/aws-ses'
+
+const emailService = createEmailService({
+  provider: awsSesProvider({
+    accessKeyId: 'AWS_ACCESS_KEY',
+    secretAccessKey: 'AWS_SECRET_KEY',
+    region: 'us-east-1'
+  })
+})
+```
+
+### HTTP Provider
+
+```typescript
+import { createEmailService } from 'unemail'
+import httpProvider from 'unemail/providers/http'
+
+const emailService = createEmailService({
+  provider: httpProvider({
+    endpoint: 'https://api.yourservice.com/send',
+    apiKey: 'your-api-key',
+    method: 'POST', // optional, defaults to POST
+    headers: { // optional, additional headers
+      'X-Custom-Header': 'custom-value'
+    }
+  })
+})
+```
+
+### MailCrab Provider (for development)
+
+```typescript
+import { createEmailService } from 'unemail'
+import mailcrabProvider from 'unemail/providers/mailcrab'
+
+const emailService = createEmailService({
+  provider: mailcrabProvider({
+    host: 'localhost',
+    port: 1025, // default MailCrab port
+    secure: false // typically false for development
+  })
+})
+```
+
+### Resend Provider
+
+```typescript
+import { createEmailService } from 'unemail'
+import resendProvider from 'unemail/providers/resend'
+
+const emailService = createEmailService({
+  provider: resendProvider({
+    apiKey: 'your-resend-api-key'
+  })
+})
+```
+
+## Email Options
+
+Send emails with a variety of options:
+
+```typescript
+import { Buffer } from 'node:buffer'
+import fs from 'node:fs'
+const result = await emailService.sendEmail({
+  // Required fields
+  from: { email: 'sender@example.com', name: 'Sender Name' },
+  to: [
+    { email: 'recipient1@example.com', name: 'Recipient One' },
+    { email: 'recipient2@example.com', name: 'Recipient Two' }
+  ],
+  subject: 'Test Email with Attachments',
+
+  // Content - at least one of text or html is required
+  text: 'Plain text version of the email',
+  html: '<p>HTML version of the email</p>',
+
+  // Optional fields
+  cc: { email: 'cc@example.com', name: 'CC Recipient' },
+  bcc: { email: 'bcc@example.com', name: 'BCC Recipient' },
+
+  // Custom headers
+  headers: {
+    'X-Custom-Header': 'custom-value'
+  },
+
+  // Attachments
+  attachments: [
+    {
+      filename: 'document.pdf',
+      content: Buffer.from('...'), // Can be Buffer or Base64 string
+      contentType: 'application/pdf'
+    },
+    {
+      filename: 'image.png',
+      content: fs.readFileSync('path/to/image.png'),
+      contentType: 'image/png'
+    }
+  ],
+
+  // Reply-to address
+  replyTo: { email: 'reply@example.com', name: 'Reply Handler' }
+})
+```
+
+## Creating Custom Email Providers
+
+You can easily create custom providers for any email service:
+
+```typescript
+import type { EmailOptions, EmailResult, Result } from 'unemail'
+import { createEmailService, defineProvider } from 'unemail'
+
+// Define your provider
+const myCustomProvider = defineProvider((options = {}) => {
+  // Provider initialization
+  const apiKey = options.apiKey
+  const apiUrl = options.apiUrl || 'https://api.default-service.com'
+
+  // Method implementations
+  return {
+    name: 'my-custom-provider',
+
+    features: {
+      attachments: true,
+      html: true,
+      templates: false,
+      tracking: false
+    },
+
+    options,
+
+    async initialize() {
+      // Initialize your provider if needed
+      // e.g. validate credentials, set up connections, etc.
+    },
+
+    async isAvailable() {
+      // Check if the provider is available
+      // e.g. test connection, validate credentials, etc.
+      return true
+    },
+
+    async sendEmail(options: EmailOptions): Promise<Result<EmailResult>> {
+      try {
+        // Implementation of email sending logic
+
+        // On success
+        return {
+          success: true,
+          data: {
+            messageId: 'generated-or-returned-message-id',
+            sent: true,
+            timestamp: new Date(),
+            provider: 'my-custom-provider'
+          }
+        }
+      }
+      catch (error) {
+        // On error
+        return {
+          success: false,
+          error: error as Error
+        }
+      }
+    }
+  }
+})
+
+const emailService = createEmailService({
+  provider: myCustomProvider({
+    apiKey: 'your-api-key',
+    apiUrl: 'https://api.your-service.com'
+  })
+})
+```
+
+## Error Handling
+
+All provider methods return a standardized `Result` type:
+
+```typescript
+interface Result<T = any> {
+  success: boolean
+  data?: T
+  error?: Error
+}
+```
+
+This allows for consistent error handling:
+
+```typescript
+const result = await emailService.sendEmail({
+  // email options...
+})
+
+if (result.success) {
+  // Handle success
+  console.log(`Email sent with ID: ${result.data.messageId}`)
+}
+else {
+  // Handle error
+  console.error(`Failed to send email: ${result.error.message}`)
+}
+```
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js 20.x or higher
+- pnpm (recommended) or npm
+
+### Local Development
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/unemail.git
+cd unemail
+
+# Install dependencies
+pnpm install
+
+# Build the package
+pnpm build
+
+# Run tests
+pnpm test
+```
+
+### Testing with MailCrab
+
+For local development, you can use MailCrab, a local SMTP server:
+
+```bash
+# Run the MailCrab setup script
+pnpm mailcrab
+
+# Test with the example script
+pnpm example
+```
+
+## License
+
+MIT

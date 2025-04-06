@@ -1,0 +1,29 @@
+name: autofix.ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - '!scripts/**'
+
+permissions:
+  contents: read
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install
+
+      - name: Fix lint issues
+        run: npm run lint:fix
+      - uses: autofix-ci/action
+        with:
+          commit-message: 'fix: lint issues'
