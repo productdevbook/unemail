@@ -310,10 +310,39 @@ pnpm mailcrab
 pnpm example
 ```
 
+#### unemail-mailcrab CLI
+
+The package includes a CLI tool called `unemail-mailcrab` that helps you set up and manage a MailCrab container for local email testing:
+
+```bash
+# Install globally to use the CLI from anywhere
+npm install -g unemail
+
+# Run the CLI
+unemail-mailcrab
+```
+
+The CLI tool:
+
+- Checks if Docker is installed
+- Verifies if ports 1025 (SMTP) and 1080 (Web UI) are available
+- Pulls the MailCrab Docker image if not already available
+- Manages existing MailCrab containers (start/stop/create new)
+- Sets up a Docker container running MailCrab
+- Provides detailed instructions for using MailCrab with unemail
+
+After running the CLI, you can:
+- Send emails to localhost:1025 using the MailCrab provider
+- View all sent emails in the MailCrab web UI at http://localhost:1080
+- Stop/start the container with `docker stop unemail-mailcrab` and `docker start unemail-mailcrab`
+
 ## License
 
 [MIT](./LICENSE) License © [productdevbook](https://github.com/productdevbook)
 
+## Credits
+
+This project's architecture and provider pattern was inspired by [unjs/unstorage](https://github.com/unjs/unstorage), which uses a similar approach for storage drivers.
 
 <!-- Badges -->
 
