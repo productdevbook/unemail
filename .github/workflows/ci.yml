@@ -56,8 +56,17 @@ jobs:
       - name: 🚀 Build
         run: pnpm build
 
+      - name: 🐳 Setup MailCrab
+        run: |
+          docker pull marlonb/mailcrab
+          docker run -d --name unemail-mailcrab -p 1025:1025 -p 1080:1080 marlonb/mailcrab
+
       - name: 🧪 Test with coverage
         run: pnpm test:coverage
+        env:
+          MAILCRAB_HOST: localhost
+          MAILCRAB_SMTP_PORT: 1025
+          MAILCRAB_UI_PORT: 1080
 
       - name: 📝 Upload coverage
         if: always()
