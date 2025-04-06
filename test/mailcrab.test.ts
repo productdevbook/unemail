@@ -35,8 +35,8 @@ describe('mailCrab Integration Test', () => {
     }
 
     // Comment out actual sending since this is just an example
-    // const result = await emailService.sendEmail(emailOptions)
-    // expect(result.success).toBe(true)
+    const result = await emailService.sendEmail(emailOptions)
+    expect(result.success).toBe(true)
 
     // Instead, just check that we have the right structure
     expect(emailOptions).toBeDefined()
