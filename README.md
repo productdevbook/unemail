@@ -137,6 +137,40 @@ const emailService = createEmailService({
 })
 ```
 
+### SMTP Provider
+
+```typescript
+import { createEmailService } from 'unemail'
+import smtpProvider from 'unemail/providers/smtp'
+
+const emailService = createEmailService({
+  provider: smtpProvider({
+    host: 'smtp.example.com',
+    port: 587,
+    secure: false, // use TLS
+    user: 'username',
+    password: 'password'
+  })
+})
+
+// With advanced options
+await emailService.sendEmail({
+  from: { email: 'sender@example.com', name: 'Sender' },
+  to: { email: 'recipient@example.com' },
+  subject: 'Test email',
+  text: 'Plain text content',
+  html: '<p>HTML content</p>',
+
+  // SMTP-specific options
+  priority: 'high', // 'high', 'normal', or 'low'
+  dsn: {
+    success: true, // Request successful delivery notification
+    failure: true, // Request failure notification
+    delay: true // Request delay notification
+  }
+})
+```
+
 ### Resend Provider
 
 ```typescript
