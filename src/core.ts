@@ -6,12 +6,12 @@ import type {
   Result,
 } from 'unemail/types'
 import type { Provider, ProviderFactory } from './providers/provider.ts'
-import mailcrabProvider from 'unemail/providers/mailcrab'
+import smtpProvider from 'unemail/providers/smtp'
 import { createError } from 'unemail/utils'
 
 // Import default provider
-// Instead of using string 'mailcrab', import actual provider
-const DEFAULT_PROVIDER = mailcrabProvider
+// Instead of using mailcrab, use smtp provider as default
+const DEFAULT_PROVIDER = smtpProvider
 
 /**
  * Provider options - can be a provider factory, instance, or config with a provider name

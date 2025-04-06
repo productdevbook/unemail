@@ -294,16 +294,13 @@ ${colors.bright}Web Interface:${colors.reset} http://localhost:${MAILCRAB_PORT_U
 ${colors.bright}${colors.blue}Usage with unemail:${colors.reset}
 
 ${colors.cyan}import { createEmailService } from 'unemail';
-import mailcrabProvider from 'unemail/providers/mailcrab';
+import smtpProvider from 'unemail/providers/smtp';
 
 const emailService = createEmailService({
-  provider: mailcrabProvider,
-  config: {
-    options: {
-      host: 'localhost',
-      port: ${MAILCRAB_PORT_SMTP}
-    }
-  }
+  provider: smtpProvider({
+    host: 'localhost',
+    port: ${MAILCRAB_PORT_SMTP}
+  })
 });
 
 // Send a test email
