@@ -122,6 +122,21 @@ const emailService = createEmailService({
 })
 ```
 
+### SMTP Provider
+
+```typescript
+import { createEmailService } from 'unemail'
+import smtpProvider from 'unemail/providers/smtp'
+
+const emailService = createEmailService({
+  provider: smtpProvider({
+    host: 'localhost',
+    port: 1025, // default MailCrab port
+    secure: false // typically false for development
+  })
+})
+```
+
 ### Resend Provider
 
 ```typescript
