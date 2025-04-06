@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ESNext", "DOM"],
+    "rootDir": ".",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "paths": {
+      "unemail": [
+        "./src/index.ts"
+      ],
+      "unemail/providers/*": [
+        "./src/providers/*/index.ts"
+      ],
+      "unemail/types": [
+        "./src/types/index.ts"
+      ],
+      "unemail/utils": [
+        "./src/utils/index.ts"
+      ]
+    },
+    "resolveJsonModule": true,
+    "types": ["node", "vitest/globals"],
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "declaration": true,
+    "noEmit": true,
+    "outDir": "dist",
+    "esModuleInterop": true,
+    "isolatedDeclarations": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "test", "playground"],
+  "exclude": ["node_modules", "dist"]
+}
