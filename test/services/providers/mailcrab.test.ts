@@ -1,5 +1,5 @@
 import type { EmailOptions } from 'unemail/types'
-import mailcrabProvider from 'unemail/providers/mailcrab'
+import smtpProvider from 'unemail/providers/smtp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Create a socket mock that can be used for both Socket constructor and createConnection
@@ -30,27 +30,27 @@ vi.mock('net', () => {
   }
 })
 
-describe('mailCrab Provider', () => {
-  let provider: ReturnType<typeof mailcrabProvider>
+describe('sMTP Provider', () => {
+  let provider: ReturnType<typeof smtpProvider>
 
   beforeEach(() => {
     vi.clearAllMocks()
 
     // Create a fresh provider instance with default options
-    provider = mailcrabProvider({
+    provider = smtpProvider({
       host: 'localhost',
-      port: 1025,
+      port: 25,
     })
   })
 
   it('should create a provider instance with correct defaults', () => {
-    expect(provider.name).toBe('mailcrab')
+    expect(provider.name).toBe('smtp')
     expect(provider.options!.host).toBe('localhost')
-    expect(provider.options!.port).toBe(1025)
+    expect(provider.options!.port).toBe(25)
     expect(provider.options!.secure).toBe(false)
   })
 
-  it('should check if MailCrab is available', async () => {
+  it('should check if SMTP server is available', async () => {
     const result = await provider.isAvailable()
     expect(result).toBe(true)
     expect(socketMock.setTimeout).toHaveBeenCalled()
@@ -66,11 +66,11 @@ describe('mailCrab Provider', () => {
     expect(provider.isAvailable).toHaveBeenCalledTimes(1)
   })
 
-  it('should throw error if MailCrab is not available during initialization', async () => {
+  it('should throw error if SMTP server is not available during initialization', async () => {
     // Mock the availability check to return false
     vi.spyOn(provider, 'isAvailable').mockResolvedValueOnce(false)
 
-    await expect(provider.initialize()).rejects.toThrow('MailCrab server not available')
+    await expect(provider.initialize()).rejects.toThrow('SMTP server not available')
   })
 
   it('should send an email via SMTP', async () => {
@@ -82,7 +82,7 @@ describe('mailCrab Provider', () => {
         messageId: 'test-message-id',
         sent: true,
         timestamp: new Date(),
-        provider: 'mailcrab',
+        provider: 'smtp',
       },
     })
 
@@ -104,7 +104,7 @@ describe('mailCrab Provider', () => {
     // Verify result
     expect(result.success).toBe(true)
     expect(result.data?.sent).toBe(true)
-    expect(result.data?.provider).toBe('mailcrab')
+    expect(result.data?.provider).toBe('smtp')
     expect(result.data?.messageId).toBe('test-message-id')
   })
 
@@ -152,9 +152,9 @@ describe('mailCrab Provider', () => {
 
   it('should validate credentials successfully', async () => {
     // Create a provider with credentials
-    const providerWithCredentials = mailcrabProvider({
+    const providerWithCredentials = smtpProvider({
       host: 'localhost',
-      port: 1025,
+      port: 25,
       user: 'testuser',
       password: 'testpass',
     })
