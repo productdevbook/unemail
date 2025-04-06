@@ -61,7 +61,15 @@ export class EmailService<OptsT extends EmailOptions = EmailOptions> {
         if (typeof providerOption === 'function') {
           // Provider factory function
           const config = this.options.config?.options || {}
-          this.provider = providerOption(config)
+
+          // When using the default SMTP provider, ensure we have at least a default host and port
+          if (providerOption === DEFAULT_PROVIDER && !('host' in config)) {
+            // Add minimal required fields for SmtpConfig when using default provider
+            (config as any).host = 'localhost';
+            (config as any).port = 1025 // Default MailCrab port
+          }
+
+          this.provider = providerOption(config as any)
         }
         else if (providerOption && typeof providerOption === 'object' && 'initialize' in providerOption) {
           // Direct provider instance
