@@ -21,14 +21,14 @@ A modern, TypeScript-first email sending library with support for multiple provi
 ## Installation
 
 ```bash
+# Using pnpm
+pnpm add unemail
+
 # Using npm
 npm install unemail
 
 # Using yarn
 yarn add unemail
-
-# Using pnpm
-pnpm add unemail
 ```
 
 ## Quick Start
@@ -278,7 +278,7 @@ else {
 
 ### Prerequisites
 
-- Node.js 20.x or higher
+- Node.js 20.11.1 or higher
 - pnpm
 
 ### Local Development
