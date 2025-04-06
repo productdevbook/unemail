@@ -80,7 +80,7 @@
     "prepare": "npm run build",
     "prepublishOnly": "npm run test",
     "bumpp": "bumpp package.json",
-    "release": "pnpm build && pnpm publish --no-git-checks --access public"
+    "release": "pnpm build && pnpm bumpp && pnpm publish --no-git-checks --access public"
   },
   "devDependencies": {
     "@antfu/eslint-config": "^4.11.0",
