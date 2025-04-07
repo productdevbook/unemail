@@ -130,21 +130,6 @@ import smtpProvider from 'unemail/providers/smtp'
 
 const emailService = createEmailService({
   provider: smtpProvider({
-    host: 'localhost',
-    port: 1025, // default MailCrab port
-    secure: false // typically false for development
-  })
-})
-```
-
-### SMTP Provider
-
-```typescript
-import { createEmailService } from 'unemail'
-import smtpProvider from 'unemail/providers/smtp'
-
-const emailService = createEmailService({
-  provider: smtpProvider({
     host: 'smtp.example.com',
     port: 587,
     secure: false, // use TLS
