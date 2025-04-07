@@ -113,6 +113,24 @@ export interface SmtpConfig {
   secure?: boolean
   user?: string
   password?: string
+  // New options for addressing feedback
+  rejectUnauthorized?: boolean // Whether to verify TLS certificate
+  pool?: boolean // Enable connection pooling
+  maxConnections?: number // Maximum connections for pooling
+  dkim?: { // DKIM signing configuration
+    domainName: string
+    keySelector: string
+    privateKey: string
+  }
+  authMethod?: 'LOGIN' | 'PLAIN' | 'CRAM-MD5' | 'OAUTH2' // Authentication methods
+  oauth2?: { // OAuth2 authentication options
+    user: string
+    clientId: string
+    clientSecret: string
+    refreshToken: string
+    accessToken?: string
+    expires?: number
+  }
 }
 
 export interface HttpEmailConfig {

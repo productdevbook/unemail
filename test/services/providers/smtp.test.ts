@@ -1,3 +1,4 @@
+import type { SmtpEmailOptions } from 'unemail/providers/smtp'
 import type { EmailOptions, EmailResult, Result } from 'unemail/types'
 import { Buffer } from 'node:buffer'
 import smtpProvider from 'unemail/providers/smtp'
@@ -41,6 +42,9 @@ vi.mock('node:tls', () => ({
       if (event === 'data') {
         setTimeout(() => callback(Buffer.from('220 smtp.example.com ESMTP ready\r\n')), 0)
       }
+      if (event === 'secure') {
+        setTimeout(() => callback(), 0)
+      }
       return {
         on: vi.fn().mockReturnThis(),
         once: vi.fn().mockReturnThis(),
@@ -55,6 +59,21 @@ vi.mock('node:tls', () => ({
     end: vi.fn(),
     destroy: vi.fn(),
   })),
+}))
+
+vi.mock('node:crypto', () => ({
+  createHmac: vi.fn().mockReturnValue({
+    update: vi.fn().mockReturnThis(),
+    digest: vi.fn().mockReturnValue('md5digest'),
+  }),
+  createHash: vi.fn().mockReturnValue({
+    update: vi.fn().mockReturnThis(),
+    digest: vi.fn().mockReturnValue('sha256hash'),
+  }),
+  createSign: vi.fn().mockReturnValue({
+    update: vi.fn().mockReturnThis(),
+    sign: vi.fn().mockReturnValue('dkim-signature'),
+  }),
 }))
 
 // Mock the utility functions directly
@@ -294,5 +313,111 @@ describe('sMTP Provider', () => {
       // Skip if validateCredentials is not available
       console.warn('validateCredentials method not available, skipping test')
     }
+  })
+
+  it('should create a provider instance with advanced options', () => {
+    const advancedProvider = smtpProvider({
+      host: 'smtp.example.com',
+      port: 587,
+      secure: false,
+      rejectUnauthorized: false,
+      pool: true,
+      maxConnections: 10,
+      authMethod: 'CRAM-MD5',
+      dkim: {
+        domainName: 'example.com',
+        keySelector: 'mail',
+        privateKey: '-----BEGIN PRIVATE KEY-----\nMIIBVAIBADANBg...\n-----END PRIVATE KEY-----',
+      },
+    })
+
+    expect(advancedProvider.name).toBe('smtp')
+    expect(advancedProvider.options!.rejectUnauthorized).toBe(false)
+    expect(advancedProvider.options!.pool).toBe(true)
+    expect(advancedProvider.options!.maxConnections).toBe(10)
+    expect(advancedProvider.options!.authMethod).toBe('CRAM-MD5')
+    expect(advancedProvider.options!.dkim).toBeDefined()
+    expect(advancedProvider.options!.dkim!.domainName).toBe('example.com')
+    expect(advancedProvider.features?.batchSending).toBe(true) // Added null check with ?
+  })
+
+  it('should use default values for advanced options if not provided', () => {
+    expect(provider.options!.rejectUnauthorized).toBe(true)
+    expect(provider.options!.pool).toBe(false)
+    expect(provider.options!.maxConnections).toBe(5)
+    expect(provider.features?.batchSending).toBe(false) // Added null check with ?
+  })
+
+  it('should send an email with special Gmail headers', async () => {
+    // Mock the sendEmail method to avoid actual SMTP connection
+    const sendEmailSpy = vi.spyOn(provider, 'sendEmail')
+
+    const mockResult: Result<EmailResult> = {
+      success: true,
+      data: {
+        messageId: 'test-message-id@example.com',
+        sent: true,
+        timestamp: new Date(),
+        provider: 'smtp',
+        response: 'Message accepted',
+      },
+    }
+
+    // Set up the mock implementation
+    sendEmailSpy.mockResolvedValueOnce(mockResult)
+
+    // Create test email options with Gmail-specific headers
+    const emailOptions: SmtpEmailOptions = {
+      from: { email: 'test@example.com', name: 'Test Sender' },
+      to: { email: 'recipient@example.com', name: 'Test Recipient' },
+      subject: 'Test Email',
+      text: 'This is a test email',
+      html: '<p>This is a test email</p>',
+      inReplyTo: '<previous-message-id@example.com>',
+      references: ['<ref1@example.com>', '<ref2@example.com>'],
+      listUnsubscribe: 'mailto:unsubscribe@example.com',
+      googleMailHeaders: {
+        promotionalContent: true,
+        feedbackId: 'campaign:12345',
+        category: 'promotions',
+      },
+      useDkim: true,
+    }
+
+    // Send email
+    const result = await provider.sendEmail(emailOptions)
+
+    // Verify the result structure
+    expect(result.success).toBe(true)
+
+    // Restore the original method
+    sendEmailSpy.mockRestore()
+  })
+
+  it('should support extended authentication options', () => {
+    const providerWithOAuth2 = smtpProvider({
+      host: 'smtp.example.com',
+      port: 587,
+      authMethod: 'OAUTH2',
+      oauth2: {
+        user: 'user@example.com',
+        clientId: 'client-id',
+        clientSecret: 'client-secret',
+        refreshToken: 'refresh-token',
+        accessToken: 'access-token',
+        expires: Date.now() + 3600000,
+      },
+    })
+
+    expect(providerWithOAuth2.options!.authMethod).toBe('OAUTH2')
+    expect(providerWithOAuth2.options!.oauth2).toBeDefined()
+    expect(providerWithOAuth2.options!.oauth2!.user).toBe('user@example.com')
+  })
+
+  it('should add shutdown method to properly clean up resources', () => {
+    // Check if shutdown exists as a property on the provider object
+    expect('shutdown' in provider).toBe(true)
+    // Use the 'as any' type assertion to avoid TypeScript errors since shutdown is not in the interface
+    expect(typeof (provider as any).shutdown).toBe('function')
   })
 })

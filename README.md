@@ -128,6 +128,7 @@ const emailService = createEmailService({
 import { createEmailService } from 'unemail'
 import smtpProvider from 'unemail/providers/smtp'
 
+// Basic configuration
 const emailService = createEmailService({
   provider: smtpProvider({
     host: 'smtp.example.com',
@@ -138,21 +139,85 @@ const emailService = createEmailService({
   })
 })
 
-// With advanced options
+// Advanced configuration with enhanced security and features
+const advancedEmailService = createEmailService({
+  provider: smtpProvider({
+    host: 'smtp.example.com',
+    port: 587,
+    secure: false,
+    user: 'username',
+    password: 'password',
+
+    // TLS options
+    rejectUnauthorized: true, // Verify SSL certificates (set to false to ignore certificate errors)
+
+    // Connection pooling for sending multiple emails efficiently
+    pool: true,
+    maxConnections: 5,
+
+    // Enhanced authentication
+    authMethod: 'CRAM-MD5', // 'LOGIN', 'PLAIN', 'CRAM-MD5', or 'OAUTH2'
+
+    // OAuth2 authentication (if using OAUTH2 authMethod)
+    oauth2: {
+      user: 'user@example.com',
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      refreshToken: 'refresh-token',
+      accessToken: 'access-token',
+      expires: 1714939200000
+    },
+
+    // DKIM signing to improve deliverability
+    dkim: {
+      domainName: 'example.com',
+      keySelector: 'mail',
+      privateKey: '-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----'
+    }
+  })
+})
+
+// Basic email sending
 await emailService.sendEmail({
+  from: { email: 'sender@example.com', name: 'Sender' },
+  to: { email: 'recipient@example.com' },
+  subject: 'Test email',
+  text: 'Plain text content',
+  html: '<p>HTML content</p>'
+})
+
+// Advanced email sending with SMTP-specific options
+await advancedEmailService.sendEmail({
   from: { email: 'sender@example.com', name: 'Sender' },
   to: { email: 'recipient@example.com' },
   subject: 'Test email',
   text: 'Plain text content',
   html: '<p>HTML content</p>',
 
-  // SMTP-specific options
+  // Basic SMTP-specific options
   priority: 'high', // 'high', 'normal', or 'low'
   dsn: {
     success: true, // Request successful delivery notification
     failure: true, // Request failure notification
     delay: true // Request delay notification
-  }
+  },
+
+  // Threading and references
+  inReplyTo: '<previous-message-id@example.com>',
+  references: ['<ref1@example.com>', '<ref2@example.com>'],
+
+  // Email management
+  listUnsubscribe: 'mailto:unsubscribe@example.com',
+
+  // Gmail-specific features
+  googleMailHeaders: {
+    promotionalContent: true, // Mark as promotional content
+    feedbackId: 'campaign:12345:user:123', // For engagement tracking
+    category: 'promotions' // 'primary', 'social', 'promotions', 'updates', or 'forums'
+  },
+
+  // Control DKIM signing per email
+  useDkim: true
 })
 ```
 
