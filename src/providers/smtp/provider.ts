@@ -36,7 +36,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
     rejectUnauthorized: opts.rejectUnauthorized ?? true,
     pool: opts.pool ?? false,
     maxConnections: opts.maxConnections ?? DEFAULT_MAX_CONNECTIONS,
-    authMethod: opts.authMethod,
+    authMethod: opts.authMethod || 'LOGIN', // Assign default to avoid undefined
     oauth2: opts.oauth2,
     dkim: opts.dkim,
   }
@@ -107,7 +107,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
           const singleLineMatch = responseBuffer.match(/^(\d{3}) .*\r\n$/)
 
           if (lastLineMatch || singleLineMatch) {
-            const responseCode = (lastLineMatch || singleLineMatch)[1]
+            const responseCode = lastLineMatch ? lastLineMatch[1] : (singleLineMatch as RegExpMatchArray)[1]
 
             if (expectedCodes.includes(responseCode)) {
               socket.removeListener('data', onData)
@@ -144,7 +144,12 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
     // If we've reached max connections and pooling is enabled, wait for a connection
     if (options.pool && connectionPool.length + 1 >= options.maxConnections) {
       return new Promise<net.Socket>((resolve, reject) => {
-        const queueItem = { resolve, reject }
+        // Create queue item with explicit timeout property
+        const queueItem: {
+          resolve: (socket: net.Socket) => void
+          reject: (error: Error) => void
+          timeout?: NodeJS.Timeout
+        } = { resolve, reject }
 
         // Set a timeout for waiting in the queue
         queueItem.timeout = setTimeout(() => {
@@ -320,7 +325,9 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
       throw createError(PROVIDER_NAME, 'Server does not support authentication')
     }
 
-    const supportedMethods = capabilities[authCapability] || []
+    // Add null check before accessing capabilities with authCapability
+    const supportedMethods = authCapability ? capabilities[authCapability] || [] : []
+
     const authMethod = options.authMethod
       || (supportedMethods.includes('CRAM-MD5')
         ? 'CRAM-MD5'

@@ -1,4 +1,5 @@
-import type { EmailOptions, EmailResult, Result, SmtpConfig, SmtpEmailOptions } from 'unemail/types'
+import type { SmtpEmailOptions } from 'unemail/providers/smtp'
+import type { EmailOptions, EmailResult, Result } from 'unemail/types'
 import { Buffer } from 'node:buffer'
 import smtpProvider from 'unemail/providers/smtp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -337,14 +338,14 @@ describe('sMTP Provider', () => {
     expect(advancedProvider.options!.authMethod).toBe('CRAM-MD5')
     expect(advancedProvider.options!.dkim).toBeDefined()
     expect(advancedProvider.options!.dkim!.domainName).toBe('example.com')
-    expect(advancedProvider.features.batchSending).toBe(true) // Should be true when pooling is enabled
+    expect(advancedProvider.features?.batchSending).toBe(true) // Added null check with ?
   })
 
   it('should use default values for advanced options if not provided', () => {
     expect(provider.options!.rejectUnauthorized).toBe(true)
     expect(provider.options!.pool).toBe(false)
     expect(provider.options!.maxConnections).toBe(5)
-    expect(provider.features.batchSending).toBe(false) // Should be false when pooling is disabled
+    expect(provider.features?.batchSending).toBe(false) // Added null check with ?
   })
 
   it('should send an email with special Gmail headers', async () => {
