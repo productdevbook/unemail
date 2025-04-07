@@ -147,17 +147,17 @@ const advancedEmailService = createEmailService({
     secure: false,
     user: 'username',
     password: 'password',
-    
+
     // TLS options
     rejectUnauthorized: true, // Verify SSL certificates (set to false to ignore certificate errors)
-    
+
     // Connection pooling for sending multiple emails efficiently
     pool: true,
     maxConnections: 5,
-    
+
     // Enhanced authentication
     authMethod: 'CRAM-MD5', // 'LOGIN', 'PLAIN', 'CRAM-MD5', or 'OAUTH2'
-    
+
     // OAuth2 authentication (if using OAUTH2 authMethod)
     oauth2: {
       user: 'user@example.com',
@@ -167,7 +167,7 @@ const advancedEmailService = createEmailService({
       accessToken: 'access-token',
       expires: 1714939200000
     },
-    
+
     // DKIM signing to improve deliverability
     dkim: {
       domainName: 'example.com',
@@ -201,21 +201,21 @@ await advancedEmailService.sendEmail({
     failure: true, // Request failure notification
     delay: true // Request delay notification
   },
-  
+
   // Threading and references
   inReplyTo: '<previous-message-id@example.com>',
   references: ['<ref1@example.com>', '<ref2@example.com>'],
-  
+
   // Email management
   listUnsubscribe: 'mailto:unsubscribe@example.com',
-  
+
   // Gmail-specific features
   googleMailHeaders: {
     promotionalContent: true, // Mark as promotional content
     feedbackId: 'campaign:12345:user:123', // For engagement tracking
     category: 'promotions' // 'primary', 'social', 'promotions', 'updates', or 'forums'
   },
-  
+
   // Control DKIM signing per email
   useDkim: true
 })

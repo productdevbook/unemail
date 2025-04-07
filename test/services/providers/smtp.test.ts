@@ -415,6 +415,9 @@ describe('sMTP Provider', () => {
   })
 
   it('should add shutdown method to properly clean up resources', () => {
-    expect(typeof provider.shutdown).toBe('function')
+    // Check if shutdown exists as a property on the provider object
+    expect('shutdown' in provider).toBe(true)
+    // Use the 'as any' type assertion to avoid TypeScript errors since shutdown is not in the interface
+    expect(typeof (provider as any).shutdown).toBe('function')
   })
 })
