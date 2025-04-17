@@ -459,8 +459,8 @@ This project's architecture and provider pattern was inspired by [unjs/unstorage
 [npm-version-href]: https://npmjs.com/package/unemail
 [npm-downloads-src]: https://img.shields.io/npm/dm/unemail?style=flat&colorA=080f12&colorB=1fa669
 [npm-downloads-href]: https://npmjs.com/package/unemail
-[bundle-src]: https://img.shields.io/bundlephobia/minzip/unemail?style=flat&colorA=080f12&colorB=1fa669&label=minzip
-[bundle-href]: https://bundlephobia.com/result?p=unemail
+[bundle-src]: https://deno.bundlejs.com/badge?q=unemail@0.0.4
+[bundle-href]: https://deno.bundlejs.com/badge?q=unemail@0.0.4
 [license-src]: https://img.shields.io/github/license/productdevbook/unemail.svg?style=flat&colorA=080f12&colorB=1fa669
 [license-href]: https://github.com/productdevbook/unemail/blob/main/LICENSE
 [jsdocs-src]: https://img.shields.io/badge/jsdocs-reference-080f12?style=flat&colorA=080f12&colorB=1fa669
