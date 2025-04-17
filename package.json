@@ -39,24 +39,24 @@
       "import": "./dist/index.mjs"
     },
     "./providers/aws-ses": {
-      "types": "./dist/providers/aws-ses/index.d.mts",
-      "import": "./dist/providers/aws-ses/index.mjs"
+      "types": "./dist/providers/aws-ses/aws-ses.d.mts",
+      "import": "./dist/providers/aws-ses/aws-ses.mjs"
     },
     "./providers/resend": {
-      "types": "./dist/providers/resend/index.d.mts",
-      "import": "./dist/providers/resend/index.mjs"
+      "types": "./dist/providers/resend/resend.d.mts",
+      "import": "./dist/providers/resend/resend.mjs"
     },
     "./providers/mailcrab": {
-      "types": "./dist/providers/mailcrab/index.d.mts",
-      "import": "./dist/providers/mailcrab/index.mjs"
+      "types": "./dist/providers/mailcrab/mailcrab.d.mts",
+      "import": "./dist/providers/mailcrab/mailcrab.mjs"
     },
     "./providers/http": {
-      "types": "./dist/providers/http/index.d.mts",
-      "import": "./dist/providers/http/index.mjs"
+      "types": "./dist/providers/http/http.d.mts",
+      "import": "./dist/providers/http/http.mjs"
     },
     "./providers/smtp": {
-      "types": "./dist/providers/smtp/index.d.mts",
-      "import": "./dist/providers/smtp/index.mjs"
+      "types": "./dist/providers/smtp/smtp.d.mts",
+      "import": "./dist/providers/smtp/smtp.mjs"
     },
     "./providers": {
       "types": "./dist/providers/index.d.mts",
