@@ -46,10 +46,6 @@
       "types": "./dist/providers/resend.d.mts",
       "import": "./dist/providers/resend.mjs"
     },
-    "./providers/mailcrab": {
-      "types": "./dist/providers/mailcrab.d.mts",
-      "import": "./dist/providers/mailcrab.mjs"
-    },
     "./providers/http": {
       "types": "./dist/providers/http.d.mts",
       "import": "./dist/providers/http.mjs"
@@ -57,10 +53,6 @@
     "./providers/smtp": {
       "types": "./dist/providers/smtp.d.mts",
       "import": "./dist/providers/smtp.mjs"
-    },
-    "./providers": {
-      "types": "./dist/providers/index.d.mts",
-      "import": "./dist/providers/index.mjs"
     },
     "./types": {
       "types": "./dist/types/index.d.mts",
