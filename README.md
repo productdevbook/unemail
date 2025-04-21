@@ -451,7 +451,8 @@ This project's architecture and provider pattern was inspired by [unjs/unstorage
 
 ## License
 
-[MIT](./LICENSE) License © [productdevbook](https://github.com/productdevbook)
+Published under the [MIT](https://github.com/productdevbook/unemail/blob/main/LICENSE) license.
+Made by [@productdevbook](https://github.com/productdevbook) and [community](https://github.com/productdevbook/unemail/graphs/contributors) 💛
 
 <!-- Badges -->
 
