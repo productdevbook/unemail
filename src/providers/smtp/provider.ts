@@ -29,7 +29,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
   // Initialize with defaults
   const options: Required<Omit<SmtpConfig, 'user' | 'password' | 'oauth2' | 'dkim'>> & Pick<SmtpConfig, 'user' | 'password' | 'oauth2' | 'dkim'> = {
     host: opts.host,
-    port: opts.port || (opts.secure ? DEFAULT_SECURE_PORT : DEFAULT_PORT),
+    port: opts.port !== undefined ? opts.port : (opts.secure ? DEFAULT_SECURE_PORT : DEFAULT_PORT),
     secure: opts.secure ?? DEFAULT_SECURE,
     user: opts.user,
     password: opts.password,
@@ -93,29 +93,27 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
     return new Promise<string>((resolve, reject) => {
       const expectedCodes = Array.isArray(expectedCode) ? expectedCode : [expectedCode]
       let responseBuffer = ''
+      let lastLineCode = ''
 
       const onData = (data: Buffer) => {
         responseBuffer += data.toString()
-
-        // Check if we have a complete SMTP response
-        // Various SMTP implementations can respond differently, so we need to be flexible
-        if (responseBuffer.includes('\r\n')) {
-          // Check for multi-line responses (ending with expected code + space)
-          const lastLineMatch = responseBuffer.match(/(\d{3}) .*\r\n$/)
-
-          // Or single-line responses
-          const singleLineMatch = responseBuffer.match(/^(\d{3}) .*\r\n$/)
-
-          if (lastLineMatch || singleLineMatch) {
-            const responseCode = lastLineMatch ? lastLineMatch[1] : (singleLineMatch as RegExpMatchArray)[1]
-
-            if (expectedCodes.includes(responseCode)) {
+        // SMTP çok satırlı yanıtlar: 250-...\r\n, son satır 250 ...\r\n
+        // Her satırı kontrol et
+        const lines = responseBuffer.split('\r\n').filter(Boolean)
+        if (lines.length > 0) {
+          const lastLine = lines[lines.length - 1]
+          const match = lastLine.match(/^(\d{3})[\s-]/)
+          if (match) {
+            lastLineCode = match[1]
+            // Son satırda boşluk varsa (multi-line bitti)
+            if (lastLine[3] === ' ') {
               socket.removeListener('data', onData)
-              resolve(responseBuffer)
-            }
-            else {
-              socket.removeListener('data', onData)
-              reject(createError(PROVIDER_NAME, `Expected ${expectedCodes.join(' or ')}, got ${responseCode}: ${responseBuffer.trim()}`))
+              if (expectedCodes.includes(lastLineCode)) {
+                resolve(responseBuffer)
+              }
+              else {
+                reject(createError(PROVIDER_NAME, `Expected ${expectedCodes.join(' or ')}, got ${lastLineCode}: ${responseBuffer.trim()}`))
+              }
             }
           }
         }
@@ -190,7 +188,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
         })
 
         // Wait for connection and server greeting
-        socket.once('data', (data) => {
+        socket.once('data', (data: Buffer) => {
           const greeting = data.toString()
           const code = greeting.substring(0, 3)
 
@@ -423,13 +421,17 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
       const [headersPart, bodyPart] = message.split('\r\n\r\n')
       const headers = headersPart.split('\r\n')
 
-      // Calculate body hash
-      const bodyHash = crypto
-        .createHash('sha256')
-        .update(bodyPart)
-        .digest('base64')
+      // DKIM canonicalization (relaxed/relaxed, basic)
+      const canonicalize = (str: string) => str.replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim()
+      const canonicalizedBody = canonicalize(bodyPart)
+      const bodyHash = crypto.createHash('sha256').update(canonicalizedBody).digest('base64')
 
-      // Create DKIM header fields
+      // Find which headers to sign (from, to, subject, date)
+      const headerNames = ['from', 'to', 'subject', 'date']
+      const headersToSign = headers.filter(h => headerNames.some(n => h.toLowerCase().startsWith(`${n}:`)))
+      const dkimHeaderList = headersToSign.map(h => h.split(':')[0].toLowerCase()).join(':')
+
+      // Build DKIM header (without signature)
       const now = Math.floor(Date.now() / 1000)
       const dkimFields = {
         v: '1',
@@ -439,27 +441,21 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
         s: keySelector,
         t: now.toString(),
         bh: bodyHash,
-        h: 'from:to:subject:date',
+        h: dkimHeaderList,
       }
+      const dkimHeader = `DKIM-Signature: ${Object.entries(dkimFields).map(([k, v]) => `${k}=${v}`).join('; ')}; b=`
 
-      // Build DKIM header string
-      const dkimHeader = `${Object.entries(dkimFields)
-        .map(([k, v]) => `${k}=${v}`)
-        .join('; ')}; b=`
-
-      // Create signature
-      const signer = crypto.createSign('sha256')
-      signer.update(dkimHeader)
+      // Canonicalize headers for signing
+      const headersForSign = [...headersToSign, dkimHeader].map(canonicalize).join('\r\n')
+      const signer = crypto.createSign('RSA-SHA256')
+      signer.update(headersForSign)
       const signature = signer.sign(privateKey, 'base64')
+      const finalDkimHeader = `${dkimHeader}${signature}`
 
-      // Add DKIM-Signature header to the message
-      const finalDkimHeader = `DKIM-Signature: ${dkimHeader}${signature}`
-
-      // Return the message with DKIM signature
-      return `${[finalDkimHeader, ...headers].join('\r\n')}\r\n\r\n${bodyPart}`
+      // DKIM-Signature en başa eklenmeli
+      return `${finalDkimHeader}\r\n${headers.join('\r\n')}\r\n\r\n${bodyPart}`
     }
     catch (error) {
-      // If DKIM signing fails, return original message
       console.error(`[${PROVIDER_NAME}] DKIM signing error:`, error)
       return message
     }
@@ -555,7 +551,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
         }
 
         // Create SMTP connection
-        const socket = await createSmtpConnection()
+        let socket = await createSmtpConnection()
 
         try {
           // EHLO handshake
@@ -574,8 +570,8 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
                 // Upgrade connection to TLS
                 const tlsSocket = await upgradeToTLS(socket)
 
-                // Replace socket with secure version
-                Object.assign(socket, tlsSocket)
+                // Replace socket reference with secure version
+                socket = tlsSocket
 
                 // Re-issue EHLO command over secured connection
                 await sendSmtpCommand(socket, `EHLO ${options.host}`, '250')
@@ -740,8 +736,12 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
 
           // Insert additional headers at the top of the message
           if (additionalHeaders.length > 0) {
-            const [headerPart, bodyPart] = mimeMessage.split('\r\n\r\n')
-            mimeMessage = `${headerPart}\r\n${additionalHeaders.join('\r\n')}\r\n\r\n${bodyPart}`
+            const splitIndex = mimeMessage.indexOf('\r\n\r\n')
+            if (splitIndex !== -1) {
+              const headerPart = mimeMessage.slice(0, splitIndex)
+              const bodyPart = mimeMessage.slice(splitIndex + 4)
+              mimeMessage = `${headerPart}\r\n${additionalHeaders.join('\r\n')}\r\n\r\n${bodyPart}`
+            }
           }
 
           // Apply DKIM signing if configured and requested
