@@ -44,4 +44,6 @@ describe('mailCrab Integration Test', () => {
     expect(emailOptions.to).toBeDefined()
     expect(emailOptions.subject).toBeDefined()
   })
+}, {
+  skip: !process.env.GITHUB_ACTIONS,
 })
