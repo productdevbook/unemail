@@ -16,10 +16,10 @@ const DEFAULT_PROVIDER = smtpProvider
 /**
  * Provider options - can be a provider factory, instance, or config with a provider name
  */
-type ProviderOption<ConfigT = any, InstanceT = any, OptsT extends EmailOptions = EmailOptions> =
-  | Provider<ConfigT, InstanceT, OptsT> // Direct provider instance
-  | ProviderFactory<ConfigT, InstanceT, OptsT> // Provider factory function
-  | { name: string, options?: Record<string, any> } // Legacy provider by name
+type ProviderOption<ConfigT = any, InstanceT = any, OptsT extends EmailOptions = EmailOptions>
+  = | Provider<ConfigT, InstanceT, OptsT> // Direct provider instance
+    | ProviderFactory<ConfigT, InstanceT, OptsT> // Provider factory function
+    | { name: string, options?: Record<string, any> } // Legacy provider by name
 
 interface EmailServiceOptions<ConfigT = any, InstanceT = any, OptsT extends EmailOptions = EmailOptions> extends BaseConfig {
   provider?: ProviderOption<ConfigT, InstanceT, OptsT>

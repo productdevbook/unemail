@@ -3,6 +3,7 @@ import type { EmailOptions, EmailResult, Result } from 'unemail/types'
 import { Buffer } from 'node:buffer'
 import smtpProvider from 'unemail/providers/smtp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 // Mock the modules
 vi.mock('node:net', () => ({
   Socket: vi.fn(() => ({

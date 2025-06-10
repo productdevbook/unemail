@@ -30,8 +30,8 @@ export interface Provider<OptionsT = any, InstanceT = any, EmailOptionsT extends
 /**
  * Type for provider factory function
  */
-export type ProviderFactory<OptionsT = any, InstanceT = any, EmailOptionsT extends EmailOptions = EmailOptions> =
-  (opts?: OptionsT) => Provider<OptionsT, InstanceT, EmailOptionsT>
+export type ProviderFactory<OptionsT = any, InstanceT = any, EmailOptionsT extends EmailOptions = EmailOptions>
+  = (opts?: OptionsT) => Provider<OptionsT, InstanceT, EmailOptionsT>
 
 /**
  * Helper function to define an email provider
