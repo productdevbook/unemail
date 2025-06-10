@@ -73,7 +73,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
   const debug = (message: string, ...args: any[]) => {
     if (options.debug) {
       // Use a safer approach that doesn't rely on console
-      const debugMsg = `[${PROVIDER_NAME}] ${message} ${args.map(arg => JSON.stringify(arg)).join(' ')}`
+      const _debugMsg = `[${PROVIDER_NAME}] ${message} ${args.map(arg => JSON.stringify(arg)).join(' ')}`
       // In a real implementation, this might use a logger injected via options
       // or other logging mechanism that doesn't rely on console
     }
@@ -178,7 +178,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
         const formatEmailAddresses = (addresses: EmailAddress | EmailAddress[]) => {
           const addressList = Array.isArray(addresses) ? addresses : [addresses]
           return addressList.map(addr => ({
-            email_address: formatSingleAddress(addr)
+            email_address: formatSingleAddress(addr),
           }))
         }
 
@@ -242,7 +242,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           if (!payload.mime_headers) {
             payload.mime_headers = {}
           }
-          
+
           Object.entries(emailOpts.headers).forEach(([key, value]) => {
             payload.mime_headers[key] = value
           })
@@ -250,7 +250,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
 
         // Add attachments if present
         if (emailOpts.attachments && emailOpts.attachments.length > 0) {
-          payload.attachments = emailOpts.attachments.map(attachment => {
+          payload.attachments = emailOpts.attachments.map((attachment) => {
             const attachmentData: Record<string, any> = {
               name: attachment.filename,
             }
@@ -260,7 +260,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
               attachmentData.content = typeof attachment.content === 'string'
                 ? attachment.content
                 : attachment.content.toString('base64')
-              
+
               if (attachment.contentType) {
                 attachmentData.mime_type = attachment.contentType
               }
@@ -309,7 +309,8 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           // Try to extract any error details from the response body
           if (result.data?.body?.message) {
             errorMessage += ` Details: ${result.data.body.message}`
-          } else if (result.data?.body?.error?.message) {
+          }
+          else if (result.data?.body?.error?.message) {
             errorMessage += ` Details: ${result.data.body.error.message}`
           }
 
