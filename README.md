@@ -287,7 +287,7 @@ const result = await emailService.sendEmail({
 You can easily create custom providers for any email service:
 
 ```typescript
-import type { EmailOptions, EmailResult, Result } from 'unemail'
+import type { EmailOptions, EmailResult, Result } from 'unemail/types'
 import { createEmailService, defineProvider } from 'unemail'
 
 // Define your provider
