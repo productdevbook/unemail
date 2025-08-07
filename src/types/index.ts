@@ -117,6 +117,7 @@ export interface SmtpConfig {
   rejectUnauthorized?: boolean // Whether to verify TLS certificate
   pool?: boolean // Enable connection pooling
   maxConnections?: number // Maximum connections for pooling
+  timeout?: number // Connection and command timeout in milliseconds
   dkim?: { // DKIM signing configuration
     domainName: string
     keySelector: string
