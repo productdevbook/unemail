@@ -36,6 +36,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
     rejectUnauthorized: opts.rejectUnauthorized ?? true,
     pool: opts.pool ?? false,
     maxConnections: opts.maxConnections ?? DEFAULT_MAX_CONNECTIONS,
+    timeout: opts.timeout ?? DEFAULT_TIMEOUT,
     authMethod: opts.authMethod || 'LOGIN', // Assign default to avoid undefined
     oauth2: opts.oauth2,
     dkim: opts.dkim,
@@ -94,8 +95,26 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
       const expectedCodes = Array.isArray(expectedCode) ? expectedCode : [expectedCode]
       let responseBuffer = ''
       let lastLineCode = ''
+      let timeoutHandle: NodeJS.Timeout
 
-      const onData = (data: Buffer) => {
+      // Declare functions before use
+      let onData: (data: Buffer) => void
+      let onError: (err: Error) => void
+
+      const cleanup = () => {
+        socket.removeListener('data', onData)
+        socket.removeListener('error', onError)
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle)
+        }
+      }
+
+      onError = (err: Error) => {
+        cleanup()
+        reject(createError(PROVIDER_NAME, `Socket error: ${err.message}`, { cause: err }))
+      }
+
+      onData = (data: Buffer) => {
         responseBuffer += data.toString()
         // SMTP çok satırlı yanıtlar: 250-...\r\n, son satır 250 ...\r\n
         // Her satırı kontrol et
@@ -107,7 +126,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
             lastLineCode = match[1]
             // Son satırda boşluk varsa (multi-line bitti)
             if (lastLine[3] === ' ') {
-              socket.removeListener('data', onData)
+              cleanup()
               if (expectedCodes.includes(lastLineCode)) {
                 resolve(responseBuffer)
               }
@@ -119,7 +138,14 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
         }
       }
 
+      // Set up timeout
+      timeoutHandle = setTimeout(() => {
+        cleanup()
+        reject(createError(PROVIDER_NAME, `Command timeout after ${options.timeout}ms: ${command?.substring(0, 50)}...`))
+      }, options.timeout)
+
       socket.on('data', onData)
+      socket.on('error', onError)
 
       if (command) {
         socket.write(`${command}\r\n`)
@@ -174,12 +200,12 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
           : net.createConnection(options.port, options.host)
 
         // Set timeout
-        socket.setTimeout(DEFAULT_TIMEOUT)
+        socket.setTimeout(options.timeout)
 
         // Handle connection timeout
         socket.on('timeout', () => {
           socket.destroy()
-          reject(createError(PROVIDER_NAME, `Connection timeout to ${options.host}:${options.port}`))
+          reject(createError(PROVIDER_NAME, `Connection timeout to ${options.host}:${options.port} after ${options.timeout}ms`))
         })
 
         // Handle errors
@@ -224,7 +250,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
         const tlsSocket = tls.connect(tlsOptions)
 
         // Set timeout
-        tlsSocket.setTimeout(DEFAULT_TIMEOUT)
+        tlsSocket.setTimeout(options.timeout)
 
         // Handle TLS connection errors
         tlsSocket.on('error', (err) => {
@@ -234,7 +260,7 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
         // Handle timeout
         tlsSocket.on('timeout', () => {
           tlsSocket.destroy()
-          reject(createError(PROVIDER_NAME, 'TLS connection timeout'))
+          reject(createError(PROVIDER_NAME, `TLS connection timeout after ${options.timeout}ms`))
         })
 
         // Resolve when secure connection is established
@@ -339,68 +365,104 @@ export const smtpProvider: ProviderFactory<SmtpConfig, any, SmtpEmailOptions> = 
 
     // Handle OAUTH2 authentication if configured
     if (authMethod === 'OAUTH2' && options.oauth2) {
-      const { user, accessToken } = options.oauth2
-      const auth = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`
-      const authBase64 = Buffer.from(auth).toString('base64')
+      try {
+        const { user, accessToken } = options.oauth2
+        const auth = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`
+        const authBase64 = Buffer.from(auth).toString('base64')
 
-      await sendSmtpCommand(socket, `AUTH XOAUTH2 ${authBase64}`, '235')
-      return
+        await sendSmtpCommand(socket, `AUTH XOAUTH2 ${authBase64}`, '235')
+        return
+      }
+      catch (error) {
+        const errorMessage = (error as Error).message
+        if (errorMessage.includes('535') || errorMessage.includes('Authentication failed')) {
+          throw createError(PROVIDER_NAME, 'Authentication failed: Invalid OAuth2 credentials')
+        }
+        throw error
+      }
     }
 
     // Handle CRAM-MD5 authentication
     if (authMethod === 'CRAM-MD5' && options.password) {
-      // Request challenge from server
-      const response = await sendSmtpCommand(socket, 'AUTH CRAM-MD5', '334')
+      try {
+        // Request challenge from server
+        const response = await sendSmtpCommand(socket, 'AUTH CRAM-MD5', '334')
 
-      // Decode challenge
-      const challenge = Buffer.from(response.split(' ')[1], 'base64').toString('utf-8')
+        // Decode challenge
+        const challenge = Buffer.from(response.split(' ')[1], 'base64').toString('utf-8')
 
-      // Calculate HMAC digest
-      const hmac = crypto.createHmac('md5', options.password)
-      hmac.update(challenge)
-      const digest = hmac.digest('hex')
+        // Calculate HMAC digest
+        const hmac = crypto.createHmac('md5', options.password)
+        hmac.update(challenge)
+        const digest = hmac.digest('hex')
 
-      // Respond with username and digest
-      const cramResponse = `${options.user} ${digest}`
-      await sendSmtpCommand(
-        socket,
-        Buffer.from(cramResponse).toString('base64'),
-        '235',
-      )
-      return
+        // Respond with username and digest
+        const cramResponse = `${options.user} ${digest}`
+        await sendSmtpCommand(
+          socket,
+          Buffer.from(cramResponse).toString('base64'),
+          '235',
+        )
+        return
+      }
+      catch (error) {
+        const errorMessage = (error as Error).message
+        if (errorMessage.includes('535') || errorMessage.includes('Authentication failed')) {
+          throw createError(PROVIDER_NAME, 'Authentication failed: Invalid username or password')
+        }
+        throw error
+      }
     }
 
     // Handle LOGIN authentication
     if (authMethod === 'LOGIN' && options.password) {
-      // Send AUTH command
-      await sendSmtpCommand(socket, 'AUTH LOGIN', '334')
+      try {
+        // Send AUTH command
+        await sendSmtpCommand(socket, 'AUTH LOGIN', '334')
 
-      // Send username (base64 encoded)
-      await sendSmtpCommand(
-        socket,
-        Buffer.from(options.user).toString('base64'),
-        '334',
-      )
+        // Send username (base64 encoded)
+        await sendSmtpCommand(
+          socket,
+          Buffer.from(options.user).toString('base64'),
+          '334',
+        )
 
-      // Send password (base64 encoded)
-      await sendSmtpCommand(
-        socket,
-        Buffer.from(options.password).toString('base64'),
-        '235',
-      )
-      return
+        // Send password (base64 encoded)
+        await sendSmtpCommand(
+          socket,
+          Buffer.from(options.password).toString('base64'),
+          '235',
+        )
+        return
+      }
+      catch (error) {
+        const errorMessage = (error as Error).message
+        if (errorMessage.includes('535') || errorMessage.includes('Authentication failed')) {
+          throw createError(PROVIDER_NAME, 'Authentication failed: Invalid username or password')
+        }
+        throw error
+      }
     }
 
     // Handle PLAIN authentication (fallback)
     if (authMethod === 'PLAIN' && options.password) {
-      // Send AUTH PLAIN command with credentials
-      const authPlain = Buffer.from(`\0${options.user}\0${options.password}`).toString('base64')
-      await sendSmtpCommand(
-        socket,
-        `AUTH PLAIN ${authPlain}`,
-        '235',
-      )
-      return
+      try {
+        // Send AUTH PLAIN command with credentials
+        const authPlain = Buffer.from(`\0${options.user}\0${options.password}`).toString('base64')
+        await sendSmtpCommand(
+          socket,
+          `AUTH PLAIN ${authPlain}`,
+          '235',
+        )
+        return
+      }
+      catch (error) {
+        const errorMessage = (error as Error).message
+        if (errorMessage.includes('535') || errorMessage.includes('Authentication failed')) {
+          throw createError(PROVIDER_NAME, 'Authentication failed: Invalid username or password')
+        }
+        throw error
+      }
     }
 
     throw createError(PROVIDER_NAME, 'Authentication failed - no valid credentials or method')
