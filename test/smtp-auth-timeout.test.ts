@@ -12,7 +12,7 @@ describe('smtp Authentication Timeout', () => {
         secure: false,
         user: 'test@example.com',
         password: 'wrongpassword',
-        timeout: 5000, // 5 second timeout
+        timeout: 2000, // 1 second timeout
       }),
     })
 
@@ -28,7 +28,7 @@ describe('smtp Authentication Timeout', () => {
     expect(result.success).toBe(false)
     expect(result.error).toBeDefined()
     expect(result.error?.message).toMatch(/(Authentication failed|timeout|Connection)/i)
-  }, 10000) // Test timeout of 10 seconds
+  }, 4000) // Test timeout of 4 seconds
 
   it('should handle authentication errors gracefully', async () => {
     // Create email service with invalid credentials to a test SMTP server
@@ -54,5 +54,5 @@ describe('smtp Authentication Timeout', () => {
     // If the SMTP server is not available, it should return an error
     expect(result.success).toBe(false)
     expect(result.error).toBeDefined()
-  }, 10000)
+  }, 6000)
 })
