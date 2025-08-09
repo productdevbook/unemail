@@ -241,6 +241,7 @@ Send emails with a variety of options:
 ```typescript
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
+
 const result = await emailService.sendEmail({
   // Required fields
   from: { email: 'sender@example.com', name: 'Sender Name' },
