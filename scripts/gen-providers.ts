@@ -62,22 +62,24 @@ ${providers
   .filter(d => d.optionsTExport)
   .map(
     d =>
-      /* ts */ `import type { ${d.optionsTExport} as ${d.optionsTName} } from "${d.subpath}";`,
+      d.optionsTExport === d.optionsTName
+        ? /* ts */ `import type { ${d.optionsTExport} } from '${d.subpath}'`
+        : /* ts */ `import type { ${d.optionsTExport} as ${d.optionsTName} } from '${d.subpath}'`,
   )
   .join('\n')}
 
-export type BuiltinProviderName = ${providers.flatMap(d => d.names.map(name => `"${name}"`)).join(' | ')};
+export type BuiltinProviderName = ${providers.flatMap(d => d.names.map(name => `'${name}'`)).join(' | ')}
 
-export type BuiltinProviderOptions = {
+export interface BuiltinProviderOptions {
   ${providers
     .filter(d => d.optionsTExport)
-    .flatMap(d => d.names.map(name => `"${name}": ${d.optionsTName};`))
+    .flatMap(d => d.names.map(name => `'${name}': ${d.optionsTName}`))
     .join('\n  ')}
-};
+}
 
 export const builtinProviders = {
-  ${providers.flatMap(d => d.names.map(name => `"${name}": "${d.subpath}"`)).join(',\n  ')},
-} as const;
+  ${providers.flatMap(d => d.names.map(name => `'${name}': '${d.subpath}'`)).join(',\n  ')},
+} as const
 `
 
 await writeFile(providersMetaFile, genCode, 'utf8')

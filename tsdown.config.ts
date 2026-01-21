@@ -19,6 +19,8 @@ export default defineConfig({
     'resend',
     '@aws-sdk/client-ses',
     'ofetch',
+  ],
+  noExternal: [
     'zeptomail',
   ],
 })

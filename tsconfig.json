@@ -9,7 +9,8 @@
       "unemail": ["./src/index.ts"],
       "unemail/providers/*": ["./src/providers/*.ts"],
       "unemail/types": ["./src/types.ts"],
-      "unemail/utils": ["./src/utils.ts"]
+      "unemail/utils": ["./src/utils.ts"],
+      "zeptomail": ["./node_modules/zeptomail/lib/js/types/index.d.ts"]
     },
     "resolveJsonModule": true,
     "types": ["node"],
