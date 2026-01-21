@@ -14,3 +14,4 @@ test/fs-storage/**
 .env
 .wrangler
 unstorage/
+tsconfig.tsbuildinfo
