@@ -3,7 +3,7 @@ import { createEmailService } from 'unemail'
 import smtpProvider from 'unemail/providers/smtp'
 import { beforeAll, describe, expect, it } from 'vitest'
 
-describe('mailCrab Integration Test', () => {
+describe.skipIf(!process.env.MAILCRAB_ENABLED)('mailCrab Integration Test', () => {
   const emailService = createEmailService({
     provider: smtpProvider({
       host: 'localhost',
@@ -44,6 +44,4 @@ describe('mailCrab Integration Test', () => {
     expect(emailOptions.to).toBeDefined()
     expect(emailOptions.subject).toBeDefined()
   })
-}, {
-  skip: !process.env.GITHUB_ACTIONS,
 })

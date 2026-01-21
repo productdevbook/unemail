@@ -1,22 +1,19 @@
-import type { Provider, ProviderFactory } from './providers/provider.ts'
+// Export builtin providers metadata
+export {
+  type BuiltinProviderName,
+  type BuiltinProviderOptions,
+  builtinProviders,
+} from './_providers.ts'
 
 // Export core email service
-import { createEmailService, EmailService } from './core.ts'
+export { createEmailService, EmailService } from './email.ts'
 
 // Export provider system
-import { defineProvider } from './providers/provider.ts'
+export { defineProvider } from './providers/utils/index.ts'
 
-// Export all providers directly
-export * from './providers/index.ts'
+export type { Provider, ProviderFactory } from './providers/utils/index.ts'
+// Export types
+export * from './types.ts'
 
-// Main export
-export {
-  createEmailService,
-  // Provider system
-  defineProvider,
-  // Core
-  EmailService,
-
-  type Provider,
-  type ProviderFactory,
-}
+// Export utils
+export * from './utils.ts'

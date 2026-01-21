@@ -81,66 +81,6 @@ export interface ErrorOptions {
   code?: string
 }
 
-// Provider-specific configuration types
-export interface AwsSesConfig extends BaseConfig {
-  region: string
-  accessKeyId: string
-  secretAccessKey: string
-  sessionToken?: string
-  endpoint?: string
-  maxAttempts?: number
-  apiVersion?: string
-}
-
-export interface MailCrabConfig {
-  host?: string
-  port?: number
-  secure?: boolean
-  user?: string
-  password?: string
-}
-
-export interface ResendConfig extends BaseConfig {
-  apiKey: string
-  endpoint?: string
-  timeout?: number
-  retries?: number
-}
-
-export interface SmtpConfig {
-  host: string
-  port: number
-  secure?: boolean
-  user?: string
-  password?: string
-  // New options for addressing feedback
-  rejectUnauthorized?: boolean // Whether to verify TLS certificate
-  pool?: boolean // Enable connection pooling
-  maxConnections?: number // Maximum connections for pooling
-  timeout?: number // Connection and command timeout in milliseconds
-  dkim?: { // DKIM signing configuration
-    domainName: string
-    keySelector: string
-    privateKey: string
-  }
-  authMethod?: 'LOGIN' | 'PLAIN' | 'CRAM-MD5' | 'OAUTH2' // Authentication methods
-  oauth2?: { // OAuth2 authentication options
-    user: string
-    clientId: string
-    clientSecret: string
-    refreshToken: string
-    accessToken?: string
-    expires?: number
-  }
-}
-
-export interface HttpEmailConfig {
-  endpoint: string
-  apiKey?: string
-  method?: 'GET' | 'POST' | 'PUT'
-  headers?: Record<string, string>
-}
-
 // Updated to use a generic options object instead of specific provider strings
 export interface EmailServiceConfig {
   options: Record<string, any>

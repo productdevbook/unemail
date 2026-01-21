@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.3.0",
   "private": false,
-  "packageManager": "pnpm@10.14.0",
+  "packageManager": "pnpm@10.28.1",
   "description": "A modern TypeScript email library with zero dependencies, supporting multiple providers including AWS SES, Resend, MailCrab, and HTTP APIs",
   "author": "productdevbook <hi@productdevbook.com>",
   "license": "MIT",
@@ -54,13 +54,9 @@
       "types": "./dist/providers/smtp.d.mts",
       "import": "./dist/providers/smtp.mjs"
     },
-    "./types": {
-      "types": "./dist/types/index.d.mts",
-      "import": "./dist/types/index.mjs"
-    },
-    "./utils": {
-      "types": "./dist/utils/index.d.mts",
-      "import": "./dist/utils/index.mjs"
+    "./providers/zeptomail": {
+      "types": "./dist/providers/zeptomail.d.mts",
+      "import": "./dist/providers/zeptomail.mjs"
     }
   },
   "module": "dist/index.mjs",
@@ -76,9 +72,10 @@
     "node": ">=20.11.1"
   },
   "scripts": {
-    "build": "unbuild",
-    "dev": "unbuild --stub",
-    "type-check": "tsc --noEmit",
+    "gen-providers": "npx tsx scripts/gen-providers.ts",
+    "build": "pnpm gen-providers && tsdown",
+    "dev": "tsdown --watch",
+    "type-check": "tsgo --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",
@@ -95,17 +92,20 @@
     "release": "pnpm build && pnpm bumpp && pnpm publish --no-git-checks --access public"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^5.2.0",
-    "@types/node": "^22.17.1",
-    "@vitest/coverage-v8": "^3.2.4",
-    "bumpp": "^10.2.2",
-    "dotenv": "^17.2.1",
-    "eslint": "^9.33.0",
+    "@antfu/eslint-config": "^7.1.0",
+    "@types/node": "^22.19.7",
+    "@typescript/native-preview": "7.0.0-dev.20260120.1",
+    "@vitest/coverage-v8": "^4.0.17",
+    "bumpp": "^10.4.0",
+    "dotenv": "^17.2.3",
+    "eslint": "^9.39.2",
+    "mlly": "^1.8.0",
+    "scule": "^1.3.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.2",
-    "unbuild": "^3.6.0",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4"
+    "tsdown": "0.20.0-beta.4",
+    "typescript": "^5.9.3",
+    "vite-tsconfig-paths": "^6.0.4",
+    "vitest": "^4.0.17"
   },
   "resolutions": {
     "unemail": "link:."

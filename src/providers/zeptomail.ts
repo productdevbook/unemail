@@ -1,56 +1,45 @@
-import type { EmailAddress, EmailResult, Result } from 'unemail/types'
-import type { ProviderFactory } from '../provider.ts'
-import type { ZeptomailEmailOptions } from './types.ts'
-import { createError, createRequiredError, generateMessageId, makeRequest, retry, validateEmailOptions } from 'unemail/utils'
-import { defineProvider } from '../provider.ts'
+import type { EmailAddress, EmailOptions, EmailResult, Result } from '../types.ts'
+import type { ProviderFactory } from './utils/index.ts'
+import { createError, createRequiredError, generateMessageId, makeRequest, retry, validateEmailOptions } from '../utils.ts'
+import { defineProvider } from './utils/index.ts'
 
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface ZeptomailOptions {
+  token: string
+  endpoint?: string
+  timeout?: number
+  retries?: number
+  debug?: boolean
+}
+
+export interface ZeptomailEmailOptions extends EmailOptions {
+  trackClicks?: boolean
+  trackOpens?: boolean
+  clientReference?: string
+  mimeHeaders?: Record<string, string>
+}
+
+// ============================================================================
 // Constants
+// ============================================================================
+
 const PROVIDER_NAME = 'zeptomail'
 const DEFAULT_ENDPOINT = 'https://api.zeptomail.com/v1.1'
 const DEFAULT_TIMEOUT = 30000
 const DEFAULT_RETRIES = 3
 
-/**
- * Interface for Zeptomail configuration
- */
-export interface ZeptomailConfig {
-  /**
-   * API token for authentication
-   * Format: "Zoho-enczapikey <your_api_key>"
-   */
-  token: string
+// ============================================================================
+// Provider Implementation
+// ============================================================================
 
-  /**
-   * Optional custom endpoint (default: https://api.zeptomail.com/v1.1)
-   */
-  endpoint?: string
-
-  /**
-   * Request timeout in milliseconds (default: 30000)
-   */
-  timeout?: number
-
-  /**
-   * Number of retry attempts for failed requests (default: 3)
-   */
-  retries?: number
-
-  /**
-   * Enable debug logging (default: false)
-   */
-  debug?: boolean
-}
-
-/**
- * Zeptomail Provider for sending emails through Zeptomail API
- */
-export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailEmailOptions> = defineProvider((opts: ZeptomailConfig = {} as ZeptomailConfig) => {
-  // Validate required options
+export const zeptomailProvider: ProviderFactory<ZeptomailOptions, any, ZeptomailEmailOptions> = defineProvider((opts: ZeptomailOptions = {} as ZeptomailOptions) => {
   if (!opts.token) {
     throw createRequiredError(PROVIDER_NAME, 'token')
   }
 
-  // Make sure token has correct format
   if (!opts.token.startsWith('Zoho-enczapikey ')) {
     throw createError(
       PROVIDER_NAME,
@@ -58,8 +47,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
     )
   }
 
-  // Initialize with defaults
-  const options: Required<ZeptomailConfig> = {
+  const options: Required<ZeptomailOptions> = {
     debug: opts.debug || false,
     timeout: opts.timeout || DEFAULT_TIMEOUT,
     retries: opts.retries || DEFAULT_RETRIES,
@@ -69,13 +57,9 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
 
   let isInitialized = false
 
-  // Debug helper - using a no-op function if debug is disabled to avoid console.log
   const debug = (message: string, ...args: any[]) => {
     if (options.debug) {
-      // Use a safer approach that doesn't rely on console
       const _debugMsg = `[${PROVIDER_NAME}] ${message} ${args.map(arg => JSON.stringify(arg)).join(' ')}`
-      // In a real implementation, this might use a logger injected via options
-      // or other logging mechanism that doesn't rely on console
     }
   }
 
@@ -84,7 +68,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
     features: {
       attachments: true,
       html: true,
-      templates: false, // Zeptomail has template support but not implemented here
+      templates: false,
       tracking: true,
       customHeaders: true,
       batchSending: false,
@@ -94,16 +78,12 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
     },
     options,
 
-    /**
-     * Initialize the Zeptomail provider
-     */
     async initialize(): Promise<void> {
       if (isInitialized) {
         return
       }
 
       try {
-        // Test endpoint availability and credentials
         if (!await this.isAvailable()) {
           throw createError(
             PROVIDER_NAME,
@@ -123,13 +103,8 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
       }
     },
 
-    /**
-     * Check if Zeptomail API is available and credentials are valid
-     */
     async isAvailable(): Promise<boolean> {
       try {
-        // Since Zeptomail doesn't have a dedicated endpoint to check token,
-        // we'll just check if token exists and has correct format
         if (options.token && options.token.startsWith('Zoho-enczapikey ')) {
           debug('Token format is valid, assuming Zeptomail is available')
           return true
@@ -143,13 +118,8 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
       }
     },
 
-    /**
-     * Send email through Zeptomail API
-     * @param emailOpts The email options including Zeptomail-specific features
-     */
     async sendEmail(emailOpts: ZeptomailEmailOptions): Promise<Result<EmailResult>> {
       try {
-        // Validate email options
         const validationErrors = validateEmailOptions(emailOpts)
         if (validationErrors.length > 0) {
           return {
@@ -161,12 +131,10 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           }
         }
 
-        // Make sure provider is initialized
         if (!isInitialized) {
           await this.initialize()
         }
 
-        // Format a single EmailAddress for Zeptomail
         const formatSingleAddress = (address: EmailAddress) => {
           return {
             address: address.email,
@@ -174,7 +142,6 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           }
         }
 
-        // Format array of email addresses for Zeptomail
         const formatEmailAddresses = (addresses: EmailAddress | EmailAddress[]) => {
           const addressList = Array.isArray(addresses) ? addresses : [addresses]
           return addressList.map(addr => ({
@@ -182,39 +149,32 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           }))
         }
 
-        // Prepare request payload
         const payload: Record<string, any> = {
           from: formatSingleAddress(emailOpts.from),
           to: formatEmailAddresses(emailOpts.to),
           subject: emailOpts.subject,
         }
 
-        // Add text body if present
         if (emailOpts.text) {
           payload.textbody = emailOpts.text
         }
 
-        // Add HTML body if present
         if (emailOpts.html) {
           payload.htmlbody = emailOpts.html
         }
 
-        // Add CC if present
         if (emailOpts.cc) {
           payload.cc = formatEmailAddresses(emailOpts.cc)
         }
 
-        // Add BCC if present
         if (emailOpts.bcc) {
           payload.bcc = formatEmailAddresses(emailOpts.bcc)
         }
 
-        // Add reply-to if present
         if (emailOpts.replyTo) {
           payload.reply_to = [formatSingleAddress(emailOpts.replyTo)]
         }
 
-        // Add tracking options if present
         if (emailOpts.trackClicks !== undefined) {
           payload.track_clicks = emailOpts.trackClicks
         }
@@ -223,12 +183,10 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           payload.track_opens = emailOpts.trackOpens
         }
 
-        // Add client reference if present
         if (emailOpts.clientReference) {
           payload.client_reference = emailOpts.clientReference
         }
 
-        // Add MIME headers if present
         if (emailOpts.mimeHeaders && Object.keys(emailOpts.mimeHeaders).length > 0) {
           payload.mime_headers = Object.entries(emailOpts.mimeHeaders).reduce((acc, [key, value]) => {
             acc[key] = value
@@ -236,9 +194,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           }, {} as Record<string, string>)
         }
 
-        // Add custom headers if present
         if (emailOpts.headers && Object.keys(emailOpts.headers).length > 0) {
-          // Zeptomail doesn't have a dedicated field for custom headers, so we'll merge them into mime_headers
           if (!payload.mime_headers) {
             payload.mime_headers = {}
           }
@@ -248,14 +204,12 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           })
         }
 
-        // Add attachments if present
         if (emailOpts.attachments && emailOpts.attachments.length > 0) {
           payload.attachments = emailOpts.attachments.map((attachment) => {
             const attachmentData: Record<string, any> = {
               name: attachment.filename,
             }
 
-            // Use content if provided
             if (attachment.content) {
               attachmentData.content = typeof attachment.content === 'string'
                 ? attachment.content
@@ -265,7 +219,6 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
                 attachmentData.mime_type = attachment.contentType
               }
             }
-            // Or use file_cache_key if available (assuming this is something supported by Zeptomail)
             else if (attachment.path) {
               attachmentData.file_cache_key = attachment.path
             }
@@ -279,14 +232,12 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           subject: payload.subject,
         })
 
-        // Create headers with API token
         const headers: Record<string, string> = {
           'Authorization': options.token,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         }
 
-        // Send request with retry capability
         const result = await retry(
           async () => makeRequest(
             `${options.endpoint}/email`,
@@ -303,10 +254,8 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
         if (!result.success) {
           debug('API request failed', result.error)
 
-          // Enhanced error messages based on response
           let errorMessage = result.error?.message || 'Unknown error'
 
-          // Try to extract any error details from the response body
           if (result.data?.body?.message) {
             errorMessage += ` Details: ${result.data.body.message}`
           }
@@ -324,9 +273,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
           }
         }
 
-        // Extract information from response
         const responseData = result.data.body
-        // Zeptomail returns a request_id in the successful response
         const messageId = responseData?.request_id || generateMessageId()
 
         debug('Email sent successfully', { messageId })
@@ -354,11 +301,10 @@ export const zeptomailProvider: ProviderFactory<ZeptomailConfig, any, ZeptomailE
       }
     },
 
-    /**
-     * Validate API credentials
-     */
     async validateCredentials(): Promise<boolean> {
       return this.isAvailable()
     },
   }
 })
+
+export default zeptomailProvider

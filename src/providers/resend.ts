@@ -1,34 +1,57 @@
-import type { EmailAddress, EmailResult, ResendConfig, Result } from 'unemail/types'
-import type { ProviderFactory } from '../provider.ts'
-import type { ResendEmailOptions, ResendEmailTag } from './types.ts'
-import { createError, createRequiredError, generateMessageId, makeRequest, retry, validateEmailOptions } from 'unemail/utils'
-import { defineProvider } from '../provider.ts'
+import type { EmailAddress, EmailOptions, EmailResult, EmailTag, Result } from '../types.ts'
+import type { ProviderFactory } from './utils/index.ts'
+import { createError, createRequiredError, generateMessageId, makeRequest, retry, validateEmailOptions } from '../utils.ts'
+import { defineProvider } from './utils/index.ts'
 
+// ============================================================================
+// Types
+// ============================================================================
+
+export interface ResendOptions {
+  apiKey: string
+  endpoint?: string
+  timeout?: number
+  retries?: number
+  debug?: boolean
+}
+
+export interface ResendEmailTag extends EmailTag {
+  name: string
+  value: string
+}
+
+export interface ResendEmailOptions extends EmailOptions {
+  templateId?: string
+  templateData?: Record<string, any>
+  scheduledAt?: Date | string
+  tags?: ResendEmailTag[]
+}
+
+// ============================================================================
 // Constants
+// ============================================================================
+
 const PROVIDER_NAME = 'resend'
 const DEFAULT_ENDPOINT = 'https://api.resend.com'
 const DEFAULT_TIMEOUT = 30000
 const DEFAULT_RETRIES = 3
 
-/**
- * Validates tag format for Resend API
- * Tags can only contain ASCII letters, numbers, underscores, or dashes
- */
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 function validateTag(tag: ResendEmailTag): string[] {
   const errors: string[] = []
   const validPattern = /^[\w-]+$/
 
-  // Check name format
   if (!validPattern.test(tag.name)) {
     errors.push(`Tag name '${tag.name}' must only contain ASCII letters, numbers, underscores, or dashes`)
   }
 
-  // Check name length (max 256 chars according to Resend docs)
   if (tag.name.length > 256) {
     errors.push(`Tag name '${tag.name}' exceeds maximum length of 256 characters`)
   }
 
-  // Check value format
   if (!validPattern.test(tag.value)) {
     errors.push(`Tag value '${tag.value}' for tag '${tag.name}' must only contain ASCII letters, numbers, underscores, or dashes`)
   }
@@ -36,17 +59,16 @@ function validateTag(tag: ResendEmailTag): string[] {
   return errors
 }
 
-/**
- * Resend Provider for sending emails through Resend API
- */
-export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptions> = defineProvider((opts: ResendConfig = {} as ResendConfig) => {
-  // Validate required options
+// ============================================================================
+// Provider Implementation
+// ============================================================================
+
+export const resendProvider: ProviderFactory<ResendOptions, any, ResendEmailOptions> = defineProvider((opts: ResendOptions = {} as ResendOptions) => {
   if (!opts.apiKey) {
     throw createRequiredError(PROVIDER_NAME, 'apiKey')
   }
 
-  // Initialize with defaults
-  const options: Required<ResendConfig> = {
+  const options: Required<ResendOptions> = {
     debug: opts.debug || false,
     timeout: opts.timeout || DEFAULT_TIMEOUT,
     retries: opts.retries || DEFAULT_RETRIES,
@@ -56,7 +78,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
 
   let isInitialized = false
 
-  // Debug helper
   const debug = (message: string, ...args: any[]) => {
     if (options.debug) {
       console.log(`[${PROVIDER_NAME}] ${message}`, ...args)
@@ -78,16 +99,12 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
     },
     options,
 
-    /**
-     * Initialize the Resend provider
-     */
     async initialize(): Promise<void> {
       if (isInitialized) {
         return
       }
 
       try {
-        // Test endpoint availability and credentials
         if (!await this.isAvailable()) {
           throw createError(
             PROVIDER_NAME,
@@ -107,19 +124,13 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
       }
     },
 
-    /**
-     * Check if Resend API is available and credentials are valid
-     */
     async isAvailable(): Promise<boolean> {
       try {
-        // For restricted API keys that can only send emails,
-        // we can't use the /domains endpoint, so we'll just check if API key exists
         if (options.apiKey && options.apiKey.startsWith('re_')) {
           debug('API key format is valid, assuming Resend is available')
           return true
         }
 
-        // If we want to do a full check for unrestricted keys (not needed for most use cases)
         const headers: Record<string, string> = {
           'Authorization': `Bearer ${options.apiKey}`,
           'Content-Type': 'application/json',
@@ -127,7 +138,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
 
         debug('Checking Resend API availability')
 
-        // Try to access an endpoint that requires less permissions
         const result = await makeRequest(
           `${options.endpoint}/domains`,
           {
@@ -137,7 +147,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           },
         )
 
-        // For restricted API keys, a 401 with a specific message is actually OK
         if (
           result.data?.statusCode === 401
           && result.data?.body?.name === 'restricted_api_key'
@@ -153,7 +162,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           error: result.error?.message,
         })
 
-        // For unrestricted API keys, check for 200 OK
         return result.success && result.data?.statusCode >= 200 && result.data?.statusCode < 300
       }
       catch (error) {
@@ -162,13 +170,8 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
       }
     },
 
-    /**
-     * Send email through Resend API
-     * @param emailOpts The email options including Resend-specific features
-     */
     async sendEmail(emailOpts: ResendEmailOptions): Promise<Result<EmailResult>> {
       try {
-        // Validate email options
         const validationErrors = validateEmailOptions(emailOpts)
         if (validationErrors.length > 0) {
           return {
@@ -180,12 +183,10 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           }
         }
 
-        // Make sure provider is initialized
         if (!isInitialized) {
           await this.initialize()
         }
 
-        // Format recipients for Resend API
         const formatRecipients = (addresses: EmailAddress | EmailAddress[]) => {
           if (Array.isArray(addresses)) {
             return addresses.map((address) => {
@@ -195,7 +196,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           return [addresses.name ? `${addresses.name} <${addresses.email}>` : addresses.email]
         }
 
-        // Prepare request payload
         const payload: Record<string, any> = {
           from: emailOpts.from.name
             ? `${emailOpts.from.name} <${emailOpts.from.email}>`
@@ -207,24 +207,20 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           headers: emailOpts.headers || {},
         }
 
-        // Add CC if present
         if (emailOpts.cc) {
           payload.cc = formatRecipients(emailOpts.cc)
         }
 
-        // Add BCC if present
         if (emailOpts.bcc) {
           payload.bcc = formatRecipients(emailOpts.bcc)
         }
 
-        // Add reply-to if present
         if (emailOpts.replyTo) {
           payload.reply_to = emailOpts.replyTo.name
             ? `${emailOpts.replyTo.name} <${emailOpts.replyTo.email}>`
             : emailOpts.replyTo.email
         }
 
-        // Add template id and data if present
         if (emailOpts.templateId) {
           payload.template = emailOpts.templateId
           if (emailOpts.templateData) {
@@ -232,16 +228,13 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           }
         }
 
-        // Add scheduled_at if present
         if (emailOpts.scheduledAt) {
           payload.scheduled_at = typeof emailOpts.scheduledAt === 'string'
             ? emailOpts.scheduledAt
             : emailOpts.scheduledAt.toISOString()
         }
 
-        // Add tags if present - with validation
         if (emailOpts.tags && emailOpts.tags.length > 0) {
-          // Validate tags format first
           const tagValidationErrors: string[] = []
 
           emailOpts.tags.forEach((tag) => {
@@ -251,7 +244,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
             }
           })
 
-          // Return validation errors if any found
           if (tagValidationErrors.length > 0) {
             return {
               success: false,
@@ -268,15 +260,14 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           }))
         }
 
-        // Add attachments if present
         if (emailOpts.attachments && emailOpts.attachments.length > 0) {
           payload.attachments = emailOpts.attachments.map(attachment => ({
             filename: attachment.filename,
             content: typeof attachment.content === 'string'
               ? attachment.content
               : attachment.content.toString('base64'),
-            content_type: attachment.contentType, // Added content type support
-            path: attachment.path, // Added path support
+            content_type: attachment.contentType,
+            path: attachment.path,
           }))
         }
 
@@ -285,13 +276,11 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           subject: payload.subject,
         })
 
-        // Create headers with API key
         const headers: Record<string, string> = {
           'Authorization': `Bearer ${options.apiKey}`,
           'Content-Type': 'application/json',
         }
 
-        // Send request with retry capability
         const result = await retry(
           async () => makeRequest(
             `${options.endpoint}/emails`,
@@ -308,7 +297,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
         if (!result.success) {
           debug('API request failed', result.error)
 
-          // Enhanced error messages based on common Resend status codes
           let errorMessage = result.error?.message || 'Unknown error'
 
           if (result.data?.statusCode === 403) {
@@ -318,7 +306,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
             errorMessage = 'Too many requests: You are sending too many emails too quickly. Please slow down or upgrade your plan.'
           }
 
-          // Try to extract any error details from the response body
           if (result.data?.body?.message) {
             errorMessage += ` Details: ${result.data.body.message}`
           }
@@ -333,9 +320,7 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           }
         }
 
-        // Extract message ID from response or generate one
         const responseData = result.data.body
-        // Resend returns { id: "..." } for successful sends
         const messageId = responseData?.id || generateMessageId()
 
         debug('Email sent successfully', { messageId })
@@ -363,18 +348,10 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
       }
     },
 
-    /**
-     * Validate API credentials
-     */
     async validateCredentials(): Promise<boolean> {
       return this.isAvailable()
     },
 
-    /**
-     * Retrieve email by ID
-     * @param id Email ID to retrieve
-     * @returns Email details
-     */
     async getEmail(id: string): Promise<Result<any>> {
       try {
         if (!id) {
@@ -387,12 +364,10 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
           }
         }
 
-        // Make sure provider is initialized
         if (!isInitialized) {
           await this.initialize()
         }
 
-        // Create headers with API key
         const headers: Record<string, string> = {
           'Authorization': `Bearer ${options.apiKey}`,
           'Content-Type': 'application/json',
@@ -400,7 +375,6 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
 
         debug('Retrieving email details', { id })
 
-        // Send request with retry capability
         const result = await retry(
           async () => makeRequest(
             `${options.endpoint}/emails/${id}`,
@@ -445,3 +419,5 @@ export const resendProvider: ProviderFactory<ResendConfig, any, ResendEmailOptio
     },
   }
 })
+
+export default resendProvider

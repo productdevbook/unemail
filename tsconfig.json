@@ -1,38 +1,31 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ESNext"],
-    "rootDir": ".",
+    "composite": true,
+    "target": "ESNext",
+    "moduleDetection": "force",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "paths": {
-      "unemail": [
-        "./src/index.ts"
-      ],
-      "unemail/providers/*": [
-        "./src/providers/*/index.ts"
-      ],
-      "unemail/types": [
-        "./src/types/index.ts"
-      ],
-      "unemail/utils": [
-        "./src/utils/index.ts"
-      ]
+      "unemail": ["./src/index.ts"],
+      "unemail/providers/*": ["./src/providers/*.ts"],
+      "unemail/types": ["./src/types.ts"],
+      "unemail/utils": ["./src/utils.ts"]
     },
     "resolveJsonModule": true,
-    "types": ["node", "vitest/globals"],
+    "types": ["node"],
     "allowImportingTsExtensions": true,
     "strict": true,
-    "declaration": true,
+    "noImplicitAny": false,
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
     "noEmit": true,
-    "outDir": "dist",
+    "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
-    "isolatedDeclarations": true,
-    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": false,
     "verbatimModuleSyntax": true,
-    "skipDefaultLibCheck": true,
+    "erasableSyntaxOnly": true,
     "skipLibCheck": true
   },
-  "include": ["src", "test", "playground"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src", "test", "playground"]
 }

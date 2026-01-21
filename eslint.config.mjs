@@ -5,6 +5,7 @@ export default antfu(
     ignores: [
       '**/dist',
       '.github/copilot-instructions.md',
+      'unstorage',
     ],
   },
   {

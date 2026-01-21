@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { createEmailService } from '../src/core.ts'
-import smtpProvider from '../src/providers/smtp/index.ts'
+import { createEmailService } from '../src/email.ts'
+import smtpProvider from '../src/providers/smtp.ts'
 
 describe('smtp Authentication Timeout', () => {
   it('should timeout and return error when using incorrect credentials', async () => {

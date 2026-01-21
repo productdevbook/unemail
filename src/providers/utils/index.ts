@@ -1,10 +1,4 @@
-import type {
-  EmailOptions,
-  EmailResult,
-  FeatureFlags,
-  MaybePromise,
-  Result,
-} from 'unemail/types'
+import type { EmailOptions, EmailResult, FeatureFlags, MaybePromise, Result } from '../../types.ts'
 
 /**
  * Standard provider interface for email services
@@ -40,4 +34,46 @@ export function defineProvider<OptionsT = any, InstanceT = any, EmailOptionsT ex
   factory: ProviderFactory<OptionsT, InstanceT, EmailOptionsT>,
 ): ProviderFactory<OptionsT, InstanceT, EmailOptionsT> {
   return factory
+}
+
+interface ErrorOptions {
+  cause?: Error
+  code?: string
+}
+
+/**
+ * Creates a formatted error message
+ *
+ * @param component The component where the error occurred
+ * @param message Error message
+ * @param opts Additional error options
+ * @returns Error object
+ */
+export function createError(
+  component: string,
+  message: string,
+  opts?: ErrorOptions,
+): Error {
+  const err = new Error(`[unemail] [${component}] ${message}`, opts)
+  if (Error.captureStackTrace) {
+    Error.captureStackTrace(err, createError)
+  }
+  return err
+}
+
+/**
+ * Creates an error for missing required options
+ *
+ * @param component The component where the error occurred
+ * @param name Name of the missing option(s)
+ * @returns Error object
+ */
+export function createRequiredError(component: string, name: string | string[]): Error {
+  if (Array.isArray(name)) {
+    return createError(
+      component,
+      `Missing required options: ${name.map(n => `'${n}'`).join(', ')}`,
+    )
+  }
+  return createError(component, `Missing required option: '${name}'`)
 }

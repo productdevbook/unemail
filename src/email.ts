@@ -1,25 +1,24 @@
+import type { Provider, ProviderFactory } from './providers/utils/index.ts'
 import type {
   BaseConfig,
   EmailOptions,
   EmailResult,
   EmailServiceConfig,
   Result,
-} from 'unemail/types'
-import type { Provider, ProviderFactory } from './providers/provider.ts'
-import smtpProvider from 'unemail/providers/smtp'
-import { createError } from 'unemail/utils'
+} from './types.ts'
+import smtpProvider from './providers/smtp.ts'
+import { createError } from './utils.ts'
 
 // Import default provider
-// Instead of using mailcrab, use smtp provider as default
 const DEFAULT_PROVIDER = smtpProvider
 
 /**
  * Provider options - can be a provider factory, instance, or config with a provider name
  */
 type ProviderOption<ConfigT = any, InstanceT = any, OptsT extends EmailOptions = EmailOptions>
-  = | Provider<ConfigT, InstanceT, OptsT> // Direct provider instance
-    | ProviderFactory<ConfigT, InstanceT, OptsT> // Provider factory function
-    | { name: string, options?: Record<string, any> } // Legacy provider by name
+  = | Provider<ConfigT, InstanceT, OptsT>
+    | ProviderFactory<ConfigT, InstanceT, OptsT>
+    | { name: string, options?: Record<string, any> }
 
 interface EmailServiceOptions<ConfigT = any, InstanceT = any, OptsT extends EmailOptions = EmailOptions> extends BaseConfig {
   provider?: ProviderOption<ConfigT, InstanceT, OptsT>
@@ -57,26 +56,20 @@ export class EmailService<OptsT extends EmailOptions = EmailOptions> {
       try {
         const providerOption = this.options.provider || DEFAULT_PROVIDER
 
-        // Note: We removed the 'string' case since DEFAULT_PROVIDER is now a function
         if (typeof providerOption === 'function') {
-          // Provider factory function
           const config = this.options.config?.options || {}
 
-          // When using the default SMTP provider, ensure we have at least a default host and port
           if (providerOption === DEFAULT_PROVIDER && !('host' in config)) {
-            // Add minimal required fields for SmtpConfig when using default provider
             (config as any).host = 'localhost';
-            (config as any).port = 1025 // Default MailCrab port
+            (config as any).port = 1025
           }
 
           this.provider = providerOption(config as any)
         }
         else if (providerOption && typeof providerOption === 'object' && 'initialize' in providerOption) {
-          // Direct provider instance
           this.provider = providerOption as Provider<any, any, OptsT>
         }
         else if (providerOption && typeof providerOption === 'object' && 'name' in providerOption) {
-          // Legacy format with name and options
           throw new Error(`Provider specification with name property is no longer supported. Please import the provider directly and pass the provider instance or factory.`)
         }
         else {
@@ -142,12 +135,10 @@ export class EmailService<OptsT extends EmailOptions = EmailOptions> {
    */
   async sendEmail(options: OptsT): Promise<Result<EmailResult>> {
     try {
-      // Ensure service is initialized
       if (!this.initialized) {
         await this.initialize()
       }
 
-      // Get provider and send email
       const provider = await this.getProvider()
       return await provider.sendEmail(options)
     }
@@ -170,20 +161,16 @@ export class EmailService<OptsT extends EmailOptions = EmailOptions> {
    */
   async validateCredentials(): Promise<boolean> {
     try {
-      // Ensure service is initialized
       if (!this.initialized) {
         await this.initialize()
       }
 
-      // Get provider
       const provider = await this.getProvider()
 
-      // Validate credentials if provider supports it
       if (provider.validateCredentials) {
         return await provider.validateCredentials()
       }
 
-      // Assume valid if provider doesn't implement validation
       return true
     }
     catch (error) {
