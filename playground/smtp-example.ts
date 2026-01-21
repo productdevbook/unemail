@@ -35,8 +35,12 @@ const smtpInstance = smtpProvider({
   host: process.env.SMTP_HOST || 'smtp.example.com',
   port: process.env.SMTP_PORT ? Number.parseInt(process.env.SMTP_PORT, 10) : 587,
   secure: process.env.SMTP_SECURE === 'true',
-  user: process.env.SMTP_USER,
-  password: process.env.SMTP_PASSWORD,
+  auth: process.env.SMTP_USER
+    ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD ?? '',
+      }
+    : undefined,
 })
 
 // Create an email service with the SMTP provider instance
@@ -142,9 +146,7 @@ async function sendDsnPriorityEmail(): Promise<Result<EmailResult>> {
     // SMTP-specific options
     priority: 'high',
     dsn: {
-      success: true,
-      failure: true,
-      delay: true,
+      notify: ['success', 'failure', 'delay'],
     },
   })
 }

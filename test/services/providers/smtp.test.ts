@@ -1,100 +1,55 @@
 import type { SmtpEmailOptions } from 'unemail/providers/smtp'
-import type { EmailOptions, EmailResult, Result } from 'unemail/types'
+import type { EmailOptions } from 'unemail/types'
 import { Buffer } from 'node:buffer'
 import smtpProvider from 'unemail/providers/smtp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock the modules
-vi.mock('node:net', () => ({
-  Socket: vi.fn(() => ({
-    on: vi.fn().mockReturnThis(),
-    once: vi.fn().mockReturnThis(),
-    setTimeout: vi.fn(),
-    write: vi.fn().mockReturnValue(true),
-    end: vi.fn(),
-    destroy: vi.fn(),
-  })),
-  createConnection: vi.fn(() => ({
-    on: vi.fn().mockReturnThis(),
-    once: vi.fn((event, callback) => {
-      if (event === 'data') {
-        setTimeout(() => callback(Buffer.from('220 smtp.example.com ESMTP ready\r\n')), 0)
-      }
-      return {
-        on: vi.fn().mockReturnThis(),
-        once: vi.fn().mockReturnThis(),
-        setTimeout: vi.fn(),
-        write: vi.fn().mockReturnValue(true),
-        end: vi.fn(),
-        destroy: vi.fn(),
-      }
+// Hoist the mock transporter to be available during vi.mock
+const { mockTransporter } = vi.hoisted(() => {
+  const mockTransporter = {
+    verify: vi.fn().mockResolvedValue(true),
+    sendMail: vi.fn().mockResolvedValue({
+      messageId: 'test-message-id@example.com',
+      accepted: ['recipient@example.com'],
+      rejected: [],
+      response: '250 OK',
     }),
-    setTimeout: vi.fn(),
-    write: vi.fn().mockReturnValue(true),
-    end: vi.fn(),
-    destroy: vi.fn(),
-  })),
-}))
-
-vi.mock('node:tls', () => ({
-  connect: vi.fn(() => ({
-    on: vi.fn().mockReturnThis(),
-    once: vi.fn((event, callback) => {
-      if (event === 'data') {
-        setTimeout(() => callback(Buffer.from('220 smtp.example.com ESMTP ready\r\n')), 0)
-      }
-      if (event === 'secure') {
-        setTimeout(() => callback(), 0)
-      }
-      return {
-        on: vi.fn().mockReturnThis(),
-        once: vi.fn().mockReturnThis(),
-        setTimeout: vi.fn(),
-        write: vi.fn().mockReturnValue(true),
-        end: vi.fn(),
-        destroy: vi.fn(),
-      }
-    }),
-    setTimeout: vi.fn(),
-    write: vi.fn().mockReturnValue(true),
-    end: vi.fn(),
-    destroy: vi.fn(),
-  })),
-}))
-
-vi.mock('node:crypto', () => ({
-  createHmac: vi.fn().mockReturnValue({
-    update: vi.fn().mockReturnThis(),
-    digest: vi.fn().mockReturnValue('md5digest'),
-  }),
-  createHash: vi.fn().mockReturnValue({
-    update: vi.fn().mockReturnThis(),
-    digest: vi.fn().mockReturnValue('sha256hash'),
-  }),
-  createSign: vi.fn().mockReturnValue({
-    update: vi.fn().mockReturnThis(),
-    sign: vi.fn().mockReturnValue('dkim-signature'),
-  }),
-}))
-
-// Mock the utility functions directly
-vi.mock('unemail/utils', async () => {
-  return {
-    isPortAvailable: vi.fn().mockResolvedValue(true),
-    createError: vi.fn((component, message) => new Error(`[unemail] [${component}] ${message}`)),
-    createRequiredError: vi.fn((component, name) =>
-      new Error(`[unemail] [${component}] Missing required option: '${name}'`)),
-    generateMessageId: vi.fn().mockReturnValue('test-message-id@example.com'),
-    buildMimeMessage: vi.fn().mockReturnValue('MIME-Version: 1.0\r\nContent-Type: text/plain\r\n\r\nTest content'),
-    validateEmailOptions: vi.fn().mockReturnValue([]), // No validation errors by default
+    close: vi.fn(),
   }
+  return { mockTransporter }
 })
+
+// Mock nodemailer
+vi.mock('nodemailer', () => ({
+  default: {
+    createTransport: vi.fn(() => mockTransporter),
+  },
+  createTransport: vi.fn(() => mockTransporter),
+}))
+
+// Mock the utility functions
+vi.mock('unemail/utils', () => ({
+  createError: vi.fn((component, message) => new Error(`[unemail] [${component}] ${message}`)),
+  createRequiredError: vi.fn((component, name) =>
+    new Error(`[unemail] [${component}] Missing required option: '${name}'`)),
+  validateEmailOptions: vi.fn().mockReturnValue([]), // No validation errors by default
+}))
 
 describe('sMTP Provider', () => {
   let provider: ReturnType<typeof smtpProvider>
 
   beforeEach(() => {
     vi.clearAllMocks()
+
+    // Reset mock implementations
+    mockTransporter.verify.mockResolvedValue(true)
+    mockTransporter.sendMail.mockResolvedValue({
+      messageId: 'test-message-id@example.com',
+      accepted: ['recipient@example.com'],
+      rejected: [],
+      response: '250 OK',
+    })
+    mockTransporter.close.mockReset()
 
     // Create a fresh provider instance with default options
     provider = smtpProvider({
@@ -111,22 +66,22 @@ describe('sMTP Provider', () => {
     expect(provider.options!.secure).toBe(false)
   })
 
-  it('should use default ports based on secure option', () => {
+  it('should use provided ports', () => {
     const secureProvider = smtpProvider({
       host: 'smtp.example.com',
-      port: 465, // Explicitly include port since it's required by SmtpConfig
+      port: 465,
       secure: true,
     })
 
-    expect(secureProvider.options!.port).toBe(465) // Default secure port
+    expect(secureProvider.options!.port).toBe(465)
+    expect(secureProvider.options!.secure).toBe(true)
 
     const insecureProvider = smtpProvider({
       host: 'smtp.example.com',
-      port: 25, // Explicitly include port since it's required by SmtpConfig
+      port: 25,
     })
 
-    expect(insecureProvider.options!.secure).toBe(false)
-    expect(insecureProvider.options!.port).toBe(25) // Default insecure port
+    expect(insecureProvider.options!.port).toBe(25)
   })
 
   it('should throw error if host is not provided', () => {
@@ -134,49 +89,34 @@ describe('sMTP Provider', () => {
   })
 
   it('should check if SMTP server is available', async () => {
-    // Override isAvailable for this test
-    const isAvailableSpy = vi.spyOn(provider, 'isAvailable')
-    isAvailableSpy.mockResolvedValueOnce(true)
+    const result = await provider.isAvailable()
+
+    expect(result).toBe(true)
+    expect(mockTransporter.verify).toHaveBeenCalled()
+  })
+
+  it('should return false if SMTP server is not available', async () => {
+    mockTransporter.verify.mockRejectedValueOnce(new Error('Connection refused'))
 
     const result = await provider.isAvailable()
-    expect(result).toBe(true)
+
+    expect(result).toBe(false)
+    expect(mockTransporter.verify).toHaveBeenCalled()
   })
 
   it('should initialize the provider', async () => {
-    // Mock the availability check
-    const isAvailableSpy = vi.spyOn(provider, 'isAvailable')
-    isAvailableSpy.mockResolvedValueOnce(true)
-
     await provider.initialize()
-    expect(isAvailableSpy).toHaveBeenCalledTimes(1)
+
+    expect(mockTransporter.verify).toHaveBeenCalled()
   })
 
   it('should throw error if SMTP server is not available during initialization', async () => {
-    // Mock the availability check to return false
-    const isAvailableSpy = vi.spyOn(provider, 'isAvailable')
-    isAvailableSpy.mockResolvedValueOnce(false)
+    mockTransporter.verify.mockRejectedValueOnce(new Error('Connection refused'))
 
-    await expect(provider.initialize()).rejects.toThrow('SMTP server not available')
+    await expect(provider.initialize()).rejects.toThrow('Failed to initialize')
   })
 
   it('should send an email via SMTP', async () => {
-    // Mock the sendEmail method to avoid actual SMTP connection
-    const sendEmailSpy = vi.spyOn(provider, 'sendEmail')
-
-    const mockResult: Result<EmailResult> = {
-      success: true,
-      data: {
-        messageId: 'test-message-id@example.com',
-        sent: true,
-        timestamp: new Date(),
-        provider: 'smtp',
-        response: 'Message accepted',
-      },
-    }
-
-    // Set up the mock implementation
-    sendEmailSpy.mockResolvedValueOnce(mockResult)
-
     // Create test email options
     const emailOptions: EmailOptions = {
       from: { email: 'test@example.com', name: 'Test Sender' },
@@ -197,8 +137,16 @@ describe('sMTP Provider', () => {
       expect(result.data.provider).toBe('smtp')
     }
 
-    // Restore the original method
-    sendEmailSpy.mockRestore()
+    // Verify nodemailer was called
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from: '"Test Sender" <test@example.com>',
+        to: '"Test Recipient" <recipient@example.com>',
+        subject: 'Test Email',
+        text: 'This is a test email',
+        html: '<p>This is a test email</p>',
+      }),
+    )
   })
 
   it('should validate email options before sending', async () => {
@@ -206,8 +154,7 @@ describe('sMTP Provider', () => {
     const utils = await import('unemail/utils')
 
     // Mock validateEmailOptions to return errors
-    const mockValidateEmailOptions = vi.spyOn(utils, 'validateEmailOptions')
-    mockValidateEmailOptions.mockReturnValueOnce(['subject is required', 'content is required'])
+    vi.mocked(utils.validateEmailOptions).mockReturnValueOnce(['subject is required', 'content is required'])
 
     // Missing required fields
     const invalidOptions: EmailOptions = {
@@ -222,21 +169,13 @@ describe('sMTP Provider', () => {
     expect(result.success).toBe(false)
     expect(result.error?.message).toContain('Invalid email options')
 
-    // Restore the original method
-    mockValidateEmailOptions.mockRestore()
+    // sendMail should not have been called
+    expect(mockTransporter.sendMail).not.toHaveBeenCalled()
   })
 
   it('should handle SMTP errors during sending', async () => {
-    // Mock the sendEmail method to simulate an error
-    const sendEmailSpy = vi.spyOn(provider, 'sendEmail')
-
-    const mockResult: Result<EmailResult> = {
-      success: false,
-      error: new Error('[unemail] [smtp] Failed to send email: Connection refused'),
-    }
-
-    // Set up the mock implementation to return an error
-    sendEmailSpy.mockResolvedValueOnce(mockResult)
+    // Mock sendMail to throw an error
+    mockTransporter.sendMail.mockRejectedValueOnce(new Error('Connection refused'))
 
     // Create test email options
     const emailOptions: EmailOptions = {
@@ -251,9 +190,6 @@ describe('sMTP Provider', () => {
 
     expect(result.success).toBe(false)
     expect(result.error?.message).toContain('Failed to send email')
-
-    // Restore the original method
-    sendEmailSpy.mockRestore()
   })
 
   it('should validate credentials successfully', async () => {
@@ -261,59 +197,38 @@ describe('sMTP Provider', () => {
     const providerWithCredentials = smtpProvider({
       host: 'smtp.example.com',
       port: 587,
-      user: 'testuser',
-      password: 'testpass',
+      auth: {
+        user: 'testuser',
+        pass: 'testpass',
+      },
     })
 
-    // Only test if validateCredentials exists on the provider
-    if (typeof providerWithCredentials.validateCredentials === 'function') {
-      // Replace the entire function instead of using mockResolvedValueOnce
-      const originalValidateCredentials = providerWithCredentials.validateCredentials
-      providerWithCredentials.validateCredentials = async () => true
+    // Call validateCredentials method
+    const result = await providerWithCredentials.validateCredentials!()
 
-      // Call validateCredentials method
-      const result = await providerWithCredentials.validateCredentials()
-
-      // Validation should succeed
-      expect(result).toBe(true)
-
-      // Restore original function
-      providerWithCredentials.validateCredentials = originalValidateCredentials
-    }
-    else {
-      // Skip if validateCredentials is not available
-      console.warn('validateCredentials method not available, skipping test')
-    }
+    // Validation should succeed (uses isAvailable internally)
+    expect(result).toBe(true)
+    expect(mockTransporter.verify).toHaveBeenCalled()
   })
 
   it('should handle validateCredentials failure', async () => {
+    mockTransporter.verify.mockRejectedValueOnce(new Error('Auth failed'))
+
     // Create a provider with credentials
     const providerWithCredentials = smtpProvider({
       host: 'smtp.example.com',
       port: 587,
-      user: 'testuser',
-      password: 'testpass',
+      auth: {
+        user: 'testuser',
+        pass: 'testpass',
+      },
     })
 
-    // Only test if validateCredentials exists on the provider
-    if (typeof providerWithCredentials.validateCredentials === 'function') {
-      // Replace the entire function instead of using mockResolvedValueOnce
-      const originalValidateCredentials = providerWithCredentials.validateCredentials
-      providerWithCredentials.validateCredentials = async () => false
+    // Call validateCredentials method
+    const result = await providerWithCredentials.validateCredentials!()
 
-      // Call validateCredentials method
-      const result = await providerWithCredentials.validateCredentials()
-
-      // Validation should fail
-      expect(result).toBe(false)
-
-      // Restore original function
-      providerWithCredentials.validateCredentials = originalValidateCredentials
-    }
-    else {
-      // Skip if validateCredentials is not available
-      console.warn('validateCredentials method not available, skipping test')
-    }
+    // Validation should fail
+    expect(result).toBe(false)
   })
 
   it('should create a provider instance with advanced options', () => {
@@ -321,7 +236,9 @@ describe('sMTP Provider', () => {
       host: 'smtp.example.com',
       port: 587,
       secure: false,
-      rejectUnauthorized: false,
+      tls: {
+        rejectUnauthorized: false,
+      },
       pool: true,
       maxConnections: 10,
       authMethod: 'CRAM-MD5',
@@ -333,41 +250,20 @@ describe('sMTP Provider', () => {
     })
 
     expect(advancedProvider.name).toBe('smtp')
-    expect(advancedProvider.options!.rejectUnauthorized).toBe(false)
+    expect(advancedProvider.options!.tls?.rejectUnauthorized).toBe(false)
     expect(advancedProvider.options!.pool).toBe(true)
     expect(advancedProvider.options!.maxConnections).toBe(10)
     expect(advancedProvider.options!.authMethod).toBe('CRAM-MD5')
     expect(advancedProvider.options!.dkim).toBeDefined()
     expect(advancedProvider.options!.dkim!.domainName).toBe('example.com')
-    expect(advancedProvider.features?.batchSending).toBe(true) // Added null check with ?
   })
 
   it('should use default values for advanced options if not provided', () => {
-    expect(provider.options!.rejectUnauthorized).toBe(true)
-    expect(provider.options!.pool).toBe(false)
-    expect(provider.options!.maxConnections).toBe(5)
-    expect(provider.features?.batchSending).toBe(false) // Added null check with ?
+    expect(provider.options!.pool).toBeUndefined()
   })
 
-  it('should send an email with special Gmail headers', async () => {
-    // Mock the sendEmail method to avoid actual SMTP connection
-    const sendEmailSpy = vi.spyOn(provider, 'sendEmail')
-
-    const mockResult: Result<EmailResult> = {
-      success: true,
-      data: {
-        messageId: 'test-message-id@example.com',
-        sent: true,
-        timestamp: new Date(),
-        provider: 'smtp',
-        response: 'Message accepted',
-      },
-    }
-
-    // Set up the mock implementation
-    sendEmailSpy.mockResolvedValueOnce(mockResult)
-
-    // Create test email options with Gmail-specific headers
+  it('should send an email with special headers', async () => {
+    // Create test email options with additional headers
     const emailOptions: SmtpEmailOptions = {
       from: { email: 'test@example.com', name: 'Test Sender' },
       to: { email: 'recipient@example.com', name: 'Test Recipient' },
@@ -377,12 +273,6 @@ describe('sMTP Provider', () => {
       inReplyTo: '<previous-message-id@example.com>',
       references: ['<ref1@example.com>', '<ref2@example.com>'],
       listUnsubscribe: 'mailto:unsubscribe@example.com',
-      googleMailHeaders: {
-        promotionalContent: true,
-        feedbackId: 'campaign:12345',
-        category: 'promotions',
-      },
-      useDkim: true,
     }
 
     // Send email
@@ -391,34 +281,147 @@ describe('sMTP Provider', () => {
     // Verify the result structure
     expect(result.success).toBe(true)
 
-    // Restore the original method
-    sendEmailSpy.mockRestore()
+    // Verify sendMail was called with the correct options
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        inReplyTo: '<previous-message-id@example.com>',
+        references: ['<ref1@example.com>', '<ref2@example.com>'],
+        list: {
+          unsubscribe: 'mailto:unsubscribe@example.com',
+        },
+      }),
+    )
   })
 
   it('should support extended authentication options', () => {
-    const providerWithOAuth2 = smtpProvider({
+    const providerWithAuth = smtpProvider({
       host: 'smtp.example.com',
       port: 587,
       authMethod: 'OAUTH2',
-      oauth2: {
+      auth: {
+        type: 'oauth2' as const,
         user: 'user@example.com',
-        clientId: 'client-id',
-        clientSecret: 'client-secret',
-        refreshToken: 'refresh-token',
-        accessToken: 'access-token',
-        expires: Date.now() + 3600000,
+        pass: '',
       },
     })
 
-    expect(providerWithOAuth2.options!.authMethod).toBe('OAUTH2')
-    expect(providerWithOAuth2.options!.oauth2).toBeDefined()
-    expect(providerWithOAuth2.options!.oauth2!.user).toBe('user@example.com')
+    expect(providerWithAuth.options!.authMethod).toBe('OAUTH2')
+    expect(providerWithAuth.options!.auth).toBeDefined()
+    expect(providerWithAuth.options!.auth!.user).toBe('user@example.com')
   })
 
-  it('should add shutdown method to properly clean up resources', () => {
-    // Check if shutdown exists as a property on the provider object
-    expect('shutdown' in provider).toBe(true)
-    // Use the 'as any' type assertion to avoid TypeScript errors since shutdown is not in the interface
-    expect(typeof (provider as any).shutdown).toBe('function')
+  it('should have close method to properly clean up resources', async () => {
+    // Cast to include close method which is SMTP-specific
+    const smtpProviderWithClose = provider as typeof provider & { close: () => Promise<void> }
+
+    // Check if close exists as a property on the provider object
+    expect('close' in provider).toBe(true)
+    expect(typeof smtpProviderWithClose.close).toBe('function')
+
+    // First initialize to create transporter
+    await provider.initialize()
+
+    // Call close
+    await smtpProviderWithClose.close()
+
+    // Verify transporter.close was called
+    expect(mockTransporter.close).toHaveBeenCalled()
+  })
+
+  it('should handle multiple recipients', async () => {
+    const emailOptions: EmailOptions = {
+      from: { email: 'test@example.com' },
+      to: [
+        { email: 'recipient1@example.com', name: 'Recipient 1' },
+        { email: 'recipient2@example.com', name: 'Recipient 2' },
+      ],
+      cc: { email: 'cc@example.com' },
+      bcc: [{ email: 'bcc@example.com' }],
+      subject: 'Test Email',
+      text: 'This is a test email',
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: ['"Recipient 1" <recipient1@example.com>', '"Recipient 2" <recipient2@example.com>'],
+        cc: 'cc@example.com',
+        bcc: ['bcc@example.com'],
+      }),
+    )
+  })
+
+  it('should handle attachments', async () => {
+    const emailOptions: EmailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email with Attachment',
+      text: 'This email has an attachment',
+      attachments: [
+        {
+          filename: 'test.txt',
+          content: Buffer.from('Test content'),
+          contentType: 'text/plain',
+        },
+      ],
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attachments: expect.arrayContaining([
+          expect.objectContaining({
+            filename: 'test.txt',
+            contentType: 'text/plain',
+          }),
+        ]),
+      }),
+    )
+  })
+
+  it('should handle DSN options', async () => {
+    const emailOptions: SmtpEmailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email with DSN',
+      text: 'This email requests delivery status notification',
+      dsn: {
+        notify: ['success', 'failure', 'delay'],
+      },
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dsn: {
+          notify: ['success', 'failure', 'delay'],
+        },
+      }),
+    )
+  })
+
+  it('should handle priority option', async () => {
+    const emailOptions: SmtpEmailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'High Priority Email',
+      text: 'This is a high priority email',
+      priority: 'high',
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockTransporter.sendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        priority: 'high',
+      }),
+    )
   })
 })

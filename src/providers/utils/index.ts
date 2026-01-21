@@ -1,11 +1,10 @@
-import type { EmailOptions, EmailResult, FeatureFlags, MaybePromise, Result } from '../../types.ts'
+import type { EmailOptions, EmailResult, MaybePromise, Result } from '../../types.ts'
 
 /**
  * Standard provider interface for email services
  */
 export interface Provider<OptionsT = any, InstanceT = any, EmailOptionsT extends EmailOptions = EmailOptions> {
   name?: string
-  features?: FeatureFlags
   options?: OptionsT
   getInstance?: () => InstanceT
 

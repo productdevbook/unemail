@@ -1,134 +1,110 @@
-import type { ClientRequest, IncomingMessage } from 'node:http'
 import type { EmailOptions } from 'unemail/types'
-import { Buffer } from 'node:buffer'
-import * as https from 'node:https'
 import awsSesProvider from 'unemail/providers/aws-ses'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Create request and response mocks
-const mockRequest = {
-  on: vi.fn().mockReturnThis(),
-  write: vi.fn(),
-  end: vi.fn(),
-} as unknown as ClientRequest
+// Hoist the mock objects to be available during vi.mock
+const { mockSend, MockSESClient } = vi.hoisted(() => {
+  const mockSend = vi.fn()
 
-const mockResponse = {
-  on: vi.fn().mockImplementation((event, callback) => {
-    if (event === 'data') {
-      // Will be called with data chunks
-      callback('<SendEmailResponse><SendEmailResult><MessageId>test-message-id-123456</MessageId></SendEmailResult></SendEmailResponse>')
-    }
-    if (event === 'end') {
-      // Will be called when response ends
-      callback()
-    }
-    return mockResponse
-  }),
-  statusCode: 200,
-} as unknown as IncomingMessage
+  class MockSESClient {
+    send = mockSend
+    constructor(_config: any) {}
+  }
 
-// Mock https module
-vi.mock('node:https', () => ({
-  request: vi.fn(),
+  return { mockSend, MockSESClient }
+})
+
+// Mock @aws-sdk/client-ses
+vi.mock('@aws-sdk/client-ses', () => ({
+  SESClient: MockSESClient,
+  SendRawEmailCommand: class SendRawEmailCommand {
+    input: any
+    type = 'SendRawEmailCommand'
+    constructor(input: any) {
+      this.input = input
+    }
+  },
+  GetSendQuotaCommand: class GetSendQuotaCommand {
+    type = 'GetSendQuotaCommand'
+    constructor() {}
+  },
 }))
 
-// Mock crypto module - we're not testing the actual cryptography
+// Mock crypto module
 vi.mock('node:crypto', () => ({
-  createHash: vi.fn().mockReturnValue({
-    update: vi.fn().mockReturnThis(),
-    digest: vi.fn().mockReturnValue('mocked-hash'),
-  }),
-  createHmac: vi.fn().mockReturnValue({
-    update: vi.fn().mockReturnThis(),
-    digest: vi.fn().mockImplementation(() => Buffer.from('mocked-hmac-digest')),
-  }),
-  randomBytes: vi.fn().mockReturnValue({
-    toString: vi.fn().mockReturnValue('random-string'),
-  }),
-  // Add missing randomUUID function
   randomUUID: vi.fn().mockReturnValue('mocked-uuid-v4'),
 }))
 
-describe('aWS SES Provider (Zero-Dependency)', () => {
+// Mock the utility functions
+vi.mock('unemail/utils', () => ({
+  createError: (component: string, message: string) => new Error(`[unemail] [${component}] ${message}`),
+  createRequiredError: (component: string, name: string) => new Error(`[unemail] [${component}] Missing required option: '${name}'`),
+  validateEmailOptions: vi.fn().mockReturnValue([]),
+}))
+
+describe('aWS SES Provider', () => {
   let provider: ReturnType<typeof awsSesProvider>
 
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Set up default mock for https.request
-    vi.mocked(https.request).mockImplementation((...args) => {
-      // Extract the callback function which might be in different positions
-      const callback = args.find(arg => typeof arg === 'function') as ((res: IncomingMessage) => void) | undefined
+    // Reset mock implementations
+    mockSend.mockReset()
 
-      // Call the callback if it exists
-      if (callback) {
-        callback(mockResponse)
+    // Default mock for GetSendQuotaCommand
+    mockSend.mockImplementation((command) => {
+      if (command.type === 'GetSendQuotaCommand') {
+        return Promise.resolve({
+          Max24HourSend: 200,
+          MaxSendRate: 10,
+          SentLast24Hours: 0,
+        })
       }
-
-      return mockRequest
-    })
-
-    // Set up response for GetSendQuota (availability check)
-    mockResponse.on = vi.fn().mockImplementation((event, callback) => {
-      if (event === 'data') {
-        callback('<GetSendQuotaResponse><GetSendQuotaResult><Max24HourSend>200</Max24HourSend></GetSendQuotaResult></GetSendQuotaResponse>')
+      if (command.type === 'SendRawEmailCommand') {
+        return Promise.resolve({
+          MessageId: 'test-message-id-123456',
+        })
       }
-      if (event === 'end') {
-        callback()
-      }
-      return mockResponse
+      return Promise.resolve({})
     })
 
     // Create a fresh provider instance with test options
     provider = awsSesProvider({
       region: 'us-east-1',
-      accessKeyId: 'test-key-id',
-      secretAccessKey: 'test-secret-key',
+      credentials: {
+        accessKeyId: 'test-key-id',
+        secretAccessKey: 'test-secret-key',
+      },
     })
   })
 
   it('should create a provider instance with correct defaults', () => {
     expect(provider.name).toBe('aws-ses')
     expect(provider.options!.region).toBe('us-east-1')
-    expect(provider.options!.accessKeyId).toBe('test-key-id')
-    expect(provider.options!.secretAccessKey).toBe('test-secret-key')
-    expect(provider.options!.maxAttempts).toBe(3)
+    const creds = provider.options!.credentials as { accessKeyId: string, secretAccessKey: string } | undefined
+    expect(creds?.accessKeyId).toBe('test-key-id')
+    expect(creds?.secretAccessKey).toBe('test-secret-key')
+  })
+
+  it('should throw error if region is not provided', () => {
+    expect(() => awsSesProvider({} as any)).toThrow('[unemail] [aws-ses] Missing required option: \'region\'')
   })
 
   it('should check if AWS SES is available', async () => {
     const result = await provider.isAvailable()
 
     expect(result).toBe(true)
-    expect(https.request).toHaveBeenCalled()
-    expect(mockRequest.end).toHaveBeenCalled()
+    expect(mockSend).toHaveBeenCalled()
   })
 
   it('should handle errors when checking availability', async () => {
-    // Make the request fail
-    const errorResponse = { ...mockResponse, statusCode: 400 } as unknown as IncomingMessage
-    vi.mocked(https.request).mockImplementationOnce((...args) => {
-      // Extract the callback function
-      const callback = args.find(arg => typeof arg === 'function') as ((res: IncomingMessage) => void) | undefined
-
-      // Call the callback with error response if it exists
-      if (callback) {
-        callback(errorResponse)
-      }
-
-      return {
-        ...mockRequest,
-        on: vi.fn().mockImplementation((event, callback) => {
-          if (event === 'error')
-            callback(new Error('Connection failed'))
-          return mockRequest
-        }),
-      } as unknown as ClientRequest
-    })
+    // Make the send fail
+    mockSend.mockRejectedValueOnce(new Error('Connection failed'))
 
     const result = await provider.isAvailable()
 
     expect(result).toBe(false)
-    expect(https.request).toHaveBeenCalled()
+    expect(mockSend).toHaveBeenCalled()
   })
 
   it('should initialize the provider', async () => {
@@ -139,33 +115,19 @@ describe('aWS SES Provider (Zero-Dependency)', () => {
   })
 
   it('should validate credentials successfully', async () => {
-    // Mock the isAvailable method for this test
-    vi.spyOn(provider, 'isAvailable').mockResolvedValueOnce(true)
+    const result = await provider.validateCredentials!()
+    expect(result).toBe(true)
+    expect(mockSend).toHaveBeenCalled()
+  })
 
-    // Only run this test if validateCredentials is available
-    if (provider.validateCredentials) {
-      const result = await provider.validateCredentials()
-      expect(result).toBe(true)
-      expect(provider.isAvailable).toHaveBeenCalledTimes(1)
-    }
-    else {
-      // Skip test if method is not available
-      console.log('validateCredentials not available, skipping test')
-    }
+  it('should handle validateCredentials failure', async () => {
+    mockSend.mockRejectedValueOnce(new Error('Invalid credentials'))
+
+    const result = await provider.validateCredentials!()
+    expect(result).toBe(false)
   })
 
   it('should send an email via AWS SES', async () => {
-    // Set up response for SendEmail
-    mockResponse.on = vi.fn().mockImplementation((event, callback) => {
-      if (event === 'data') {
-        callback('<SendEmailResponse><SendEmailResult><MessageId>test-message-id-123456</MessageId></SendEmailResult></SendEmailResponse>')
-      }
-      if (event === 'end') {
-        callback()
-      }
-      return mockResponse
-    })
-
     // Create test email options
     const emailOptions: EmailOptions = {
       from: { email: 'test@example.com', name: 'Test Sender' },
@@ -187,24 +149,11 @@ describe('aWS SES Provider (Zero-Dependency)', () => {
     expect(result.data?.provider).toBe('aws-ses')
     expect(result.data?.messageId).toBe('test-message-id-123456')
 
-    // Verify that https request was made
-    expect(https.request).toHaveBeenCalled()
-    expect(mockRequest.write).toHaveBeenCalled()
-    expect(mockRequest.end).toHaveBeenCalled()
+    // Verify SES client was called
+    expect(mockSend).toHaveBeenCalled()
   })
 
   it('should handle complex email addresses', async () => {
-    // Set up response for SendEmail with multiple recipients
-    mockResponse.on = vi.fn().mockImplementation((event, callback) => {
-      if (event === 'data') {
-        callback('<SendEmailResponse><SendEmailResult><MessageId>multi-recipient-id</MessageId></SendEmailResult></SendEmailResponse>')
-      }
-      if (event === 'end') {
-        callback()
-      }
-      return mockResponse
-    })
-
     // Create test email with multiple recipients
     const emailOptions: EmailOptions = {
       from: { email: 'test@example.com', name: 'Test Sender' },
@@ -223,17 +172,19 @@ describe('aWS SES Provider (Zero-Dependency)', () => {
 
     // Verify result
     expect(result.success).toBe(true)
-    expect(result.data?.messageId).toBe('multi-recipient-id')
+    expect(result.data?.messageId).toBe('test-message-id-123456')
 
-    // Verify that https request was made with correct data
-    expect(https.request).toHaveBeenCalled()
-    expect(mockRequest.write).toHaveBeenCalledTimes(1)
-
-    // Since we're not testing the exact payload, just ensure a request was made
-    expect(mockRequest.end).toHaveBeenCalled()
+    // Verify SES client was called
+    expect(mockSend).toHaveBeenCalled()
   })
 
   it('should validate email options before sending', async () => {
+    // Import the validateEmailOptions function directly
+    const utils = await import('unemail/utils')
+
+    // Mock validateEmailOptions to return errors
+    vi.mocked(utils.validateEmailOptions).mockReturnValueOnce(['subject is required', 'content is required'])
+
     // Missing required fields
     const invalidOptions: EmailOptions = {
       from: { email: 'test@example.com' },
@@ -249,16 +200,17 @@ describe('aWS SES Provider (Zero-Dependency)', () => {
   })
 
   it('should handle AWS SES errors during sending', async () => {
-    // Make the request fail with an error response from AWS SES
-    mockResponse.statusCode = 400
-    mockResponse.on = vi.fn().mockImplementation((event, callback) => {
-      if (event === 'data') {
-        callback('<ErrorResponse><Error><Type>Sender</Type><Code>InvalidParameter</Code><Message>Email address is not verified</Message></Error></ErrorResponse>')
+    // Make the send fail for SendRawEmailCommand
+    mockSend.mockImplementation((command) => {
+      if (command.type === 'GetSendQuotaCommand') {
+        return Promise.resolve({
+          Max24HourSend: 200,
+        })
       }
-      if (event === 'end') {
-        callback()
+      if (command.type === 'SendRawEmailCommand') {
+        return Promise.reject(new Error('Email address is not verified'))
       }
-      return mockResponse
+      return Promise.resolve({})
     })
 
     // Create test email options
@@ -274,50 +226,144 @@ describe('aWS SES Provider (Zero-Dependency)', () => {
 
     expect(result.success).toBe(false)
     expect(result.error?.message).toContain('Failed to send email')
-
-    // Reset status code for other tests
-    mockResponse.statusCode = 200
   })
 
-  it('should handle network errors during request', async () => {
-    // Make the request throw a network error
-    vi.mocked(https.request).mockImplementationOnce((..._args) => {
-      return {
-        ...mockRequest,
-        on: vi.fn().mockImplementation((event, callback) => {
-          if (event === 'error')
-            callback(new Error('Network error'))
-          return mockRequest
-        }),
-        write: vi.fn(),
-        end: vi.fn(),
-      } as unknown as ClientRequest
-    })
+  it('should return getInstance that provides SES client', () => {
+    const instance = provider.getInstance!()
+    expect(instance).toBeInstanceOf(MockSESClient)
+  })
 
-    // Create test email options
-    const emailOptions: EmailOptions = {
+  it('should send email with configuration set name', async () => {
+    const emailOptions = {
       from: { email: 'test@example.com' },
       to: { email: 'recipient@example.com' },
       subject: 'Test Email',
       text: 'This is a test email',
+      configurationSetName: 'my-config-set',
     }
 
-    // Send email - should fail due to network error
     const result = await provider.sendEmail(emailOptions)
 
-    expect(result.success).toBe(false)
-    expect(result.error?.message).toContain('Failed to send email')
+    expect(result.success).toBe(true)
+    expect(mockSend).toHaveBeenCalled()
+
+    // Check that the SendRawEmailCommand was called with ConfigurationSetName
+    const sendCall = mockSend.mock.calls.find(call => call[0]?.type === 'SendRawEmailCommand')
+    expect(sendCall).toBeDefined()
+    expect(sendCall![0].input.ConfigurationSetName).toBe('my-config-set')
   })
 
-  it('should return null for getInstance since we do not use AWS SDK', () => {
-    // Get the client instance - should be null
-    if (provider.getInstance) {
-      const clientInstance = provider.getInstance()
-      expect(clientInstance).toBeNull()
+  it('should send email with message tags', async () => {
+    const emailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email',
+      text: 'This is a test email',
+      messageTags: {
+        Environment: 'production',
+        Application: 'unemail',
+      },
     }
-    else {
-      // Skip test if method is not available
-      console.log('getInstance not available, skipping test')
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockSend).toHaveBeenCalled()
+
+    // Check that the SendRawEmailCommand was called with Tags
+    const sendCall = mockSend.mock.calls.find(call => call[0]?.type === 'SendRawEmailCommand')
+    expect(sendCall).toBeDefined()
+    expect(sendCall![0].input.Tags).toEqual([
+      { Name: 'Environment', Value: 'production' },
+      { Name: 'Application', Value: 'unemail' },
+    ])
+  })
+
+  it('should send email with source ARN', async () => {
+    const emailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email',
+      text: 'This is a test email',
+      sourceArn: 'arn:aws:ses:us-east-1:123456789012:identity/example.com',
     }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockSend).toHaveBeenCalled()
+
+    // Check that the SendRawEmailCommand was called with SourceArn
+    const sendCall = mockSend.mock.calls.find(call => call[0]?.type === 'SendRawEmailCommand')
+    expect(sendCall).toBeDefined()
+    expect(sendCall![0].input.SourceArn).toBe('arn:aws:ses:us-east-1:123456789012:identity/example.com')
+  })
+
+  it('should send email with return path', async () => {
+    const emailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email',
+      text: 'This is a test email',
+      returnPath: 'bounce@example.com',
+      returnPathArn: 'arn:aws:ses:us-east-1:123456789012:identity/bounce.example.com',
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockSend).toHaveBeenCalled()
+
+    // Check that the SendRawEmailCommand was called with Source and ReturnPathArn
+    const sendCall = mockSend.mock.calls.find(call => call[0]?.type === 'SendRawEmailCommand')
+    expect(sendCall).toBeDefined()
+    expect(sendCall![0].input.Source).toBe('bounce@example.com')
+    expect(sendCall![0].input.ReturnPathArn).toBe('arn:aws:ses:us-east-1:123456789012:identity/bounce.example.com')
+  })
+
+  it('should include custom headers in the email', async () => {
+    const emailOptions: EmailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email with Headers',
+      text: 'This is a test email',
+      headers: {
+        'X-Custom-Header': 'custom-value',
+        'X-Application': 'unemail-test',
+      },
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockSend).toHaveBeenCalled()
+  })
+
+  it('should handle only text content', async () => {
+    const emailOptions: EmailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Text Only Email',
+      text: 'This is a plain text email',
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(result.data?.messageId).toBe('test-message-id-123456')
+  })
+
+  it('should handle only HTML content', async () => {
+    const emailOptions: EmailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'HTML Only Email',
+      html: '<p>This is an HTML email</p>',
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(result.data?.messageId).toBe('test-message-id-123456')
   })
 })

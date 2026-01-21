@@ -1,16 +1,28 @@
 import type { EmailOptions } from 'unemail/types'
-import type { Mock } from 'vitest'
 import { Buffer } from 'node:buffer'
 import httpProvider from 'unemail/providers/http'
-import * as utils from 'unemail/utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+// Hoist the mock objects to be available during vi.mock
+const { mockFetch, mockOfetchCreate } = vi.hoisted(() => {
+  const mockFetch = vi.fn() as ReturnType<typeof vi.fn> & { raw: ReturnType<typeof vi.fn> }
+  mockFetch.raw = vi.fn()
+  const mockOfetchCreate = vi.fn(() => mockFetch)
+  return { mockFetch, mockOfetchCreate }
+})
+
+// Mock ofetch package
+vi.mock('ofetch', () => ({
+  ofetch: {
+    create: mockOfetchCreate,
+  },
+}))
+
+// Mock the utility functions
 vi.mock('unemail/utils', () => ({
-  makeRequest: vi.fn(),
   generateMessageId: () => '<test-message-id@unemail.local>',
   createError: (component: string, message: string) => new Error(`[unemail] [${component}] ${message}`),
-  createRequiredError: (component: string, name: string) => new Error(`[unemail] [${component}] Missing required option: '${name}'`),
-  validateEmailOptions: () => [], // Add mock for validateEmailOptions returning empty array (no errors)
+  validateEmailOptions: vi.fn().mockReturnValue([]),
 }))
 
 describe('hTTP Provider', () => {
@@ -18,6 +30,20 @@ describe('hTTP Provider', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+
+    // Reset mock implementations
+    mockFetch.mockReset()
+    mockFetch.raw.mockReset()
+
+    // Default successful response
+    mockFetch.mockResolvedValue({
+      id: 'server-message-id',
+      success: true,
+    })
+    mockFetch.raw.mockResolvedValue({
+      status: 200,
+      ok: true,
+    })
 
     // Create a fresh provider instance for each test
     provider = httpProvider({
@@ -47,43 +73,22 @@ describe('hTTP Provider', () => {
   })
 
   it('should check if API is available', async () => {
-    // Mock successful OPTIONS request
-    (utils.makeRequest as Mock).mockResolvedValueOnce({
-      success: true,
-      data: {
-        statusCode: 200,
-        headers: { 'content-type': 'application/json' },
-        body: {},
-      },
-    })
-
     const result = await provider.isAvailable()
 
     expect(result).toBe(true)
-    expect(utils.makeRequest).toHaveBeenCalledWith(
+    expect(mockFetch.raw).toHaveBeenCalledWith(
       'https://api.example.com/email',
       expect.objectContaining({
         method: 'OPTIONS',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-Custom-Header': 'test-value',
-          'Authorization': 'Bearer test-api-key',
-        }),
       }),
     )
   })
 
   it('should consider 4xx response as available (endpoint exists but auth required)', async () => {
     // Mock 401 Unauthorized response
-    (utils.makeRequest as Mock).mockResolvedValueOnce({
-      success: false,
-      data: {
-        statusCode: 401,
-        headers: {},
-        body: 'Unauthorized',
-      },
-      error: new Error('Request failed with status 401'),
-    })
+    const error = new Error('Request failed') as Error & { status: number }
+    error.status = 401
+    mockFetch.raw.mockRejectedValueOnce(error)
 
     const result = await provider.isAvailable()
 
@@ -92,54 +97,32 @@ describe('hTTP Provider', () => {
 
   it('should consider 5xx response as unavailable', async () => {
     // Mock server error response
-    (utils.makeRequest as Mock).mockResolvedValueOnce({
-      success: false,
-      data: {
-        statusCode: 500,
-        headers: {},
-        body: 'Server Error',
-      },
-      error: new Error('Request failed with status 500'),
-    })
+    const error = new Error('Request failed') as Error & { status: number }
+    error.status = 500
+    mockFetch.raw.mockRejectedValueOnce(error)
 
     const result = await provider.isAvailable()
 
     expect(result).toBe(false)
   })
 
-  it('should initialize successfully if API is available', async () => {
-    // Mock successful API check
-    vi.spyOn(provider, 'isAvailable').mockResolvedValueOnce(true)
+  it('should consider network error as unavailable', async () => {
+    // Mock network error (no status code)
+    mockFetch.raw.mockRejectedValueOnce(new Error('Network error'))
 
-    await provider.initialize()
+    const result = await provider.isAvailable()
 
-    expect(provider.isAvailable).toHaveBeenCalledTimes(1)
+    expect(result).toBe(false)
   })
 
-  it('should throw error during initialization if API is not available', async () => {
-    // Mock failed API check
-    vi.spyOn(provider, 'isAvailable').mockResolvedValueOnce(false)
+  it('should initialize successfully', async () => {
+    await provider.initialize()
 
-    await expect(provider.initialize()).rejects.toThrow('API endpoint not available')
+    // Should not throw an error
+    expect(provider.options!.endpoint).toBe('https://api.example.com/email')
   })
 
   it('should send an email successfully', async () => {
-    // Mock successful API response
-    (utils.makeRequest as Mock).mockResolvedValueOnce({
-      success: true,
-      data: {
-        statusCode: 200,
-        headers: { 'content-type': 'application/json' },
-        body: {
-          id: 'server-message-id',
-          success: true,
-        },
-      },
-    })
-
-    // Mock availability check for initialization
-    vi.spyOn(provider, 'isAvailable').mockResolvedValueOnce(true)
-
     // Create test email options
     const emailOptions: EmailOptions = {
       from: { email: 'test@example.com', name: 'Test Sender' },
@@ -171,28 +154,27 @@ describe('hTTP Provider', () => {
     expect(result.data?.provider).toBe('http')
     expect(result.data?.sent).toBe(true)
 
-    // Verify request
-    expect(utils.makeRequest).toHaveBeenCalledWith(
+    // Verify ofetch was called
+    expect(mockFetch).toHaveBeenCalledWith(
       'https://api.example.com/email',
       expect.objectContaining({
         method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'X-Custom-Header': 'test-value',
-          'Authorization': 'Bearer test-api-key',
+        body: expect.objectContaining({
+          from: 'test@example.com',
+          from_name: 'Test Sender',
+          to: ['recipient1@example.com', 'recipient2@example.com'],
+          subject: 'Test Email',
         }),
       }),
-      expect.stringContaining('"subject":"Test Email"'),
     )
   })
 
   it('should validate email options before sending', async () => {
     // Import the actual utils module to properly mock the function
-    const mockValidateEmailOptions = vi.fn().mockReturnValueOnce(['Missing subject'])
+    const utils = await import('unemail/utils')
 
-    // Store original function and replace it with our mock
-    const _originalValidateEmailOptions = vi.mocked(utils.validateEmailOptions)
-    vi.spyOn(utils, 'validateEmailOptions').mockImplementationOnce(mockValidateEmailOptions)
+    // Mock validateEmailOptions to return errors
+    vi.mocked(utils.validateEmailOptions).mockReturnValueOnce(['Missing subject'])
 
     // Create invalid email options (missing required fields)
     const invalidOptions: EmailOptions = {
@@ -207,23 +189,12 @@ describe('hTTP Provider', () => {
     expect(result.success).toBe(false)
     expect(result.error?.message).toContain('Invalid email options')
     // Make sure no API request was made
-    expect(utils.makeRequest).not.toHaveBeenCalled()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('should handle API errors during sending', async () => {
     // Mock failed API response
-    (utils.makeRequest as Mock).mockResolvedValueOnce({
-      success: false,
-      data: {
-        statusCode: 500,
-        headers: {},
-        body: 'Server Error',
-      },
-      error: new Error('Request failed with status 500'),
-    })
-
-    // Mock availability check for initialization
-    vi.spyOn(provider, 'isAvailable').mockResolvedValueOnce(true)
+    mockFetch.mockRejectedValueOnce(new Error('Server Error'))
 
     // Create test email options
     const emailOptions: EmailOptions = {
@@ -237,7 +208,6 @@ describe('hTTP Provider', () => {
     const result = await provider.sendEmail(emailOptions)
 
     expect(result.success).toBe(false)
-    // Use a partial match pattern instead of looking for exact string
     expect(result.error?.message).toContain('Failed to send email')
   })
 
@@ -267,18 +237,8 @@ describe('hTTP Provider', () => {
     ]
 
     for (const testCase of testCases) {
-      (utils.makeRequest as Mock).mockReset();
-      (utils.makeRequest as Mock).mockResolvedValueOnce({
-        success: true,
-        data: {
-          statusCode: 200,
-          headers: { 'content-type': 'application/json' },
-          body: testCase.response,
-        },
-      })
-
-      // Mock availability check for initialization
-      vi.spyOn(provider, 'isAvailable').mockResolvedValueOnce(true)
+      mockFetch.mockReset()
+      mockFetch.mockResolvedValueOnce(testCase.response)
 
       // Create test email options
       const emailOptions: EmailOptions = {
@@ -297,55 +257,130 @@ describe('hTTP Provider', () => {
   })
 
   it('should validate credentials', async () => {
-    // Mock successful GET request for credential validation
-    (utils.makeRequest as Mock).mockResolvedValueOnce({
-      success: true,
-      data: {
-        statusCode: 200,
-        headers: { 'content-type': 'application/json' },
-        body: { status: 'ok' },
-      },
-    })
-
-    // Only run this test if validateCredentials is available
-    if (provider.validateCredentials) {
-      const result = await provider.validateCredentials()
-      expect(result).toBe(true)
-      expect(utils.makeRequest).toHaveBeenCalledWith(
-        'https://api.example.com/email',
-        expect.objectContaining({
-          method: 'GET',
-          headers: expect.objectContaining({
-            Authorization: 'Bearer test-api-key',
-          }),
-        }),
-      )
-    }
-    else {
-      // Skip test if method is not available
-      console.log('validateCredentials not available, skipping test')
-    }
+    const result = await provider.validateCredentials!()
+    expect(result).toBe(true)
+    expect(mockFetch.raw).toHaveBeenCalledWith(
+      'https://api.example.com/email',
+      expect.objectContaining({
+        method: 'GET',
+      }),
+    )
   })
 
   it('should handle failed credential validation', async () => {
     // Mock failed GET request for credential validation
-    (utils.makeRequest as Mock).mockResolvedValueOnce({
-      success: true,
-      data: {
-        statusCode: 401,
-        headers: {},
-        body: 'Unauthorized',
+    const error = new Error('Request failed') as Error & { status: number }
+    error.status = 401
+    mockFetch.raw.mockRejectedValueOnce(error)
+
+    const result = await provider.validateCredentials!()
+    expect(result).toBe(false)
+  })
+
+  it('should use endpoint override when provided', async () => {
+    const emailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email',
+      text: 'This is a test email',
+      endpointOverride: 'https://api.example.com/v2/email',
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/v2/email',
+      expect.anything(),
+    )
+  })
+
+  it('should use method override when provided', async () => {
+    const emailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email',
+      text: 'This is a test email',
+      methodOverride: 'PUT' as const,
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/email',
+      expect.objectContaining({
+        method: 'PUT',
+      }),
+    )
+  })
+
+  it('should include custom params in the request', async () => {
+    const emailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      subject: 'Test Email',
+      text: 'This is a test email',
+      customParams: {
+        template_id: 'my-template',
+        campaign_id: 'campaign-123',
       },
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/email',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          template_id: 'my-template',
+          campaign_id: 'campaign-123',
+        }),
+      }),
+    )
+  })
+
+  it('should handle cc and bcc recipients', async () => {
+    const emailOptions: EmailOptions = {
+      from: { email: 'test@example.com' },
+      to: { email: 'recipient@example.com' },
+      cc: { email: 'cc@example.com' },
+      bcc: [
+        { email: 'bcc1@example.com' },
+        { email: 'bcc2@example.com' },
+      ],
+      subject: 'Test Email',
+      text: 'This is a test email',
+    }
+
+    const result = await provider.sendEmail(emailOptions)
+
+    expect(result.success).toBe(true)
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://api.example.com/email',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          cc: 'cc@example.com',
+          bcc: ['bcc1@example.com', 'bcc2@example.com'],
+        }),
+      }),
+    )
+  })
+
+  it('should return getInstance that provides fetch instance', () => {
+    const instance = provider.getInstance!()
+    expect(instance).toBe(mockFetch)
+  })
+
+  it('should use default values for optional options', () => {
+    const minimalProvider = httpProvider({
+      endpoint: 'https://api.example.com/email',
     })
 
-    // Only run this test if validateCredentials is available
-    if (provider.validateCredentials) {
-      const result = await provider.validateCredentials()
-      expect(result).toBe(false)
-    }
-    else {
-      // Skip test if method is not available
-      console.log('validateCredentials not available, skipping test')
-    }
+    expect(minimalProvider.options!.method).toBe('POST')
+    expect(minimalProvider.options!.timeout).toBe(30000)
+    expect(minimalProvider.options!.retry).toBe(0)
+    expect(minimalProvider.options!.headers).toEqual({})
   })
 })

@@ -65,17 +65,6 @@ export const zeptomailProvider: ProviderFactory<ZeptomailOptions, any, Zeptomail
 
   return {
     name: PROVIDER_NAME,
-    features: {
-      attachments: true,
-      html: true,
-      templates: false,
-      tracking: true,
-      customHeaders: true,
-      batchSending: false,
-      scheduling: false,
-      replyTo: true,
-      tagging: false,
-    },
     options,
 
     async initialize(): Promise<void> {

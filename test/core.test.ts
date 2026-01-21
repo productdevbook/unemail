@@ -14,10 +14,6 @@ const mockInitialize = vi.fn()
 vi.mock('unemail/providers/smtp', () => ({
   default: () => ({
     name: 'smtp-mock',
-    features: {
-      attachments: true,
-      html: true,
-    },
     options: { host: 'localhost', port: 1025 },
     initialize: mockInitialize,
     isAvailable: mockIsAvailable,

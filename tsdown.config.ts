@@ -13,4 +13,11 @@ export default defineConfig({
   dts: true,
   clean: true,
   outDir: 'dist',
+  unbundle: true,
+  external: [
+    'nodemailer',
+    'resend',
+    '@aws-sdk/client-ses',
+    'ofetch',
+  ],
 })

@@ -22,12 +22,13 @@ async function main() {
     // Create AWS SES provider instance with configuration
     const sesProvider = awsSesProvider({
       region,
-      accessKeyId,
-      secretAccessKey,
+      credentials: {
+        accessKeyId,
+        secretAccessKey,
+        sessionToken: process.env.AWS_SESSION_TOKEN,
+      },
       // Optional parameters
-      sessionToken: process.env.AWS_SESSION_TOKEN,
       endpoint: process.env.AWS_SES_ENDPOINT,
-      apiVersion: process.env.AWS_SES_API_VERSION || '2010-12-01',
     })
 
     // Create email service with the configured provider instance

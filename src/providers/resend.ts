@@ -1,18 +1,19 @@
-import type { EmailAddress, EmailOptions, EmailResult, EmailTag, Result } from '../types.ts'
+import type { Attachment, CreateEmailOptions, Tag } from 'resend'
+import type { EmailOptions, EmailResult, EmailTag, Result } from '../types.ts'
 import type { ProviderFactory } from './utils/index.ts'
-import { createError, createRequiredError, generateMessageId, makeRequest, retry, validateEmailOptions } from '../utils.ts'
+import { Buffer } from 'node:buffer'
+import { Resend } from 'resend'
+import { createError, createRequiredError, validateEmailOptions } from '../utils.ts'
 import { defineProvider } from './utils/index.ts'
 
 // ============================================================================
-// Types
+// Types - Re-export from resend
 // ============================================================================
+
+export type { Attachment, CreateEmailOptions, Tag }
 
 export interface ResendOptions {
   apiKey: string
-  endpoint?: string
-  timeout?: number
-  retries?: number
-  debug?: boolean
 }
 
 export interface ResendEmailTag extends EmailTag {
@@ -22,7 +23,7 @@ export interface ResendEmailTag extends EmailTag {
 
 export interface ResendEmailOptions extends EmailOptions {
   templateId?: string
-  templateData?: Record<string, any>
+  templateData?: Record<string, unknown>
   scheduledAt?: Date | string
   tags?: ResendEmailTag[]
 }
@@ -32,72 +33,33 @@ export interface ResendEmailOptions extends EmailOptions {
 // ============================================================================
 
 const PROVIDER_NAME = 'resend'
-const DEFAULT_ENDPOINT = 'https://api.resend.com'
-const DEFAULT_TIMEOUT = 30000
-const DEFAULT_RETRIES = 3
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-function validateTag(tag: ResendEmailTag): string[] {
-  const errors: string[] = []
-  const validPattern = /^[\w-]+$/
-
-  if (!validPattern.test(tag.name)) {
-    errors.push(`Tag name '${tag.name}' must only contain ASCII letters, numbers, underscores, or dashes`)
-  }
-
-  if (tag.name.length > 256) {
-    errors.push(`Tag name '${tag.name}' exceeds maximum length of 256 characters`)
-  }
-
-  if (!validPattern.test(tag.value)) {
-    errors.push(`Tag value '${tag.value}' for tag '${tag.name}' must only contain ASCII letters, numbers, underscores, or dashes`)
-  }
-
-  return errors
-}
 
 // ============================================================================
 // Provider Implementation
 // ============================================================================
 
-export const resendProvider: ProviderFactory<ResendOptions, any, ResendEmailOptions> = defineProvider((opts: ResendOptions = {} as ResendOptions) => {
+export const resendProvider: ProviderFactory<ResendOptions, Resend, ResendEmailOptions> = defineProvider((opts: ResendOptions = {} as ResendOptions) => {
   if (!opts.apiKey) {
     throw createRequiredError(PROVIDER_NAME, 'apiKey')
   }
 
-  const options: Required<ResendOptions> = {
-    debug: opts.debug || false,
-    timeout: opts.timeout || DEFAULT_TIMEOUT,
-    retries: opts.retries || DEFAULT_RETRIES,
-    apiKey: opts.apiKey,
-    endpoint: opts.endpoint || DEFAULT_ENDPOINT,
-  }
+  const options: ResendOptions = { ...opts }
 
+  let client: Resend | null = null
   let isInitialized = false
 
-  const debug = (message: string, ...args: any[]) => {
-    if (options.debug) {
-      console.log(`[${PROVIDER_NAME}] ${message}`, ...args)
+  const getClient = (): Resend => {
+    if (!client) {
+      client = new Resend(options.apiKey)
     }
+    return client
   }
 
   return {
     name: PROVIDER_NAME,
-    features: {
-      attachments: true,
-      html: true,
-      templates: true,
-      tracking: true,
-      customHeaders: true,
-      batchSending: true,
-      scheduling: true,
-      replyTo: true,
-      tagging: true,
-    },
     options,
+
+    getInstance: () => getClient(),
 
     async initialize(): Promise<void> {
       if (isInitialized) {
@@ -105,15 +67,12 @@ export const resendProvider: ProviderFactory<ResendOptions, any, ResendEmailOpti
       }
 
       try {
-        if (!await this.isAvailable()) {
-          throw createError(
-            PROVIDER_NAME,
-            'Resend API not available or invalid API key',
-          )
+        // Validate API key format
+        if (!options.apiKey.startsWith('re_')) {
+          throw createError(PROVIDER_NAME, 'Invalid API key format')
         }
-
+        getClient()
         isInitialized = true
-        debug('Provider initialized successfully')
       }
       catch (error) {
         throw createError(
@@ -127,45 +86,11 @@ export const resendProvider: ProviderFactory<ResendOptions, any, ResendEmailOpti
     async isAvailable(): Promise<boolean> {
       try {
         if (options.apiKey && options.apiKey.startsWith('re_')) {
-          debug('API key format is valid, assuming Resend is available')
           return true
         }
-
-        const headers: Record<string, string> = {
-          'Authorization': `Bearer ${options.apiKey}`,
-          'Content-Type': 'application/json',
-        }
-
-        debug('Checking Resend API availability')
-
-        const result = await makeRequest(
-          `${options.endpoint}/domains`,
-          {
-            method: 'GET',
-            headers,
-            timeout: options.timeout,
-          },
-        )
-
-        if (
-          result.data?.statusCode === 401
-          && result.data?.body?.name === 'restricted_api_key'
-          && result.data?.body?.message?.includes('restricted to only send emails')
-        ) {
-          debug('API key is valid but restricted to only sending emails')
-          return true
-        }
-
-        debug('Resend API availability check response:', {
-          statusCode: result.data?.statusCode,
-          success: result.success,
-          error: result.error?.message,
-        })
-
-        return result.success && result.data?.statusCode >= 200 && result.data?.statusCode < 300
+        return false
       }
-      catch (error) {
-        debug('Error checking availability:', error)
+      catch {
         return false
       }
     },
@@ -187,156 +112,93 @@ export const resendProvider: ProviderFactory<ResendOptions, any, ResendEmailOpti
           await this.initialize()
         }
 
-        const formatRecipients = (addresses: EmailAddress | EmailAddress[]) => {
-          if (Array.isArray(addresses)) {
-            return addresses.map((address) => {
-              return address.name ? `${address.name} <${address.email}>` : address.email
-            })
-          }
-          return [addresses.name ? `${addresses.name} <${addresses.email}>` : addresses.email]
+        const resend = getClient()
+
+        // Format addresses
+        const formatAddress = (addr: { email: string, name?: string }) =>
+          addr.name ? `${addr.name} <${addr.email}>` : addr.email
+
+        const formatAddresses = (addrs: { email: string, name?: string } | Array<{ email: string, name?: string }>) =>
+          Array.isArray(addrs) ? addrs.map(formatAddress) : [formatAddress(addrs)]
+
+        // Build request payload - ensure text is always provided
+        const payload: CreateEmailOptions = {
+          from: formatAddress(emailOpts.from),
+          to: formatAddresses(emailOpts.to),
+          subject: emailOpts.subject,
+          text: emailOpts.text ?? '',
         }
 
-        const payload: Record<string, any> = {
-          from: emailOpts.from.name
-            ? `${emailOpts.from.name} <${emailOpts.from.email}>`
-            : emailOpts.from.email,
-          to: formatRecipients(emailOpts.to),
-          subject: emailOpts.subject,
-          text: emailOpts.text,
-          html: emailOpts.html,
-          headers: emailOpts.headers || {},
+        if (emailOpts.html) {
+          payload.html = emailOpts.html
+        }
+
+        if (emailOpts.headers) {
+          payload.headers = emailOpts.headers
         }
 
         if (emailOpts.cc) {
-          payload.cc = formatRecipients(emailOpts.cc)
+          payload.cc = formatAddresses(emailOpts.cc)
         }
 
         if (emailOpts.bcc) {
-          payload.bcc = formatRecipients(emailOpts.bcc)
+          payload.bcc = formatAddresses(emailOpts.bcc)
         }
 
         if (emailOpts.replyTo) {
-          payload.reply_to = emailOpts.replyTo.name
-            ? `${emailOpts.replyTo.name} <${emailOpts.replyTo.email}>`
-            : emailOpts.replyTo.email
-        }
-
-        if (emailOpts.templateId) {
-          payload.template = emailOpts.templateId
-          if (emailOpts.templateData) {
-            payload.data = emailOpts.templateData
-          }
+          payload.replyTo = [formatAddress(emailOpts.replyTo)]
         }
 
         if (emailOpts.scheduledAt) {
-          payload.scheduled_at = typeof emailOpts.scheduledAt === 'string'
+          payload.scheduledAt = typeof emailOpts.scheduledAt === 'string'
             ? emailOpts.scheduledAt
             : emailOpts.scheduledAt.toISOString()
         }
 
         if (emailOpts.tags && emailOpts.tags.length > 0) {
-          const tagValidationErrors: string[] = []
-
-          emailOpts.tags.forEach((tag) => {
-            const errors = validateTag(tag)
-            if (errors.length > 0) {
-              tagValidationErrors.push(...errors)
-            }
-          })
-
-          if (tagValidationErrors.length > 0) {
-            return {
-              success: false,
-              error: createError(
-                PROVIDER_NAME,
-                `Invalid email tags: ${tagValidationErrors.join(', ')}`,
-              ),
-            }
-          }
-
-          payload.tags = emailOpts.tags.map(tag => ({
+          payload.tags = emailOpts.tags.map((tag): Tag => ({
             name: tag.name,
             value: tag.value,
           }))
         }
 
         if (emailOpts.attachments && emailOpts.attachments.length > 0) {
-          payload.attachments = emailOpts.attachments.map(attachment => ({
-            filename: attachment.filename,
-            content: typeof attachment.content === 'string'
-              ? attachment.content
-              : attachment.content.toString('base64'),
-            content_type: attachment.contentType,
-            path: attachment.path,
+          payload.attachments = emailOpts.attachments.map((att): Attachment => ({
+            filename: att.filename,
+            content: typeof att.content === 'string'
+              ? att.content
+              : att.content instanceof Buffer
+                ? att.content
+                : undefined,
+            contentType: att.contentType,
+            path: att.path,
           }))
         }
 
-        debug('Sending email via Resend API', {
-          to: payload.to,
-          subject: payload.subject,
-        })
+        const { data, error } = await resend.emails.send(payload)
 
-        const headers: Record<string, string> = {
-          'Authorization': `Bearer ${options.apiKey}`,
-          'Content-Type': 'application/json',
-        }
-
-        const result = await retry(
-          async () => makeRequest(
-            `${options.endpoint}/emails`,
-            {
-              method: 'POST',
-              headers,
-              timeout: options.timeout,
-            },
-            JSON.stringify(payload),
-          ),
-          options.retries,
-        )
-
-        if (!result.success) {
-          debug('API request failed', result.error)
-
-          let errorMessage = result.error?.message || 'Unknown error'
-
-          if (result.data?.statusCode === 403) {
-            errorMessage = 'Forbidden: The API key may not have permission to send emails from this address or to these recipients.'
-          }
-          else if (result.data?.statusCode === 429) {
-            errorMessage = 'Too many requests: You are sending too many emails too quickly. Please slow down or upgrade your plan.'
-          }
-
-          if (result.data?.body?.message) {
-            errorMessage += ` Details: ${result.data.body.message}`
-          }
-
+        if (error) {
           return {
             success: false,
             error: createError(
               PROVIDER_NAME,
-              `Failed to send email: ${errorMessage}`,
-              { cause: result.error },
+              `Failed to send email: ${error.message}`,
             ),
           }
         }
 
-        const responseData = result.data.body
-        const messageId = responseData?.id || generateMessageId()
-
-        debug('Email sent successfully', { messageId })
         return {
           success: true,
           data: {
-            messageId,
+            messageId: data?.id ?? '',
             sent: true,
             timestamp: new Date(),
             provider: PROVIDER_NAME,
-            response: responseData,
+            response: data,
           },
         }
       }
       catch (error) {
-        debug('Exception sending email', error)
         return {
           success: false,
           error: createError(
@@ -352,7 +214,7 @@ export const resendProvider: ProviderFactory<ResendOptions, any, ResendEmailOpti
       return this.isAvailable()
     },
 
-    async getEmail(id: string): Promise<Result<any>> {
+    async getEmail(id: string): Promise<Result<unknown>> {
       try {
         if (!id) {
           return {
@@ -368,45 +230,25 @@ export const resendProvider: ProviderFactory<ResendOptions, any, ResendEmailOpti
           await this.initialize()
         }
 
-        const headers: Record<string, string> = {
-          'Authorization': `Bearer ${options.apiKey}`,
-          'Content-Type': 'application/json',
-        }
+        const resend = getClient()
+        const { data, error } = await resend.emails.get(id)
 
-        debug('Retrieving email details', { id })
-
-        const result = await retry(
-          async () => makeRequest(
-            `${options.endpoint}/emails/${id}`,
-            {
-              method: 'GET',
-              headers,
-              timeout: options.timeout,
-            },
-          ),
-          options.retries,
-        )
-
-        if (!result.success) {
-          debug('API request failed when retrieving email', result.error)
+        if (error) {
           return {
             success: false,
             error: createError(
               PROVIDER_NAME,
-              `Failed to retrieve email: ${result.error?.message || 'Unknown error'}`,
-              { cause: result.error },
+              `Failed to retrieve email: ${error.message}`,
             ),
           }
         }
 
-        debug('Email details retrieved successfully')
         return {
           success: true,
-          data: result.data.body,
+          data,
         }
       }
       catch (error) {
-        debug('Exception retrieving email', error)
         return {
           success: false,
           error: createError(

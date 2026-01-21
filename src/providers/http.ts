@@ -1,21 +1,27 @@
+import type { $Fetch, FetchError, FetchOptions } from 'ofetch'
 import type { EmailOptions, EmailResult, Result } from '../types.ts'
 import type { ProviderFactory } from './utils/index.ts'
-import { createError, generateMessageId, makeRequest, validateEmailOptions } from '../utils.ts'
+import { ofetch } from 'ofetch'
+import { createError, generateMessageId, validateEmailOptions } from '../utils.ts'
 import { defineProvider } from './utils/index.ts'
 
 // ============================================================================
-// Types
+// Types - Re-export from ofetch
 // ============================================================================
+
+export type { FetchError, FetchOptions }
 
 export interface HttpOptions {
   endpoint: string
   apiKey?: string
   method?: 'GET' | 'POST' | 'PUT'
   headers?: Record<string, string>
+  timeout?: number
+  retry?: number
 }
 
 export interface HttpEmailOptions extends EmailOptions {
-  customParams?: Record<string, any>
+  customParams?: Record<string, unknown>
   endpointOverride?: string
   methodOverride?: 'GET' | 'POST' | 'PUT'
 }
@@ -32,33 +38,45 @@ const DEFAULT_TIMEOUT = 30000
 // Provider Implementation
 // ============================================================================
 
-export const httpProvider: ProviderFactory<HttpOptions, any, HttpEmailOptions> = defineProvider((opts: HttpOptions = {} as HttpOptions) => {
+export const httpProvider: ProviderFactory<HttpOptions, $Fetch, HttpEmailOptions> = defineProvider((opts: HttpOptions = {} as HttpOptions) => {
   if (!opts.endpoint) {
-    throw new Error('Missing required option: endpoint')
+    throw createError(PROVIDER_NAME, 'Missing required option: endpoint')
   }
 
-  const options: Required<HttpOptions> = {
+  const options: HttpOptions = {
     endpoint: opts.endpoint,
-    apiKey: opts.apiKey || '',
-    method: opts.method || DEFAULT_METHOD,
-    headers: opts.headers || {},
+    apiKey: opts.apiKey,
+    method: opts.method ?? DEFAULT_METHOD,
+    headers: opts.headers ?? {},
+    timeout: opts.timeout ?? DEFAULT_TIMEOUT,
+    retry: opts.retry ?? 0,
   }
 
-  const getStandardHeaders = (): Record<string, string> => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    }
+  let fetchInstance: $Fetch | null = null
+  let isInitialized = false
 
-    if (options.apiKey) {
-      headers.Authorization = `Bearer ${options.apiKey}`
-    }
+  const getFetch = (): $Fetch => {
+    if (!fetchInstance) {
+      const defaultHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      }
 
-    return headers
+      if (options.apiKey) {
+        defaultHeaders.Authorization = `Bearer ${options.apiKey}`
+      }
+
+      fetchInstance = ofetch.create({
+        timeout: options.timeout,
+        retry: options.retry,
+        headers: defaultHeaders,
+      })
+    }
+    return fetchInstance
   }
 
-  const formatRequest = (emailOpts: HttpEmailOptions): Record<string, any> => {
-    const payload: Record<string, any> = {
+  const formatRequest = (emailOpts: HttpEmailOptions): Record<string, unknown> => {
+    const payload: Record<string, unknown> = {
       from: emailOpts.from.email,
       from_name: emailOpts.from.name,
       to: Array.isArray(emailOpts.to)
@@ -88,62 +106,43 @@ export const httpProvider: ProviderFactory<HttpOptions, any, HttpEmailOptions> =
     return payload
   }
 
-  let isInitialized = false
-
   return {
     name: PROVIDER_NAME,
-    features: {
-      attachments: false,
-      html: true,
-      templates: false,
-      tracking: false,
-      customHeaders: true,
-      batchSending: false,
-      tagging: false,
-      scheduling: false,
-      replyTo: false,
-    },
     options,
+
+    getInstance: () => getFetch(),
 
     async initialize(): Promise<void> {
       if (isInitialized) {
         return
       }
 
-      if (!await this.isAvailable()) {
-        throw new Error('API endpoint not available')
+      try {
+        getFetch()
+        isInitialized = true
       }
-
-      isInitialized = true
+      catch (error) {
+        throw createError(
+          PROVIDER_NAME,
+          `Failed to initialize: ${(error as Error).message}`,
+          { cause: error as Error },
+        )
+      }
     },
 
     async isAvailable(): Promise<boolean> {
       try {
-        const result = await makeRequest(
-          options.endpoint,
-          {
-            method: 'OPTIONS',
-            headers: getStandardHeaders(),
-            timeout: DEFAULT_TIMEOUT,
-          },
-        )
-
-        if (result.success) {
-          return true
-        }
-
-        if (result.data?.statusCode && result.data.statusCode >= 400 && result.data.statusCode < 500) {
-          return true
-        }
-
-        return false
+        const fetch = getFetch()
+        await fetch.raw(options.endpoint, {
+          method: 'OPTIONS',
+        })
+        return true
       }
       catch (error) {
-        if (error instanceof Error) {
-          const errorMsg = error.message
-          if (errorMsg.includes('status 4') || errorMsg.includes('401') || errorMsg.includes('403')) {
-            return true
-          }
+        const fetchError = error as FetchError
+        // 4xx errors mean the endpoint exists (auth error is still "available")
+        if (fetchError.status && fetchError.status >= 400 && fetchError.status < 500) {
+          return true
         }
         return false
       }
@@ -166,45 +165,25 @@ export const httpProvider: ProviderFactory<HttpOptions, any, HttpEmailOptions> =
           await this.initialize()
         }
 
-        const headers = getStandardHeaders()
-
-        if (emailOpts.headers) {
-          Object.assign(headers, emailOpts.headers)
-        }
-
+        const fetch = getFetch()
         const payload = formatRequest(emailOpts)
+        const endpoint = emailOpts.endpointOverride ?? options.endpoint
+        const method = emailOpts.methodOverride ?? options.method
 
-        const endpoint = emailOpts.endpointOverride || options.endpoint
+        const requestHeaders = emailOpts.headers ? { ...emailOpts.headers } : undefined
 
-        const method = emailOpts.methodOverride || options.method
+        const response = await fetch<Record<string, unknown>>(endpoint, {
+          method,
+          body: payload,
+          headers: requestHeaders,
+        })
 
-        const result = await makeRequest(
-          endpoint,
-          {
-            method,
-            headers,
-            timeout: DEFAULT_TIMEOUT,
-          },
-          JSON.stringify(payload),
-        )
-
-        if (!result.success) {
-          return {
-            success: false,
-            error: createError(
-              PROVIDER_NAME,
-              `Failed to send email: ${result.error?.message || 'Unknown error'}`,
-              { cause: result.error },
-            ),
-          }
-        }
-
-        let messageId
-        const responseBody = result.data?.body
-        if (responseBody) {
-          messageId = responseBody.id
-            || responseBody.messageId
-            || (responseBody.data && (responseBody.data.id || responseBody.data.messageId))
+        let messageId: string | undefined
+        if (response) {
+          messageId = (response.id as string)
+            ?? (response.messageId as string)
+            ?? ((response.data as Record<string, unknown>)?.id as string)
+            ?? ((response.data as Record<string, unknown>)?.messageId as string)
         }
 
         if (!messageId) {
@@ -218,16 +197,17 @@ export const httpProvider: ProviderFactory<HttpOptions, any, HttpEmailOptions> =
             sent: true,
             timestamp: new Date(),
             provider: PROVIDER_NAME,
-            response: result.data?.body,
+            response,
           },
         }
       }
       catch (error) {
+        const fetchError = error as FetchError
         return {
           success: false,
           error: createError(
             PROVIDER_NAME,
-            `Failed to send email: ${(error as Error).message}`,
+            `Failed to send email: ${fetchError.message}`,
             { cause: error as Error },
           ),
         }
@@ -236,21 +216,18 @@ export const httpProvider: ProviderFactory<HttpOptions, any, HttpEmailOptions> =
 
     async validateCredentials(): Promise<boolean> {
       try {
-        const result = await makeRequest(
-          options.endpoint,
-          {
-            method: 'GET',
-            headers: getStandardHeaders(),
-            timeout: DEFAULT_TIMEOUT,
-          },
-        )
-
-        if (result.data?.statusCode && result.data.statusCode >= 200 && result.data.statusCode < 300) {
+        const fetch = getFetch()
+        await fetch.raw(options.endpoint, {
+          method: 'GET',
+        })
+        return true
+      }
+      catch (error) {
+        const fetchError = error as FetchError
+        // 2xx means valid credentials
+        if (fetchError.status && fetchError.status >= 200 && fetchError.status < 300) {
           return true
         }
-        return false
-      }
-      catch {
         return false
       }
     },

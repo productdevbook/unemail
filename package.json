@@ -4,7 +4,7 @@
   "version": "0.3.0",
   "private": false,
   "packageManager": "pnpm@10.28.1",
-  "description": "A modern TypeScript email library with zero dependencies, supporting multiple providers including AWS SES, Resend, MailCrab, and HTTP APIs",
+  "description": "A modern TypeScript email library supporting multiple providers including AWS SES, Resend, SMTP, and HTTP APIs",
   "author": "productdevbook <hi@productdevbook.com>",
   "license": "MIT",
   "funding": "https://github.com/sponsors/productdevbook",
@@ -19,7 +19,7 @@
     "email-service",
     "typescript",
     "esm",
-    "zero-dependencies",
+    "modular",
     "aws-ses",
     "resend",
     "mailcrab",
@@ -91,15 +91,40 @@
     "bumpp": "bumpp package.json",
     "release": "pnpm build && pnpm bumpp && pnpm publish --no-git-checks --access public"
   },
+  "peerDependencies": {
+    "@aws-sdk/client-ses": "^3.0.0",
+    "nodemailer": "^6.0.0 || ^7.0.0",
+    "ofetch": "^1.0.0 || ^2.0.0",
+    "resend": "^4.0.0 || ^5.0.0 || ^6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-ses": {
+      "optional": true
+    },
+    "nodemailer": {
+      "optional": true
+    },
+    "ofetch": {
+      "optional": true
+    },
+    "resend": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@antfu/eslint-config": "^7.1.0",
+    "@aws-sdk/client-ses": "^3.972.0",
     "@types/node": "^22.19.7",
+    "@types/nodemailer": "^7.0.5",
     "@typescript/native-preview": "7.0.0-dev.20260120.1",
     "@vitest/coverage-v8": "^4.0.17",
     "bumpp": "^10.4.0",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.2",
     "mlly": "^1.8.0",
+    "nodemailer": "^7.0.12",
+    "ofetch": "2.0.0-alpha.3",
+    "resend": "^6.8.0",
     "scule": "^1.3.0",
     "ts-node": "^10.9.2",
     "tsdown": "0.20.0-beta.4",

@@ -2,18 +2,6 @@ import type { Buffer } from 'node:buffer'
 
 export type MaybePromise<T> = T | Promise<T>
 
-export interface FeatureFlags {
-  attachments?: boolean
-  html?: boolean
-  templates?: boolean
-  tracking?: boolean
-  customHeaders?: boolean
-  batchSending?: boolean
-  scheduling?: boolean
-  replyTo?: boolean
-  tagging?: boolean
-}
-
 export interface BaseConfig {
   debug?: boolean
   timeout?: number

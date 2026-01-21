@@ -25,7 +25,6 @@ const __dirname = path.dirname(__filename)
 // Create Resend provider with configuration
 const resendInstance = resendProvider({
   apiKey: process.env.RESEND_API_KEY || '',
-  debug: true, // Enable debug logging
 })
 
 // Create an email service with the Resend provider instance
