@@ -193,7 +193,7 @@ export const zeptomailProvider: ProviderFactory<ZeptomailOptions, SendMailClient
           })
         }
 
-        const response = await zeptoClient.sendMail(payload)
+        const response = await zeptoClient.sendMail(payload as any)
 
         const messageId = response?.request_id || generateMessageId()
 
