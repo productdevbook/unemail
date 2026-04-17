@@ -1,0 +1,12 @@
+{
+  "name": "@productdevbook/unemail",
+  "version": "0.3.0",
+  "exports": {
+    ".": "./src/index.ts",
+    "./drivers/mock": "./src/drivers/mock.ts"
+  },
+  "publish": {
+    "include": ["src/**/*.ts", "README.md", "LICENSE"],
+    "exclude": ["src/**/*.test.ts"]
+  }
+}

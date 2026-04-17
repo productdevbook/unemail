@@ -12,62 +12,32 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
 
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - 'docs/**'
 
 jobs:
-  build-test:
-    runs-on: ${{ matrix.os }}
-
-    permissions:
-      # Required to checkout the code
-      contents: read
-      # Required to put a comment into the pull-request
-      pull-requests: write
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-
+  build:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v5
       - run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: latest
           cache: pnpm
-
       - name: 📦 Install dependencies
         run: pnpm install --frozen-lockfile
-
       - name: 👀 Lint
         run: pnpm lint
-
-      - name: 👀 Typecheck
-        run: pnpm type-check
-
+      - name: 🔍 Typecheck
+        run: pnpm typecheck
+      - name: 🧪 Test
+        run: pnpm test
       - name: 🚀 Build
         run: pnpm build
-
-      - name: 🐳 Setup MailCrab
-        run: |
-          docker pull marlonb/mailcrab
-          docker run -d --name unemail-mailcrab -p 1025:1025 -p 1080:1080 marlonb/mailcrab
-
-      - name: 🧪 Test with coverage
-        run: pnpm test:coverage
-        env:
-          MAILCRAB_HOST: localhost
-          MAILCRAB_SMTP_PORT: 1025
-          MAILCRAB_UI_PORT: 1080
-
-      - name: 📝 Upload coverage
-        if: always()
-        uses: davelosert/vitest-coverage-report-action@v2
+      - name: 📐 Bundle size budget
+        run: pnpm bundle-budget
+      - name: 🔍 Are The Types Wrong (ATTW)
+        run: pnpm attw
