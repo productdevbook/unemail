@@ -22,6 +22,14 @@ export {
   withRateLimit,
   withRetry,
 } from "./middleware/index.ts"
+export {
+  defineTemplate,
+  htmlToText,
+  type Renderer,
+  type TemplateFn,
+  withRender,
+  type WithRenderOptions,
+} from "./render/index.ts"
 export type {
   Attachment,
   DriverFactory,

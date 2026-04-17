@@ -131,6 +131,26 @@
     "./middleware": {
       "types": "./dist/middleware/index.d.mts",
       "default": "./dist/middleware/index.mjs"
+    },
+    "./render": {
+      "types": "./dist/render/index.d.mts",
+      "default": "./dist/render/index.mjs"
+    },
+    "./render/react": {
+      "types": "./dist/render/react.d.mts",
+      "default": "./dist/render/react.mjs"
+    },
+    "./render/jsx-email": {
+      "types": "./dist/render/jsx-email.d.mts",
+      "default": "./dist/render/jsx-email.mjs"
+    },
+    "./render/mjml": {
+      "types": "./dist/render/mjml.d.mts",
+      "default": "./dist/render/mjml.mjs"
+    },
+    "./test": {
+      "types": "./dist/test/index.d.mts",
+      "default": "./dist/test/index.mjs"
     }
   },
   "scripts": {

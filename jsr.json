@@ -20,7 +20,12 @@
     "./drivers/resend": "./src/drivers/resend.ts",
     "./drivers/fallback": "./src/drivers/fallback.ts",
     "./drivers/round-robin": "./src/drivers/round-robin.ts",
-    "./middleware": "./src/middleware/index.ts"
+    "./middleware": "./src/middleware/index.ts",
+    "./render": "./src/render/index.ts",
+    "./render/react": "./src/render/react.ts",
+    "./render/jsx-email": "./src/render/jsx-email.ts",
+    "./render/mjml": "./src/render/mjml.ts",
+    "./test": "./src/test/index.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],

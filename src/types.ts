@@ -63,6 +63,16 @@ export interface EmailMessage {
   /** Schedule future delivery. ISO string or `Date`. Drivers that do not
    *  support scheduling reject with `EmailErrorCode.UNSUPPORTED`. */
   scheduledAt?: string | Date
+
+  /** Unrendered React element — resolved to `html` by the `withRender`
+   *  middleware from `unemail/render/react`. Ignored by drivers. */
+  react?: unknown
+  /** Unrendered jsx-email element — resolved to `html` by the
+   *  `withRender` middleware from `unemail/render/jsx-email`. */
+  jsx?: unknown
+  /** MJML source — compiled to `html` by the `withRender` middleware
+   *  from `unemail/render/mjml`. */
+  mjml?: string
 }
 
 /** Outcome of a successful send — at minimum the provider-assigned id. */
