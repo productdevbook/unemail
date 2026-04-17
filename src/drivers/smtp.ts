@@ -7,6 +7,9 @@ import { EmailError } from "../errors.ts"
 import { createError, createRequiredError, toEmailError } from "../errors.ts"
 import { buildMime, normalizeMimeInput } from "./_smtp/mime.ts"
 import { createPool, type ConnectionPool } from "./_smtp/pool.ts"
+import { signDkim, type DkimSignerOptions } from "./_smtp/dkim.ts"
+
+export type { DkimSignerOptions }
 
 /** User-visible options. See `docs/drivers/smtp.md` (lands with #54) for
  *  the full matrix. Defaults favor security: `rejectUnauthorized: true`,
@@ -30,6 +33,10 @@ export interface SmtpDriverOptions {
   connectionTimeoutMs?: number
   commandTimeoutMs?: number
   disposeGraceMs?: number
+  /** Sign outbound messages with DKIM (RFC 6376 / RFC 8463). Accepts a
+   *  single signer config or a per-message resolver for multi-tenant
+   *  sending. */
+  dkim?: DkimSignerOptions | ((msg: import("../types.ts").EmailMessage) => DkimSignerOptions | null)
 }
 
 const DRIVER = "smtp"
@@ -92,10 +99,12 @@ const smtp: DriverFactory<SmtpDriverOptions> = defineDriver<SmtpDriverOptions>((
         const mime = buildMime(normalizeMimeInput(msg, messageId))
         if (mime.envelope.rcpt.length === 0)
           throw createError(DRIVER, "INVALID_OPTIONS", "at least one recipient is required")
+        const dkimConfig = typeof opts.dkim === "function" ? opts.dkim(msg) : opts.dkim
+        const body = dkimConfig ? await signDkim(mime.body, dkimConfig) : mime.body
         const conn = await getPool().acquire()
         let failed = false
         try {
-          await conn.sendMessage(mime.envelope, mime.body)
+          await conn.sendMessage(mime.envelope, body)
           const result: EmailResult = {
             id: messageId,
             driver: DRIVER,
