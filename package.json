@@ -223,6 +223,14 @@
     "./queue/worker": {
       "types": "./dist/queue/worker.d.mts",
       "default": "./dist/queue/worker.mjs"
+    },
+    "./suppression": {
+      "types": "./dist/suppression/index.d.mts",
+      "default": "./dist/suppression/index.mjs"
+    },
+    "./compliance": {
+      "types": "./dist/compliance/index.d.mts",
+      "default": "./dist/compliance/index.mjs"
     }
   },
   "scripts": {

@@ -111,6 +111,7 @@ export function createEmail(options: CreateEmailOptions): Email {
       }
 
       try {
+        msg = applyUnsubscribeHeaders(msg)
         await runHook("beforeSend", (mw) => mw.beforeSend?.(msg, ctx))
 
         let result = await driver.send(msg, ctx)
@@ -190,6 +191,33 @@ export function createEmail(options: CreateEmailOptions): Email {
   }
 
   return api
+}
+
+function applyUnsubscribeHeaders(msg: EmailMessage): EmailMessage {
+  if (!msg.unsubscribe) return msg
+  const { url, mailto, oneClick } = msg.unsubscribe
+  if (!url && !mailto) return msg
+  const parts: string[] = []
+  if (url) parts.push(`<${url}>`)
+  if (mailto) parts.push(`<mailto:${mailto}>`)
+  const existing = msg.headers ?? {}
+  const headers: Record<string, string> = { ...existing }
+  if (!hasHeader(existing, "list-unsubscribe")) {
+    headers["List-Unsubscribe"] = parts.join(", ")
+  }
+  const wantsOneClick = oneClick ?? Boolean(url)
+  if (wantsOneClick && url && !hasHeader(existing, "list-unsubscribe-post")) {
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+  }
+  return { ...msg, headers }
+}
+
+function hasHeader(headers: Record<string, string>, name: string): boolean {
+  const lower = name.toLowerCase()
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === lower) return true
+  }
+  return false
 }
 
 function resolveIdempotency(

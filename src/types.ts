@@ -64,6 +64,11 @@ export interface EmailMessage {
    *  support scheduling reject with `EmailErrorCode.UNSUPPORTED`. */
   scheduledAt?: string | Date
 
+  /** Unsubscribe configuration — emits RFC 2369 `List-Unsubscribe` and,
+   *  when `oneClick` is true, RFC 8058 `List-Unsubscribe-Post` headers.
+   *  Required by Gmail + Yahoo bulk sender rules (Feb 2024). */
+  unsubscribe?: UnsubscribeOptions
+
   /** Unrendered React element — resolved to `html` by the `withRender`
    *  middleware from `unemail/render/react`. Ignored by drivers. */
   react?: unknown
@@ -73,6 +78,16 @@ export interface EmailMessage {
   /** MJML source — compiled to `html` by the `withRender` middleware
    *  from `unemail/render/mjml`. */
   mjml?: string
+}
+
+/** RFC 2369 + RFC 8058 unsubscribe configuration. At least one of
+ *  `url` or `mailto` must be provided. When `oneClick` defaults to
+ *  `true` (when `url` is set), the core also emits
+ *  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. */
+export interface UnsubscribeOptions {
+  url?: string
+  mailto?: string
+  oneClick?: boolean
 }
 
 /** Outcome of a successful send — at minimum the provider-assigned id. */

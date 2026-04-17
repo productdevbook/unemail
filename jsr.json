@@ -43,7 +43,9 @@
     "./queue": "./src/queue/index.ts",
     "./queue/memory": "./src/queue/memory.ts",
     "./queue/unstorage": "./src/queue/unstorage.ts",
-    "./queue/worker": "./src/queue/worker.ts"
+    "./queue/worker": "./src/queue/worker.ts",
+    "./suppression": "./src/suppression/index.ts",
+    "./compliance": "./src/compliance/index.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],
