@@ -151,6 +151,58 @@
     "./test": {
       "types": "./dist/test/index.d.mts",
       "default": "./dist/test/index.mjs"
+    },
+    "./parse": {
+      "types": "./dist/parse/index.d.mts",
+      "default": "./dist/parse/index.mjs"
+    },
+    "./inbound": {
+      "types": "./dist/inbound/index.d.mts",
+      "default": "./dist/inbound/index.mjs"
+    },
+    "./inbound/cloudflare": {
+      "types": "./dist/inbound/cloudflare.d.mts",
+      "default": "./dist/inbound/cloudflare.mjs"
+    },
+    "./inbound/postmark": {
+      "types": "./dist/inbound/postmark.d.mts",
+      "default": "./dist/inbound/postmark.mjs"
+    },
+    "./inbound/sendgrid": {
+      "types": "./dist/inbound/sendgrid.d.mts",
+      "default": "./dist/inbound/sendgrid.mjs"
+    },
+    "./inbound/mailgun": {
+      "types": "./dist/inbound/mailgun.d.mts",
+      "default": "./dist/inbound/mailgun.mjs"
+    },
+    "./webhooks": {
+      "types": "./dist/webhooks/index.d.mts",
+      "default": "./dist/webhooks/index.mjs"
+    },
+    "./webhooks/resend": {
+      "types": "./dist/webhooks/resend.d.mts",
+      "default": "./dist/webhooks/resend.mjs"
+    },
+    "./webhooks/postmark": {
+      "types": "./dist/webhooks/postmark.d.mts",
+      "default": "./dist/webhooks/postmark.mjs"
+    },
+    "./webhooks/mailgun": {
+      "types": "./dist/webhooks/mailgun.d.mts",
+      "default": "./dist/webhooks/mailgun.mjs"
+    },
+    "./webhooks/sendgrid": {
+      "types": "./dist/webhooks/sendgrid.d.mts",
+      "default": "./dist/webhooks/sendgrid.mjs"
+    },
+    "./webhooks/ses": {
+      "types": "./dist/webhooks/ses.d.mts",
+      "default": "./dist/webhooks/ses.mjs"
+    },
+    "./verify": {
+      "types": "./dist/verify/index.d.mts",
+      "default": "./dist/verify/index.mjs"
     }
   },
   "scripts": {

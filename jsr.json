@@ -25,7 +25,20 @@
     "./render/react": "./src/render/react.ts",
     "./render/jsx-email": "./src/render/jsx-email.ts",
     "./render/mjml": "./src/render/mjml.ts",
-    "./test": "./src/test/index.ts"
+    "./test": "./src/test/index.ts",
+    "./parse": "./src/parse/index.ts",
+    "./inbound": "./src/inbound/index.ts",
+    "./inbound/cloudflare": "./src/inbound/cloudflare.ts",
+    "./inbound/postmark": "./src/inbound/postmark.ts",
+    "./inbound/sendgrid": "./src/inbound/sendgrid.ts",
+    "./inbound/mailgun": "./src/inbound/mailgun.ts",
+    "./webhooks": "./src/webhooks/index.ts",
+    "./webhooks/resend": "./src/webhooks/resend.ts",
+    "./webhooks/postmark": "./src/webhooks/postmark.ts",
+    "./webhooks/mailgun": "./src/webhooks/mailgun.ts",
+    "./webhooks/sendgrid": "./src/webhooks/sendgrid.ts",
+    "./webhooks/ses": "./src/webhooks/ses.ts",
+    "./verify": "./src/verify/index.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],
