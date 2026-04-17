@@ -212,6 +212,10 @@
       "types": "./dist/webhooks/ses.d.mts",
       "default": "./dist/webhooks/ses.mjs"
     },
+    "./webhooks/standard": {
+      "types": "./dist/webhooks/standard.d.mts",
+      "default": "./dist/webhooks/standard.mjs"
+    },
     "./verify": {
       "types": "./dist/verify/index.d.mts",
       "default": "./dist/verify/index.mjs"
