@@ -12,6 +12,7 @@ export interface MimeInput {
   subject: string
   text?: string
   html?: string
+  amp?: string
   headers?: Record<string, string>
   attachments?: ReadonlyArray<Attachment>
   date?: Date
@@ -46,6 +47,7 @@ export function normalizeMimeInput(
     subject: msg.subject,
     text: msg.text,
     html: msg.html,
+    amp: msg.amp,
     headers: msg.headers,
     attachments: msg.attachments,
     date,
@@ -57,7 +59,7 @@ export function buildMime(input: MimeInput): MimeOutput {
   const boundary = `----unemail_${randomBoundary()}`
   const altBoundary = `----unemail_alt_${randomBoundary()}`
   const hasAttachments = (input.attachments?.length ?? 0) > 0
-  const hasBothBodies = Boolean(input.text && input.html)
+  const hasBothBodies = Boolean(input.text && input.html) || Boolean(input.amp)
 
   const headers: Record<string, string> = {
     From: formatAddress(input.from),
@@ -126,6 +128,17 @@ function buildMultipartAlternative(
         "Content-Transfer-Encoding: quoted-printable",
         "",
         encodeQuotedPrintable(input.text),
+      ].join("\r\n"),
+    )
+  }
+  if (input.amp) {
+    parts.push(
+      [
+        `--${boundary}`,
+        "Content-Type: text/x-amp-html; charset=utf-8",
+        "Content-Transfer-Encoding: quoted-printable",
+        "",
+        encodeQuotedPrintable(input.amp),
       ].join("\r\n"),
     )
   }

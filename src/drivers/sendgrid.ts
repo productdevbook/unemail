@@ -44,6 +44,7 @@ const sendgrid: DriverFactory<SendGridDriverOptions> = defineDriver<SendGridDriv
         replyTo: true,
         customHeaders: true,
         scheduling: true,
+        personalizations: true,
       },
 
       async isAvailable() {
@@ -84,18 +85,34 @@ function buildSendGridPayload(
   const from = normalizeAddresses(msg.from)[0]
   if (!from) throw createError(DRIVER, "INVALID_OPTIONS", "`from` is required")
 
-  const personalization: Record<string, unknown> = {
-    to: normalizeAddresses(msg.to).map(toSgAddress),
-  }
-  if (msg.cc) personalization.cc = normalizeAddresses(msg.cc).map(toSgAddress)
-  if (msg.bcc) personalization.bcc = normalizeAddresses(msg.bcc).map(toSgAddress)
-  if (msg.scheduledAt) {
-    const seconds = Math.floor(toDate(msg.scheduledAt).getTime() / 1000)
-    personalization.send_at = seconds
+  const personalizations: Array<Record<string, unknown>> = []
+  if (msg.personalizations?.length) {
+    for (const p of msg.personalizations) {
+      const entry: Record<string, unknown> = {
+        to: normalizeAddresses(p.to).map(toSgAddress),
+      }
+      if (p.cc) entry.cc = normalizeAddresses(p.cc).map(toSgAddress)
+      if (p.bcc) entry.bcc = normalizeAddresses(p.bcc).map(toSgAddress)
+      if (p.subject) entry.subject = p.subject
+      if (p.variables) entry.dynamic_template_data = { ...p.variables }
+      if (p.customArgs) entry.custom_args = { ...p.customArgs }
+      if (p.sendAt) entry.send_at = Math.floor(toDate(p.sendAt).getTime() / 1000)
+      personalizations.push(entry)
+    }
+  } else {
+    const personalization: Record<string, unknown> = {
+      to: normalizeAddresses(msg.to).map(toSgAddress),
+    }
+    if (msg.cc) personalization.cc = normalizeAddresses(msg.cc).map(toSgAddress)
+    if (msg.bcc) personalization.bcc = normalizeAddresses(msg.bcc).map(toSgAddress)
+    if (msg.scheduledAt)
+      personalization.send_at = Math.floor(toDate(msg.scheduledAt).getTime() / 1000)
+    personalizations.push(personalization)
   }
 
+  const personalization = personalizations[0]!
   const payload: Record<string, unknown> = {
-    personalizations: [personalization],
+    personalizations,
     from: toSgAddress(from),
     subject: msg.subject,
     content: buildContent(msg),

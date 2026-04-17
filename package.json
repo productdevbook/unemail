@@ -251,6 +251,10 @@
     "./ics": {
       "types": "./dist/ics/index.d.mts",
       "default": "./dist/ics/index.mjs"
+    },
+    "./address": {
+      "types": "./dist/address.d.mts",
+      "default": "./dist/address.mjs"
     }
   },
   "scripts": {

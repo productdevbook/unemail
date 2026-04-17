@@ -128,6 +128,7 @@ export function createEmail(options: CreateEmailOptions): Email {
 
       try {
         msg = applyUnsubscribeHeaders(msg)
+        msg = fanOutPersonalizations(msg, driver)
         await runHook("beforeSend", (mw) => mw.beforeSend?.(msg, ctx))
 
         let result = await driver.send(msg, ctx)
@@ -239,6 +240,25 @@ export function createEmail(options: CreateEmailOptions): Email {
   }
 
   return api
+}
+
+function fanOutPersonalizations(msg: EmailMessage, driver: EmailDriver): EmailMessage {
+  // Drivers with native personalization support get the array as-is.
+  if (driver.flags?.personalizations) return msg
+  if (!msg.personalizations?.length) return msg
+  // For drivers without native support, collapse into msg-level `to`
+  // so at least the first personalization reaches the provider. Users
+  // who need per-recipient personalization on a non-supporting driver
+  // should loop `email.send` themselves.
+  const first = msg.personalizations[0]!
+  const { personalizations: _omit, ...rest } = msg
+  return {
+    ...rest,
+    to: first.to,
+    cc: first.cc ?? rest.cc,
+    bcc: first.bcc ?? rest.bcc,
+    subject: first.subject ?? rest.subject,
+  }
 }
 
 function applyUnsubscribeHeaders(msg: EmailMessage): EmailMessage {

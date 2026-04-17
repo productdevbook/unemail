@@ -50,7 +50,8 @@
     "./result": "./src/result/index.ts",
     "./ics": "./src/ics/index.ts",
     "./inbound/reply": "./src/inbound/reply.ts",
-    "./inbound/thread": "./src/inbound/thread.ts"
+    "./inbound/thread": "./src/inbound/thread.ts",
+    "./address": "./src/address.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],

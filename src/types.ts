@@ -91,6 +91,22 @@ export interface EmailMessage {
    *  `v:key=value`, Resend to `headers["X-Metadata-*"]`. */
   metadata?: Record<string, string>
 
+  /** SendGrid-style per-recipient personalizations. When set, drivers
+   *  that support it (SendGrid, Mailgun recipient-variables) dispatch
+   *  a single batched request; others loop. */
+  personalizations?: ReadonlyArray<Personalization>
+
+  /** AMP4Email alternative part. Providers without AMP support ignore. */
+  amp?: string
+
+  /** RFC 3461 Delivery Status Notification requests. SMTP-only. */
+  dsn?: DsnOptions
+
+  /** Pre-built raw RFC 5322 message body. Bypasses the MIME builder
+   *  entirely — useful for replay, forwarding, or when you've composed
+   *  the message yourself. SMTP-only. */
+  raw?: string | Uint8Array
+
   /** Unrendered React element — resolved to `html` by the `withRender`
    *  middleware from `unemail/render/react`. Ignored by drivers. */
   react?: unknown
@@ -100,6 +116,26 @@ export interface EmailMessage {
   /** MJML source — compiled to `html` by the `withRender` middleware
    *  from `unemail/render/mjml`. */
   mjml?: string
+}
+
+/** Per-recipient personalization (SendGrid-native). Loops fall back
+ *  to copies of the message for providers without native support. */
+export interface Personalization {
+  to: EmailAddressInput
+  cc?: EmailAddressInput
+  bcc?: EmailAddressInput
+  subject?: string
+  variables?: Record<string, unknown>
+  sendAt?: Date | string
+  customArgs?: Record<string, string>
+}
+
+/** RFC 3461 DSN (Delivery Status Notification) request. SMTP only. */
+export interface DsnOptions {
+  notify?: ReadonlyArray<"SUCCESS" | "FAILURE" | "DELAY" | "NEVER">
+  ret?: "FULL" | "HDRS"
+  envid?: string
+  orcpt?: string
 }
 
 /** Provider-side template settings. `id` is required when the provider
@@ -173,6 +209,7 @@ export interface DriverFlags {
   webhooks?: boolean
   cancelable?: boolean
   retrievable?: boolean
+  personalizations?: boolean
 }
 
 /** Status returned by `driver.retrieve(id)`. Mirrors the provider state

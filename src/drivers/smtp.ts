@@ -6,10 +6,15 @@ import { defineDriver } from "../_define.ts"
 import { EmailError } from "../errors.ts"
 import { createError, createRequiredError, toEmailError } from "../errors.ts"
 import { buildMime, normalizeMimeInput } from "./_smtp/mime.ts"
+import { normalizeAddresses } from "../_normalize.ts"
 import { createPool, type ConnectionPool } from "./_smtp/pool.ts"
 import { signDkim, type DkimSignerOptions } from "./_smtp/dkim.ts"
 
 export type { DkimSignerOptions }
+
+function normalizeAddressList(input: EmailMessage["to"] | undefined): string[] {
+  return normalizeAddresses(input).map((a) => a.email)
+}
 
 /** User-visible options. See `docs/drivers/smtp.md` (lands with #54) for
  *  the full matrix. Defaults favor security: `rejectUnauthorized: true`,
@@ -96,15 +101,33 @@ const smtp: DriverFactory<SmtpDriverOptions> = defineDriver<SmtpDriverOptions>((
     async send(msg) {
       try {
         const messageId = msg.headers?.["Message-ID"] ?? generateMessageId(opts.host)
-        const mime = buildMime(normalizeMimeInput(msg, messageId))
-        if (mime.envelope.rcpt.length === 0)
+        let envelope: { from: string; rcpt: string[] }
+        let rawBody: string
+        if (msg.raw) {
+          rawBody = typeof msg.raw === "string" ? msg.raw : new TextDecoder().decode(msg.raw)
+          envelope = {
+            from: normalizeMimeInput(msg, messageId).from.email,
+            rcpt: Array.from(
+              new Set([
+                ...normalizeAddressList(msg.to),
+                ...normalizeAddressList(msg.cc),
+                ...normalizeAddressList(msg.bcc),
+              ]),
+            ),
+          }
+        } else {
+          const mime = buildMime(normalizeMimeInput(msg, messageId))
+          envelope = mime.envelope
+          rawBody = mime.body
+        }
+        if (envelope.rcpt.length === 0)
           throw createError(DRIVER, "INVALID_OPTIONS", "at least one recipient is required")
         const dkimConfig = typeof opts.dkim === "function" ? opts.dkim(msg) : opts.dkim
-        const body = dkimConfig ? await signDkim(mime.body, dkimConfig) : mime.body
+        const body = dkimConfig ? await signDkim(rawBody, dkimConfig) : rawBody
         const conn = await getPool().acquire()
         let failed = false
         try {
-          await conn.sendMessage(mime.envelope, body)
+          await conn.sendMessage(envelope, body)
           const result: EmailResult = {
             id: messageId,
             driver: DRIVER,
