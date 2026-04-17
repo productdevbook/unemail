@@ -98,6 +98,11 @@ function buildPayload(msg: EmailMessage, options: ZeptomailDriverOptions): Recor
   if (msg.attachments?.length) payload.attachments = msg.attachments.map(toZeptoAttachment)
   if (options.trackClicks) payload.track_clicks = true
   if (options.trackOpens) payload.track_opens = true
+  if (msg.template) {
+    if (msg.template.id) payload.template_key = msg.template.id
+    if (msg.template.alias) payload.template_alias = msg.template.alias
+    if (msg.template.variables) payload.merge_info = { ...msg.template.variables }
+  }
   return payload
 }
 

@@ -72,6 +72,47 @@ describe("createEmail", () => {
     expect(calls).toEqual(["before", "after"])
   })
 
+  it("sendBatchStream yields one Result per message without short-circuiting", async () => {
+    let call = 0
+    const email = createEmail({
+      driver: defineDriver(() => ({
+        name: "alt",
+        send: () => {
+          call++
+          if (call === 2) {
+            return {
+              data: null,
+              error: {
+                name: "EmailError",
+                message: "bad",
+                driver: "alt",
+                code: "PROVIDER",
+                retryable: false,
+              } as never,
+            }
+          }
+          return {
+            data: { id: `id_${call}`, driver: "alt", at: new Date() },
+            error: null,
+          }
+        },
+      }))(),
+    })
+
+    const messages = [1, 2, 3].map((n) => ({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: `s${n}`,
+      text: "x",
+    }))
+
+    const outcomes: Array<"ok" | "err"> = []
+    for await (const r of email.sendBatchStream(messages)) {
+      outcomes.push(r.error ? "err" : "ok")
+    }
+    expect(outcomes).toEqual(["ok", "err", "ok"])
+  })
+
   it("dispose() cascades to mounted drivers", async () => {
     let disposed = 0
     const driver = defineDriver(() => ({

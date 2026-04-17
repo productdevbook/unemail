@@ -1,6 +1,19 @@
 import type { EmailDriver, EmailResult, Result } from "../types.ts"
 import { toEmailError } from "../errors.ts"
 
+/** Backoff strategies.
+ *  - `exponential` — `initialDelay * 2^attempt` (default).
+ *  - `constant` — `initialDelay` every time.
+ *  - `exponential-jitter` — exponential with ±50% uniform noise.
+ *  - `full-jitter` — random in `[0, exponential]` (AWS recommendation).
+ *  - `decorrelated-jitter` — `random(initialDelay, prev * 3)`. */
+export type RetryBackoff =
+  | "exponential"
+  | "constant"
+  | "exponential-jitter"
+  | "full-jitter"
+  | "decorrelated-jitter"
+
 /** Options for `withRetry`. All numeric values are milliseconds unless
  *  noted. `respectRetryAfter` honors `error.status === 429` with the
  *  matching `Retry-After` surfaced via `error.cause`. */
@@ -11,14 +24,19 @@ export interface RetryOptions {
   initialDelay?: number
   /** Maximum backoff delay between attempts. Default: 10_000ms. */
   maxDelay?: number
-  /** Backoff strategy. `exponential` doubles; `constant` keeps `initialDelay`. */
-  backoff?: "exponential" | "constant"
+  /** Backoff strategy. See `RetryBackoff`. */
+  backoff?: RetryBackoff
   /** Honor a `Retry-After` seconds value when present on 429. Default: true. */
   respectRetryAfter?: boolean
   /** Override default retryability — by default only `error.retryable === true`. */
   shouldRetry?: (error: NonNullable<Result<never>["error"]>, attempt: number) => boolean
+  /** Route exhausted sends to this driver (dead-letter). Original error
+   *  is preserved on `ctx.meta.deadLetterReason`. */
+  deadLetter?: EmailDriver
   /** Injected for tests. Default: `setTimeout`. */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
+  /** Injected for deterministic jitter in tests. Default: `Math.random`. */
+  random?: () => number
 }
 
 /** Wrap a driver so every send is retried on transient failures. Returns a
@@ -36,12 +54,15 @@ export function withRetry(driver: EmailDriver, options: RetryOptions = {}): Emai
   const respectRetryAfter = options.respectRetryAfter ?? true
   const sleep = options.sleep ?? defaultSleep
   const shouldRetry = options.shouldRetry ?? ((err) => err.retryable)
+  const random = options.random ?? Math.random
+  const deadLetter = options.deadLetter
 
   return {
     ...driver,
     name: driver.name,
     async send(msg, ctx) {
       let lastError: NonNullable<Result<EmailResult>["error"]> | null = null
+      let lastDelay = initialDelay
       for (let attempt = 0; attempt <= retries; attempt++) {
         ctx.attempt = attempt + 1
         if (ctx.signal?.aborted) {
@@ -58,31 +79,49 @@ export function withRetry(driver: EmailDriver, options: RetryOptions = {}): Emai
         }
         if (result.data) return result
         lastError = result.error
-        if (attempt === retries || !shouldRetry(result.error, attempt + 1)) return result
-        await sleep(
-          computeDelay({
-            attempt,
-            initialDelay,
-            maxDelay,
-            backoff,
-            respectRetryAfter,
-            error: result.error,
-          }),
-          ctx.signal,
-        )
+        if (attempt === retries || !shouldRetry(result.error, attempt + 1)) {
+          return deadLetter ? routeToDeadLetter(deadLetter, msg, ctx, result.error) : result
+        }
+        const delay = computeDelay({
+          attempt,
+          initialDelay,
+          maxDelay,
+          backoff,
+          respectRetryAfter,
+          error: result.error,
+          random,
+          previousDelay: lastDelay,
+        })
+        lastDelay = delay
+        await sleep(delay, ctx.signal)
       }
-      return { data: null, error: lastError! }
+      return deadLetter && lastError
+        ? routeToDeadLetter(deadLetter, msg, ctx, lastError)
+        : { data: null, error: lastError! }
     },
   }
+}
+
+async function routeToDeadLetter(
+  dlq: EmailDriver,
+  msg: Parameters<EmailDriver["send"]>[0],
+  ctx: Parameters<EmailDriver["send"]>[1],
+  error: NonNullable<Result<EmailResult>["error"]>,
+): Promise<Result<EmailResult>> {
+  ctx.meta.deadLetterReason = error.message
+  ctx.meta.deadLetterCode = error.code
+  return dlq.send(msg, ctx)
 }
 
 interface DelayInput {
   attempt: number
   initialDelay: number
   maxDelay: number
-  backoff: "exponential" | "constant"
+  backoff: RetryBackoff
   respectRetryAfter: boolean
   error: NonNullable<Result<EmailResult>["error"]>
+  random: () => number
+  previousDelay: number
 }
 
 function computeDelay(input: DelayInput): number {
@@ -90,9 +129,24 @@ function computeDelay(input: DelayInput): number {
     const retryAfter = extractRetryAfter(input.error.cause)
     if (retryAfter != null) return Math.min(retryAfter * 1000, input.maxDelay)
   }
-  const base =
-    input.backoff === "exponential" ? input.initialDelay * 2 ** input.attempt : input.initialDelay
-  return Math.min(base, input.maxDelay)
+  const exp = input.initialDelay * 2 ** input.attempt
+  switch (input.backoff) {
+    case "constant":
+      return Math.min(input.initialDelay, input.maxDelay)
+    case "exponential":
+      return Math.min(exp, input.maxDelay)
+    case "exponential-jitter": {
+      const jitter = 0.5 + input.random()
+      return Math.min(Math.floor(exp * jitter), input.maxDelay)
+    }
+    case "full-jitter":
+      return Math.min(Math.floor(input.random() * exp), input.maxDelay)
+    case "decorrelated-jitter": {
+      const high = Math.max(input.previousDelay * 3, input.initialDelay)
+      const value = input.initialDelay + input.random() * (high - input.initialDelay)
+      return Math.min(Math.floor(value), input.maxDelay)
+    }
+  }
 }
 
 function extractRetryAfter(cause: unknown): number | null {

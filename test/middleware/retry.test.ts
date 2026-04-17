@@ -105,4 +105,67 @@ describe("withRetry", () => {
     expect(res.error).toBeNull()
     expect(delays).toEqual([3000])
   })
+
+  it("full-jitter clamps random delay into [0, exponential]", async () => {
+    const delays: number[] = []
+    const driver = flakyDriver(3)
+    const email = createEmail({
+      driver: withRetry(driver, {
+        retries: 3,
+        initialDelay: 100,
+        maxDelay: 10_000,
+        backoff: "full-jitter",
+        random: () => 0.5,
+        sleep: async (ms: number) => {
+          delays.push(ms)
+        },
+      }),
+    })
+    await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
+    expect(delays).toEqual([50, 100, 200])
+  })
+
+  it("exponential-jitter varies with random()", async () => {
+    const delays: number[] = []
+    const driver = flakyDriver(1)
+    const email = createEmail({
+      driver: withRetry(driver, {
+        retries: 3,
+        initialDelay: 100,
+        maxDelay: 10_000,
+        backoff: "exponential-jitter",
+        random: () => 0,
+        sleep: async (ms: number) => {
+          delays.push(ms)
+        },
+      }),
+    })
+    await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
+    expect(delays).toEqual([50])
+  })
+
+  it("routes to dead-letter after exhausting retries", async () => {
+    const driver = flakyDriver(10)
+    const letters: { msg: string; reason: unknown }[] = []
+    const dlq: EmailDriver = {
+      name: "dlq",
+      send(msg, ctx) {
+        letters.push({ msg: msg.subject, reason: ctx.meta.deadLetterReason })
+        return { data: { id: "dlq-1", driver: "dlq", at: new Date() }, error: null }
+      },
+    }
+    const email = createEmail({
+      driver: withRetry(driver, {
+        retries: 1,
+        initialDelay: 1,
+        deadLetter: dlq,
+        sleep: () => Promise.resolve(),
+      }),
+    })
+    const res = await email.send({ from: "a@b.com", to: "c@d.com", subject: "dead", text: "x" })
+    expect(res.data?.driver).toBe("dlq")
+    expect(letters).toHaveLength(1)
+    expect(letters[0]!.msg).toBe("dead")
+    expect(String(letters[0]!.reason)).toContain("boom")
+  })
 })

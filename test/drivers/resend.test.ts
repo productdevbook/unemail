@@ -107,4 +107,48 @@ describe("resend driver", () => {
   it("rejects apiKey that does not start with 're_'", () => {
     expect(() => resend({ apiKey: "not-a-resend-key" })).toThrow(/must start with/)
   })
+
+  it("cancel(id) POSTs /emails/:id/cancel", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ id: "re_abc" }))
+    const email = createEmail({
+      driver: resend({ apiKey: "re_test_key", fetch: fetchMock as unknown as typeof fetch }),
+    })
+    const { error } = await email.cancel("re_abc")
+    expect(error).toBeNull()
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe("https://api.resend.com/emails/re_abc/cancel")
+    expect(init.method).toBe("POST")
+  })
+
+  it("retrieve(id) GETs and maps last_event to SendStatusState", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        id: "re_abc",
+        last_event: "delivered",
+        created_at: "2026-05-01T00:00:00Z",
+      }),
+    )
+    const email = createEmail({
+      driver: resend({ apiKey: "re_test_key", fetch: fetchMock as unknown as typeof fetch }),
+    })
+    const { data, error } = await email.retrieve("re_abc")
+    expect(error).toBeNull()
+    expect(data?.state).toBe("delivered")
+    expect(data?.id).toBe("re_abc")
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe("https://api.resend.com/emails/re_abc")
+    expect(init.method).toBe("GET")
+    expect(init.body).toBeUndefined()
+  })
+
+  it("returns UNSUPPORTED when the driver doesn't implement cancel()", async () => {
+    const email = createEmail({
+      driver: {
+        name: "dumb",
+        send: () => ({ data: { id: "x", driver: "dumb", at: new Date() }, error: null }),
+      },
+    })
+    const { error } = await email.cancel("anything")
+    expect(error?.code).toBe("UNSUPPORTED")
+  })
 })

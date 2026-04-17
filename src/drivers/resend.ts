@@ -6,6 +6,8 @@ import type {
   EmailResult,
   EmailTag,
   Result,
+  SendStatus,
+  SendStatusState,
 } from "../types.ts"
 import { defineDriver } from "../_define.ts"
 import { formatAddress, normalizeAddresses } from "../_normalize.ts"
@@ -59,6 +61,8 @@ const resend: DriverFactory<ResendDriverOptions> = defineDriver<ResendDriverOpti
       tagging: true,
       replyTo: true,
       customHeaders: true,
+      cancelable: true,
+      retrievable: true,
     },
 
     async isAvailable() {
@@ -78,6 +82,39 @@ const resend: DriverFactory<ResendDriverOptions> = defineDriver<ResendDriverOpti
           driver: DRIVER,
           at: new Date(),
           provider: data,
+        },
+        error: null,
+      }
+    },
+
+    async cancel(id) {
+      const res = await request(
+        fetchImpl,
+        endpoint,
+        `/emails/${id}/cancel`,
+        "POST",
+        options.apiKey,
+        {},
+      )
+      if (res.error) return res as Result<void>
+      return { data: undefined, error: null }
+    },
+
+    async retrieve(id) {
+      const res = await request(fetchImpl, endpoint, `/emails/${id}`, "GET", options.apiKey, null)
+      if (res.error) return res as Result<SendStatus>
+      const body = (res.data ?? {}) as {
+        id?: string
+        last_event?: string
+        created_at?: string
+      }
+      return {
+        data: {
+          id: body.id ?? id,
+          driver: DRIVER,
+          state: mapResendStatus(body.last_event),
+          at: body.created_at ? new Date(body.created_at) : undefined,
+          provider: body,
         },
         error: null,
       }
@@ -127,6 +164,11 @@ function buildPayload(msg: EmailMessage): Record<string, unknown> {
   if (msg.html) body.html = msg.html
   if (msg.headers) body.headers = msg.headers
   if (msg.tags) body.tags = msg.tags.map((t: EmailTag) => ({ name: t.name, value: t.value }))
+  if (msg.metadata) {
+    const headers = (body.headers as Record<string, string>) ?? {}
+    for (const [k, v] of Object.entries(msg.metadata)) headers[`X-Metadata-${k}`] = v
+    body.headers = headers
+  }
   if (msg.attachments?.length) body.attachments = msg.attachments.map(toResendAttachment)
   if (msg.scheduledAt) {
     body.scheduled_at =
@@ -149,6 +191,30 @@ function toResendAttachment(a: Attachment): Record<string, unknown> {
   if (a.disposition) out.disposition = a.disposition
   if (a.cid) out.content_id = a.cid
   return out
+}
+
+function mapResendStatus(event?: string): SendStatusState {
+  switch (event) {
+    case "sent":
+      return "sent"
+    case "delivered":
+      return "delivered"
+    case "bounced":
+    case "delivery_delayed":
+      return "bounced"
+    case "complained":
+      return "complained"
+    case "opened":
+      return "opened"
+    case "clicked":
+      return "clicked"
+    case "scheduled":
+      return "scheduled"
+    case "cancelled":
+      return "cancelled"
+    default:
+      return "unknown"
+  }
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -179,7 +245,9 @@ async function request(
 
   let res: Response
   try {
-    res = await fetchImpl(`${endpoint}${path}`, { method, headers, body: JSON.stringify(body) })
+    const init: RequestInit = { method, headers }
+    if (body !== null && method !== "GET") init.body = JSON.stringify(body)
+    res = await fetchImpl(`${endpoint}${path}`, init)
   } catch (err) {
     return { data: null, error: toEmailError(DRIVER, err) }
   }

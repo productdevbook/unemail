@@ -119,6 +119,17 @@ function buildMailerSendPayload(msg: EmailMessage): Record<string, unknown> {
     payload.send_at = Math.floor(d.getTime() / 1000)
   }
   if (msg.attachments?.length) payload.attachments = msg.attachments.map(toMsAttachment)
+  if (msg.template) {
+    if (msg.template.id) payload.template_id = msg.template.id
+    if (msg.template.variables) {
+      payload.personalization = [
+        {
+          email: normalizeAddresses(msg.to)[0]?.email,
+          data: { ...msg.template.variables },
+        },
+      ]
+    }
+  }
   return payload
 }
 

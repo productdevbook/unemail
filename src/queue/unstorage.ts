@@ -28,12 +28,15 @@ export function unstorageQueue(options: UnstorageQueueOptions): EmailQueue {
   return {
     name: "unstorage",
     async enqueue(msg: EmailMessage, opts: QueueEnqueueOptions = {}) {
+      const stamp = Date.now()
+      const scheduled = msg.scheduledAt ? new Date(msg.scheduledAt).getTime() : 0
+      const visible = Math.max(stamp + (opts.delayMs ?? 0), scheduled)
       const item: QueueItem = {
-        id: opts.id ?? `uq_${++counter}_${Date.now().toString(36)}`,
+        id: opts.id ?? `uq_${++counter}_${stamp.toString(36)}`,
         msg,
         attempts: 0,
-        nextAttemptAt: Date.now() + (opts.delayMs ?? 0),
-        createdAt: Date.now(),
+        nextAttemptAt: visible,
+        createdAt: stamp,
       }
       await options.storage.setItem(key(item.id), item)
       return item

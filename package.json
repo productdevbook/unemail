@@ -180,6 +180,14 @@
       "types": "./dist/inbound/mailgun.d.mts",
       "default": "./dist/inbound/mailgun.mjs"
     },
+    "./inbound/reply": {
+      "types": "./dist/inbound/reply.d.mts",
+      "default": "./dist/inbound/reply.mjs"
+    },
+    "./inbound/thread": {
+      "types": "./dist/inbound/thread.d.mts",
+      "default": "./dist/inbound/thread.mjs"
+    },
     "./webhooks": {
       "types": "./dist/webhooks/index.d.mts",
       "default": "./dist/webhooks/index.mjs"
@@ -204,6 +212,10 @@
       "types": "./dist/webhooks/ses.d.mts",
       "default": "./dist/webhooks/ses.mjs"
     },
+    "./webhooks/standard": {
+      "types": "./dist/webhooks/standard.d.mts",
+      "default": "./dist/webhooks/standard.mjs"
+    },
     "./verify": {
       "types": "./dist/verify/index.d.mts",
       "default": "./dist/verify/index.mjs"
@@ -223,6 +235,22 @@
     "./queue/worker": {
       "types": "./dist/queue/worker.d.mts",
       "default": "./dist/queue/worker.mjs"
+    },
+    "./suppression": {
+      "types": "./dist/suppression/index.d.mts",
+      "default": "./dist/suppression/index.mjs"
+    },
+    "./compliance": {
+      "types": "./dist/compliance/index.d.mts",
+      "default": "./dist/compliance/index.mjs"
+    },
+    "./result": {
+      "types": "./dist/result/index.d.mts",
+      "default": "./dist/result/index.mjs"
+    },
+    "./ics": {
+      "types": "./dist/ics/index.d.mts",
+      "default": "./dist/ics/index.mjs"
     }
   },
   "scripts": {

@@ -7,9 +7,14 @@ import type {
   Middleware,
   Result,
   SendContext,
+  SendStatus,
 } from "./types.ts"
 import { memoryIdempotencyStore } from "./_idempotency.ts"
-import { toEmailError } from "./errors.ts"
+import { createError, toEmailError } from "./errors.ts"
+
+function createUnsupported(driver: string, op: string) {
+  return createError(driver, "UNSUPPORTED", `${op}() not supported by "${driver}"`)
+}
 
 /** Options accepted by `createEmail()`. Only `driver` is required; the rest
  *  have sensible, zero-dependency defaults. */
@@ -34,6 +39,17 @@ export interface Email {
   isAvailable: (stream?: string) => Promise<boolean>
   send: (msg: EmailMessage) => Promise<Result<EmailResult>>
   sendBatch: (msgs: ReadonlyArray<EmailMessage>) => Promise<Result<ReadonlyArray<EmailResult>>>
+  /** Stream the results of `sendBatch` one at a time — useful for
+   *  large (5k+) fan-outs where you don't want every `EmailResult` in
+   *  memory. Unlike `sendBatch` it never short-circuits on the first
+   *  error; each message yields its own Result. */
+  sendBatchStream: (msgs: ReadonlyArray<EmailMessage>) => AsyncIterable<Result<EmailResult>>
+  /** Cancel a scheduled send on the active (or mounted) driver. Routes
+   *  to `UNSUPPORTED` when the driver's `flags.cancelable` is unset. */
+  cancel: (id: string, options?: { stream?: string }) => Promise<Result<void>>
+  /** Retrieve the state of a previously-sent message. Routes to
+   *  `UNSUPPORTED` when the driver's `flags.retrievable` is unset. */
+  retrieve: (id: string, options?: { stream?: string }) => Promise<Result<SendStatus>>
   dispose: () => Promise<void>
 }
 
@@ -111,6 +127,7 @@ export function createEmail(options: CreateEmailOptions): Email {
       }
 
       try {
+        msg = applyUnsubscribeHeaders(msg)
         await runHook("beforeSend", (mw) => mw.beforeSend?.(msg, ctx))
 
         let result = await driver.send(msg, ctx)
@@ -156,6 +173,38 @@ export function createEmail(options: CreateEmailOptions): Email {
       return { data: results, error: null }
     },
 
+    async cancel(id, opts = {}) {
+      const driver = api.getMount(opts.stream)
+      if (!driver.cancel) {
+        return {
+          data: null,
+          error: createUnsupported(driver.name, "cancel"),
+        }
+      }
+      return driver.cancel(id)
+    },
+
+    async retrieve(id, opts = {}) {
+      const driver = api.getMount(opts.stream)
+      if (!driver.retrieve) {
+        return {
+          data: null,
+          error: createUnsupported(driver.name, "retrieve"),
+        }
+      }
+      return driver.retrieve(id)
+    },
+
+    sendBatchStream(msgs) {
+      const api2 = api
+      return {
+        async *[Symbol.asyncIterator]() {
+          await ensureInitialized()
+          for (const msg of msgs) yield await api2.send(msg)
+        },
+      }
+    },
+
     async dispose() {
       await options.driver.dispose?.()
       for (const driver of mounts.values()) await driver.dispose?.()
@@ -190,6 +239,33 @@ export function createEmail(options: CreateEmailOptions): Email {
   }
 
   return api
+}
+
+function applyUnsubscribeHeaders(msg: EmailMessage): EmailMessage {
+  if (!msg.unsubscribe) return msg
+  const { url, mailto, oneClick } = msg.unsubscribe
+  if (!url && !mailto) return msg
+  const parts: string[] = []
+  if (url) parts.push(`<${url}>`)
+  if (mailto) parts.push(`<mailto:${mailto}>`)
+  const existing = msg.headers ?? {}
+  const headers: Record<string, string> = { ...existing }
+  if (!hasHeader(existing, "list-unsubscribe")) {
+    headers["List-Unsubscribe"] = parts.join(", ")
+  }
+  const wantsOneClick = oneClick ?? Boolean(url)
+  if (wantsOneClick && url && !hasHeader(existing, "list-unsubscribe-post")) {
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
+  }
+  return { ...msg, headers }
+}
+
+function hasHeader(headers: Record<string, string>, name: string): boolean {
+  const lower = name.toLowerCase()
+  for (const key of Object.keys(headers)) {
+    if (key.toLowerCase() === lower) return true
+  }
+  return false
 }
 
 function resolveIdempotency(

@@ -64,6 +64,33 @@ export interface EmailMessage {
    *  support scheduling reject with `EmailErrorCode.UNSUPPORTED`. */
   scheduledAt?: string | Date
 
+  /** Unsubscribe configuration — emits RFC 2369 `List-Unsubscribe` and,
+   *  when `oneClick` is true, RFC 8058 `List-Unsubscribe-Post` headers.
+   *  Required by Gmail + Yahoo bulk sender rules (Feb 2024). */
+  unsubscribe?: UnsubscribeOptions
+
+  /** Provider-side template. `id` is the provider's template id (or alias
+   *  for Postmark). `variables` are passed to the template engine under
+   *  provider-specific names (`dynamic_template_data`, `TemplateModel`,
+   *  `params`, `dataVariables`, …). Drivers without templating raise
+   *  `UNSUPPORTED`. */
+  template?: TemplateOptions
+
+  /** Per-message tracking overrides. Drivers that don't expose granular
+   *  tracking fall back to their global setting. */
+  tracking?: TrackingOptions
+
+  /** Run this send in sandbox / test mode. Mapped per-driver:
+   *  - Mailgun `o:testmode`, SendGrid `mail_settings.sandbox_mode`,
+   *    SES configuration sets, Postmark test-stream.
+   *  Drivers without sandbox support raise `UNSUPPORTED`. */
+  sandbox?: boolean
+
+  /** Provider-agnostic metadata echoed back in webhook events. SendGrid
+   *  maps to `custom_args`, Postmark to `Metadata`, Mailgun to
+   *  `v:key=value`, Resend to `headers["X-Metadata-*"]`. */
+  metadata?: Record<string, string>
+
   /** Unrendered React element — resolved to `html` by the `withRender`
    *  middleware from `unemail/render/react`. Ignored by drivers. */
   react?: unknown
@@ -73,6 +100,35 @@ export interface EmailMessage {
   /** MJML source — compiled to `html` by the `withRender` middleware
    *  from `unemail/render/mjml`. */
   mjml?: string
+}
+
+/** Provider-side template settings. `id` is required when the provider
+ *  addresses templates by id; `alias` is used when they address by
+ *  name (Postmark). `variables` is a plain object — drivers stringify
+ *  or serialize as their API demands. */
+export interface TemplateOptions {
+  id?: string
+  alias?: string
+  variables?: Record<string, unknown>
+  /** Override locale for multi-locale template systems. */
+  locale?: string
+}
+
+/** Per-message tracking overrides. Unset fields defer to driver defaults. */
+export interface TrackingOptions {
+  opens?: boolean
+  clicks?: boolean
+  unsubscribes?: boolean
+}
+
+/** RFC 2369 + RFC 8058 unsubscribe configuration. At least one of
+ *  `url` or `mailto` must be provided. When `oneClick` defaults to
+ *  `true` (when `url` is set), the core also emits
+ *  `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. */
+export interface UnsubscribeOptions {
+  url?: string
+  mailto?: string
+  oneClick?: boolean
 }
 
 /** Outcome of a successful send — at minimum the provider-assigned id. */
@@ -115,6 +171,33 @@ export interface DriverFlags {
   customHeaders?: boolean
   inbound?: boolean
   webhooks?: boolean
+  cancelable?: boolean
+  retrievable?: boolean
+}
+
+/** Status returned by `driver.retrieve(id)`. Mirrors the provider state
+ *  where possible; `unknown` covers providers that don't expose it. */
+export type SendStatusState =
+  | "scheduled"
+  | "queued"
+  | "sent"
+  | "delivered"
+  | "bounced"
+  | "complained"
+  | "opened"
+  | "clicked"
+  | "cancelled"
+  | "failed"
+  | "unknown"
+
+export interface SendStatus {
+  id: string
+  driver: string
+  state: SendStatusState
+  /** Last-observed event timestamp if provided. */
+  at?: Date
+  /** Raw provider-specific payload. */
+  provider?: Record<string, unknown>
 }
 
 /** Contract every driver implements. `send` is the only required method;
@@ -132,6 +215,12 @@ export interface EmailDriver<TOpts = unknown, TInstance = unknown> {
     msgs: ReadonlyArray<EmailMessage>,
     ctx: SendContext,
   ) => MaybePromise<Result<ReadonlyArray<EmailResult>>>
+  /** Cancel a scheduled send. Optional — drivers without support are
+   *  gated by `flags.cancelable`. */
+  cancel?: (id: string) => MaybePromise<Result<void>>
+  /** Retrieve the current state of a previously-sent message. Optional
+   *  — drivers without support are gated by `flags.retrievable`. */
+  retrieve?: (id: string) => MaybePromise<Result<SendStatus>>
 }
 
 /** Factory that produces a driver from user options. Always returned via

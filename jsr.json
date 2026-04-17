@@ -39,11 +39,18 @@
     "./webhooks/mailgun": "./src/webhooks/mailgun.ts",
     "./webhooks/sendgrid": "./src/webhooks/sendgrid.ts",
     "./webhooks/ses": "./src/webhooks/ses.ts",
+    "./webhooks/standard": "./src/webhooks/standard.ts",
     "./verify": "./src/verify/index.ts",
     "./queue": "./src/queue/index.ts",
     "./queue/memory": "./src/queue/memory.ts",
     "./queue/unstorage": "./src/queue/unstorage.ts",
-    "./queue/worker": "./src/queue/worker.ts"
+    "./queue/worker": "./src/queue/worker.ts",
+    "./suppression": "./src/suppression/index.ts",
+    "./compliance": "./src/compliance/index.ts",
+    "./result": "./src/result/index.ts",
+    "./ics": "./src/ics/index.ts",
+    "./inbound/reply": "./src/inbound/reply.ts",
+    "./inbound/thread": "./src/inbound/thread.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],

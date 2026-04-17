@@ -56,7 +56,8 @@ const postmark: DriverFactory<PostmarkDriverOptions> = defineDriver<PostmarkDriv
 
       async send(msg) {
         const payload = buildPayload(msg, options.messageStream)
-        const res = await request(fetchImpl, endpoint, "/email", "POST", options.token, payload)
+        const path = msg.template ? "/email/withTemplate" : "/email"
+        const res = await request(fetchImpl, endpoint, path, "POST", options.token, payload)
         if (res.error) return res as Result<EmailResult>
         const body = res.data as PostmarkSendResponse
         const result: EmailResult = {
@@ -71,17 +72,13 @@ const postmark: DriverFactory<PostmarkDriverOptions> = defineDriver<PostmarkDriv
 
       async sendBatch(msgs) {
         const payload = msgs.map((m) => buildPayload(m, options.messageStream))
-        const res = await request(
-          fetchImpl,
-          endpoint,
-          "/email/batch",
-          "POST",
-          options.token,
-          payload,
-        )
+        const anyTemplate = msgs.some((m) => m.template)
+        const path = anyTemplate ? "/email/batchWithTemplates" : "/email/batch"
+        const requestBody = anyTemplate ? { Messages: payload } : payload
+        const res = await request(fetchImpl, endpoint, path, "POST", options.token, requestBody)
         if (res.error) return res as never
-        const body = res.data as PostmarkSendResponse[]
-        const failures = body.filter((entry) => (entry.ErrorCode ?? 0) !== 0)
+        const responses = res.data as PostmarkSendResponse[]
+        const failures = responses.filter((entry) => (entry.ErrorCode ?? 0) !== 0)
         if (failures.length > 0) {
           const first = failures[0]!
           return {
@@ -89,16 +86,16 @@ const postmark: DriverFactory<PostmarkDriverOptions> = defineDriver<PostmarkDriv
             error: createError(
               DRIVER,
               "PROVIDER",
-              first.Message ?? `batch partial failure (${failures.length}/${body.length})`,
+              first.Message ?? `batch partial failure (${failures.length}/${responses.length})`,
               {
                 status: first.ErrorCode,
-                cause: body,
+                cause: responses,
                 retryable: false,
               },
             ),
           }
         }
-        const results: EmailResult[] = body.map((entry, i) => ({
+        const results: EmailResult[] = responses.map((entry, i) => ({
           id: entry.MessageID,
           driver: DRIVER,
           stream: msgs[i]?.stream ?? options.messageStream,
@@ -137,8 +134,20 @@ function buildPayload(msg: EmailMessage, defaultStream?: string): Record<string,
   if (msg.html) body.HtmlBody = msg.html
   if (msg.headers)
     body.Headers = Object.entries(msg.headers).map(([Name, Value]) => ({ Name, Value }))
-  if (msg.tags?.length) body.Metadata = Object.fromEntries(msg.tags.map((t) => [t.name, t.value]))
+  // Postmark treats Metadata as the metadata bag. Prefer msg.metadata; fall back to tags.
+  if (msg.metadata) body.Metadata = { ...msg.metadata }
+  else if (msg.tags?.length)
+    body.Metadata = Object.fromEntries(msg.tags.map((t) => [t.name, t.value]))
+  if (msg.tags?.length) body.Tag = msg.tags[0]!.name
+  if (msg.tracking?.opens !== undefined) body.TrackOpens = msg.tracking.opens
+  if (msg.tracking?.clicks !== undefined)
+    body.TrackLinks = msg.tracking.clicks ? "HtmlAndText" : "None"
   if (msg.attachments?.length) body.Attachments = msg.attachments.map(toPostmarkAttachment)
+  if (msg.template) {
+    if (msg.template.id) body.TemplateId = Number.parseInt(msg.template.id, 10) || msg.template.id
+    if (msg.template.alias) body.TemplateAlias = msg.template.alias
+    if (msg.template.variables) body.TemplateModel = { ...msg.template.variables }
+  }
   const stream = msg.stream ?? defaultStream
   if (stream) body.MessageStream = stream
   return body
