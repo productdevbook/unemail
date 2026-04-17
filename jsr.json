@@ -47,7 +47,9 @@
     "./suppression": "./src/suppression/index.ts",
     "./compliance": "./src/compliance/index.ts",
     "./result": "./src/result/index.ts",
-    "./ics": "./src/ics/index.ts"
+    "./ics": "./src/ics/index.ts",
+    "./inbound/reply": "./src/inbound/reply.ts",
+    "./inbound/thread": "./src/inbound/thread.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],

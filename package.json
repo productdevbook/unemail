@@ -180,6 +180,14 @@
       "types": "./dist/inbound/mailgun.d.mts",
       "default": "./dist/inbound/mailgun.mjs"
     },
+    "./inbound/reply": {
+      "types": "./dist/inbound/reply.d.mts",
+      "default": "./dist/inbound/reply.mjs"
+    },
+    "./inbound/thread": {
+      "types": "./dist/inbound/thread.d.mts",
+      "default": "./dist/inbound/thread.mjs"
+    },
     "./webhooks": {
       "types": "./dist/webhooks/index.d.mts",
       "default": "./dist/webhooks/index.mjs"
