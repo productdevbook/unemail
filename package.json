@@ -1,6 +1,6 @@
 {
   "name": "unemail",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": false,
   "description": "Driver-based TypeScript email library — send, parse, render, verify. Zero-deps core; works on Node, Bun, Deno, Cloudflare Workers, and the browser.",
   "keywords": [
