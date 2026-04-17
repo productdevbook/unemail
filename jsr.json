@@ -20,6 +20,7 @@
     "./drivers/resend": "./src/drivers/resend.ts",
     "./drivers/fallback": "./src/drivers/fallback.ts",
     "./drivers/round-robin": "./src/drivers/round-robin.ts",
+    "./drivers/tee": "./src/drivers/tee.ts",
     "./middleware": "./src/middleware/index.ts",
     "./render": "./src/render/index.ts",
     "./render/react": "./src/render/react.ts",

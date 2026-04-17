@@ -128,6 +128,10 @@
       "types": "./dist/drivers/round-robin.d.mts",
       "default": "./dist/drivers/round-robin.mjs"
     },
+    "./drivers/tee": {
+      "types": "./dist/drivers/tee.d.mts",
+      "default": "./dist/drivers/tee.mjs"
+    },
     "./middleware": {
       "types": "./dist/middleware/index.d.mts",
       "default": "./dist/middleware/index.mjs"
