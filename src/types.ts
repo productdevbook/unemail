@@ -130,6 +130,33 @@ export interface DriverFlags {
   customHeaders?: boolean
   inbound?: boolean
   webhooks?: boolean
+  cancelable?: boolean
+  retrievable?: boolean
+}
+
+/** Status returned by `driver.retrieve(id)`. Mirrors the provider state
+ *  where possible; `unknown` covers providers that don't expose it. */
+export type SendStatusState =
+  | "scheduled"
+  | "queued"
+  | "sent"
+  | "delivered"
+  | "bounced"
+  | "complained"
+  | "opened"
+  | "clicked"
+  | "cancelled"
+  | "failed"
+  | "unknown"
+
+export interface SendStatus {
+  id: string
+  driver: string
+  state: SendStatusState
+  /** Last-observed event timestamp if provided. */
+  at?: Date
+  /** Raw provider-specific payload. */
+  provider?: Record<string, unknown>
 }
 
 /** Contract every driver implements. `send` is the only required method;
@@ -147,6 +174,12 @@ export interface EmailDriver<TOpts = unknown, TInstance = unknown> {
     msgs: ReadonlyArray<EmailMessage>,
     ctx: SendContext,
   ) => MaybePromise<Result<ReadonlyArray<EmailResult>>>
+  /** Cancel a scheduled send. Optional — drivers without support are
+   *  gated by `flags.cancelable`. */
+  cancel?: (id: string) => MaybePromise<Result<void>>
+  /** Retrieve the current state of a previously-sent message. Optional
+   *  — drivers without support are gated by `flags.retrievable`. */
+  retrieve?: (id: string) => MaybePromise<Result<SendStatus>>
 }
 
 /** Factory that produces a driver from user options. Always returned via

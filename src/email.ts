@@ -7,9 +7,14 @@ import type {
   Middleware,
   Result,
   SendContext,
+  SendStatus,
 } from "./types.ts"
 import { memoryIdempotencyStore } from "./_idempotency.ts"
-import { toEmailError } from "./errors.ts"
+import { createError, toEmailError } from "./errors.ts"
+
+function createUnsupported(driver: string, op: string) {
+  return createError(driver, "UNSUPPORTED", `${op}() not supported by "${driver}"`)
+}
 
 /** Options accepted by `createEmail()`. Only `driver` is required; the rest
  *  have sensible, zero-dependency defaults. */
@@ -39,6 +44,12 @@ export interface Email {
    *  memory. Unlike `sendBatch` it never short-circuits on the first
    *  error; each message yields its own Result. */
   sendBatchStream: (msgs: ReadonlyArray<EmailMessage>) => AsyncIterable<Result<EmailResult>>
+  /** Cancel a scheduled send on the active (or mounted) driver. Routes
+   *  to `UNSUPPORTED` when the driver's `flags.cancelable` is unset. */
+  cancel: (id: string, options?: { stream?: string }) => Promise<Result<void>>
+  /** Retrieve the state of a previously-sent message. Routes to
+   *  `UNSUPPORTED` when the driver's `flags.retrievable` is unset. */
+  retrieve: (id: string, options?: { stream?: string }) => Promise<Result<SendStatus>>
   dispose: () => Promise<void>
 }
 
@@ -160,6 +171,28 @@ export function createEmail(options: CreateEmailOptions): Email {
         results.push(res.data)
       }
       return { data: results, error: null }
+    },
+
+    async cancel(id, opts = {}) {
+      const driver = api.getMount(opts.stream)
+      if (!driver.cancel) {
+        return {
+          data: null,
+          error: createUnsupported(driver.name, "cancel"),
+        }
+      }
+      return driver.cancel(id)
+    },
+
+    async retrieve(id, opts = {}) {
+      const driver = api.getMount(opts.stream)
+      if (!driver.retrieve) {
+        return {
+          data: null,
+          error: createUnsupported(driver.name, "retrieve"),
+        }
+      }
+      return driver.retrieve(id)
     },
 
     sendBatchStream(msgs) {
