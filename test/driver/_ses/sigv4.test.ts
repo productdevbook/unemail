@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { signRequest } from "../../../src/drivers/_ses/sigv4.ts"
+import { signRequest } from "../../../src/driver/_ses/sigv4.ts"
 
 /** AWS's published test vector for SigV4 GETs the Vanilla example — we
  *  reuse the shape here with a tiny POST to confirm the algorithm matches

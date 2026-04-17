@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
-import { defineWebhookHandler } from "../../src/webhooks/index.ts"
-import mailgunWebhook from "../../src/webhooks/mailgun.ts"
-import postmarkWebhook from "../../src/webhooks/postmark.ts"
-import sesWebhook from "../../src/webhooks/ses.ts"
-import { webCryptoHmacHex } from "../../src/webhooks/_crypto.ts"
+import { defineWebhookHandler } from "../../src/webhook/index.ts"
+import mailgunWebhook from "../../src/webhook/mailgun.ts"
+import postmarkWebhook from "../../src/webhook/postmark.ts"
+import sesWebhook from "../../src/webhook/ses.ts"
+import { webCryptoHmacHex } from "../../src/webhook/_crypto.ts"
 
 function jsonRequest(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request("https://example.com/webhook", {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import mailcrab from "../../src/drivers/mailcrab.ts"
+import mailcrab from "../../src/driver/mailcrab.ts"
 import { startFakeServer } from "./_smtp/fake-server.ts"
 import type { FakeServerHandle } from "./_smtp/fake-server.ts"
 

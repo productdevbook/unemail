@@ -35,13 +35,13 @@ export async function verifyStandardWebhook(
   const timestamp = request.headers.get("webhook-timestamp")
   const signatures = request.headers.get("webhook-signature")
   if (!msgId || !timestamp || !signatures)
-    throw new Error("[unemail/webhooks/standard] missing webhook-* headers")
+    throw new Error("[unemail/webhook/standard] missing webhook-* headers")
 
   const now = options.now ?? Date.now
   const tolerance = options.toleranceSeconds ?? TOLERANCE_SECONDS
   const ts = Number(timestamp)
   if (!Number.isFinite(ts) || Math.abs(now() / 1000 - ts) > tolerance)
-    throw new Error("[unemail/webhooks/standard] timestamp outside tolerance window")
+    throw new Error("[unemail/webhook/standard] timestamp outside tolerance window")
 
   const body = await request.text()
   const expected = await computeSignature(
@@ -53,7 +53,7 @@ export async function verifyStandardWebhook(
     if (version !== "v1" || !sig) continue
     if (timingSafeEqual(sig, expected)) return body
   }
-  throw new Error("[unemail/webhooks/standard] signature mismatch")
+  throw new Error("[unemail/webhook/standard] signature mismatch")
 }
 
 /** Sign a payload for tests or self-sending. Returns the value you'd

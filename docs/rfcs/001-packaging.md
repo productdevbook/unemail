@@ -7,7 +7,7 @@
 Upyo (our direct peer) ships each transport as its own package
 (`@upyo/resend`, `@upyo/sendgrid`, `@upyo/smtp`). `unemail` currently
 ships one package with ~50 sub-path exports (e.g.
-`unemail/drivers/resend`, `unemail/render/mjml`, `unemail/queue/sqs`).
+`unemail/driver/resend`, `unemail/render/mjml`, `unemail/queue/sqs`).
 
 Both models work. The question is which one minimizes:
 
@@ -26,7 +26,7 @@ Both models work. The question is which one minimizes:
   imports already tree-shake well with obuild/ESM. Peer deps are
   truly peer (not installed unless imported).
 - **Cons:** Users must know the sub-path exists. `npm ls` looks
-  heavy even if you're only using `unemail/drivers/mock`.
+  heavy even if you're only using `unemail/driver/mock`.
 
 ### B. Split into ~15 packages under `@unemail/*`
 
@@ -72,7 +72,7 @@ for users who want the narrow install.
 
 ## Implementation notes (status quo)
 
-- Every driver is a sub-path export: `unemail/drivers/<name>`.
+- Every driver is a sub-path export: `unemail/driver/<name>`.
 - Render adapters live under `unemail/render/<name>`.
 - Observability + deliverability utilities are lightly grouped:
   `unemail/events`, `unemail/dmarc`, `unemail/mta-sts`,

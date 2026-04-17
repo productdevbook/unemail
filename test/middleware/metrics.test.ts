@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { createMetricsRegistry, withMetrics } from "../../src/middleware/metrics.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 
 describe("withMetrics", () => {
   it("records counters and exposes Prometheus text format", async () => {

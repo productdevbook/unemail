@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { withTelemetry, type OtelSpan, type OtelTracer } from "../../src/middleware/telemetry.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 
 function makeFakeTracer(): {
   tracer: OtelTracer

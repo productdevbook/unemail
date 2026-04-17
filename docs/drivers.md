@@ -6,30 +6,30 @@ touch it again; swapping providers is a one-line change.
 
 ## Built-in drivers
 
-| Sub-path                           | Runtime            | Attachments |  Batch  | Scheduling | Idempotency | Templates | Tags | Streams |
-| ---------------------------------- | ------------------ | :---------: | :-----: | :--------: | :---------: | :-------: | :--: | :-----: |
-| `unemail/drivers/mock`             | all                |      ✓      |    ✓    |     ✓      |      ✓      |     –     |  ✓   |    –    |
-| `unemail/drivers/smtp`             | Node + Bun         |      ✓      | ✓ (seq) |     –      |      –      |     –     |  –   |    –    |
-| `unemail/drivers/mailcrab`         | Node (local only)  |      ✓      |    ✓    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/drivers/resend`           | all                |      ✓      |    ✓    |     ✓      |      ✓      |     ✓     |  ✓   |    –    |
-| `unemail/drivers/postmark`         | all                |      ✓      |    ✓    |     –      |      –      |     ✓     |  ✓   |    ✓    |
-| `unemail/drivers/ses`              | all (Web-Crypto)   |      ✓      | ✓ (seq) |     –      |      –      |     –     |  ✓   |    –    |
-| `unemail/drivers/sendgrid`         | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
-| `unemail/drivers/mailgun`          | all                |      ✓      |    –    |     ✓      |      –      |     –     |  ✓   |    –    |
-| `unemail/drivers/brevo`            | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
-| `unemail/drivers/mailersend`       | all                |      ✓      |    ✓    |     ✓      |      –      |     –     |  ✓   |    –    |
-| `unemail/drivers/loops`            | all                |      –      |    –    |     –      |      –      |     ✓     |  ✓   |    –    |
-| `unemail/drivers/zeptomail`        | all                |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/drivers/mailchannels`     | all (CF Workers)   |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/drivers/cloudflare-email` | CF Workers binding |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/drivers/http`             | all                |  (custom)   |    –    |  (custom)  |      –      |     –     |  –   |    –    |
+| Sub-path                          | Runtime            | Attachments |  Batch  | Scheduling | Idempotency | Templates | Tags | Streams |
+| --------------------------------- | ------------------ | :---------: | :-----: | :--------: | :---------: | :-------: | :--: | :-----: |
+| `unemail/driver/mock`             | all                |      ✓      |    ✓    |     ✓      |      ✓      |     –     |  ✓   |    –    |
+| `unemail/driver/smtp`             | Node + Bun         |      ✓      | ✓ (seq) |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/mailcrab`         | Node (local only)  |      ✓      |    ✓    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/resend`           | all                |      ✓      |    ✓    |     ✓      |      ✓      |     ✓     |  ✓   |    –    |
+| `unemail/driver/postmark`         | all                |      ✓      |    ✓    |     –      |      –      |     ✓     |  ✓   |    ✓    |
+| `unemail/driver/ses`              | all (Web-Crypto)   |      ✓      | ✓ (seq) |     –      |      –      |     –     |  ✓   |    –    |
+| `unemail/driver/sendgrid`         | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
+| `unemail/driver/mailgun`          | all                |      ✓      |    –    |     ✓      |      –      |     –     |  ✓   |    –    |
+| `unemail/driver/brevo`            | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
+| `unemail/driver/mailersend`       | all                |      ✓      |    ✓    |     ✓      |      –      |     –     |  ✓   |    –    |
+| `unemail/driver/loops`            | all                |      –      |    –    |     –      |      –      |     ✓     |  ✓   |    –    |
+| `unemail/driver/zeptomail`        | all                |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/mailchannels`     | all (CF Workers)   |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/cloudflare-email` | CF Workers binding |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/http`             | all                |  (custom)   |    –    |  (custom)  |      –      |     –     |  –   |    –    |
 
 ### Meta drivers
 
 These wrap other drivers:
 
-- `unemail/drivers/fallback` — try a list of drivers in order
-- `unemail/drivers/round-robin` — cycle sends across drivers (with weights)
+- `unemail/driver/fallback` — try a list of drivers in order
+- `unemail/driver/round-robin` — cycle sends across drivers (with weights)
 
 ## Authoring a custom driver
 

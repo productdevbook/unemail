@@ -83,9 +83,9 @@
     <!-- Content: syntax-highlighted TypeScript -->
     <g font-family="'JetBrains Mono','SF Mono','Monaco',monospace" font-size="15" font-weight="500" xml:space="preserve">
       <text x="28" y="80"><tspan fill="#a78bfa">import</tspan><tspan fill="#9aa4b8"> { </tspan><tspan fill="#60efd4">createEmail</tspan><tspan fill="#9aa4b8"> } </tspan><tspan fill="#a78bfa">from</tspan><tspan fill="#fbbf77"> "unemail"</tspan></text>
-      <text x="28" y="108"><tspan fill="#a78bfa">import</tspan><tspan fill="#60efd4"> resend </tspan><tspan fill="#a78bfa">from</tspan><tspan fill="#fbbf77"> "unemail/drivers/resend"</tspan></text>
+      <text x="28" y="108"><tspan fill="#a78bfa">import</tspan><tspan fill="#60efd4"> ses </tspan><tspan fill="#a78bfa">from</tspan><tspan fill="#fbbf77"> "unemail/driver/ses"</tspan></text>
       <text x="28" y="152"><tspan fill="#a78bfa">const</tspan><tspan fill="#60efd4"> email </tspan><tspan fill="#f472b6">=</tspan><tspan fill="#e9e6ff"> createEmail</tspan><tspan fill="#9aa4b8">({</tspan></text>
-      <text x="68" y="176"><tspan fill="#9aa4b8">driver</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#e9e6ff"> resend</tspan><tspan fill="#9aa4b8">({ apiKey }),</tspan></text>
+      <text x="68" y="176"><tspan fill="#9aa4b8">driver</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#e9e6ff"> ses</tspan><tspan fill="#9aa4b8">({ region: </tspan><tspan fill="#fbbf77">"us-east-1"</tspan><tspan fill="#9aa4b8"> }),</tspan></text>
       <text x="28" y="200"><tspan fill="#9aa4b8">})</tspan></text>
       <text x="28" y="244"><tspan fill="#a78bfa">await</tspan><tspan fill="#e9e6ff"> email</tspan><tspan fill="#9aa4b8">.</tspan><tspan fill="#60efd4">send</tspan><tspan fill="#9aa4b8">({</tspan></text>
       <text x="68" y="268"><tspan fill="#9aa4b8">to</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#fbbf77"> "ada@acme.com"</tspan><tspan fill="#9aa4b8">,</tspan></text>

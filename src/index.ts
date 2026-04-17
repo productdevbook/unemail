@@ -3,7 +3,7 @@
  * TypeScript email library inspired by `unjs/unstorage`.
  *
  * Transports (SMTP, Resend, SES, Postmark, …) live under
- * `unemail/drivers/<name>`. Rendering and inbound adapters live under
+ * `unemail/driver/<name>`. Rendering and inbound adapters live under
  * their own sub-paths (shipped incrementally).
  *
  * @module

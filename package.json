@@ -60,77 +60,77 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
-    "./drivers/mock": {
-      "types": "./dist/drivers/mock.d.mts",
-      "default": "./dist/drivers/mock.mjs"
+    "./driver/mock": {
+      "types": "./dist/driver/mock.d.mts",
+      "default": "./dist/driver/mock.mjs"
     },
-    "./drivers/smtp": {
-      "types": "./dist/drivers/smtp.d.mts",
-      "default": "./dist/drivers/smtp.mjs"
+    "./driver/smtp": {
+      "types": "./dist/driver/smtp.d.mts",
+      "default": "./dist/driver/smtp.mjs"
     },
-    "./drivers/postmark": {
-      "types": "./dist/drivers/postmark.d.mts",
-      "default": "./dist/drivers/postmark.mjs"
+    "./driver/postmark": {
+      "types": "./dist/driver/postmark.d.mts",
+      "default": "./dist/driver/postmark.mjs"
     },
-    "./drivers/ses": {
-      "types": "./dist/drivers/ses.d.mts",
-      "default": "./dist/drivers/ses.mjs"
+    "./driver/ses": {
+      "types": "./dist/driver/ses.d.mts",
+      "default": "./dist/driver/ses.mjs"
     },
-    "./drivers/http": {
-      "types": "./dist/drivers/http.d.mts",
-      "default": "./dist/drivers/http.mjs"
+    "./driver/http": {
+      "types": "./dist/driver/http.d.mts",
+      "default": "./dist/driver/http.mjs"
     },
-    "./drivers/zeptomail": {
-      "types": "./dist/drivers/zeptomail.d.mts",
-      "default": "./dist/drivers/zeptomail.mjs"
+    "./driver/zeptomail": {
+      "types": "./dist/driver/zeptomail.d.mts",
+      "default": "./dist/driver/zeptomail.mjs"
     },
-    "./drivers/sendgrid": {
-      "types": "./dist/drivers/sendgrid.d.mts",
-      "default": "./dist/drivers/sendgrid.mjs"
+    "./driver/sendgrid": {
+      "types": "./dist/driver/sendgrid.d.mts",
+      "default": "./dist/driver/sendgrid.mjs"
     },
-    "./drivers/mailgun": {
-      "types": "./dist/drivers/mailgun.d.mts",
-      "default": "./dist/drivers/mailgun.mjs"
+    "./driver/mailgun": {
+      "types": "./dist/driver/mailgun.d.mts",
+      "default": "./dist/driver/mailgun.mjs"
     },
-    "./drivers/brevo": {
-      "types": "./dist/drivers/brevo.d.mts",
-      "default": "./dist/drivers/brevo.mjs"
+    "./driver/brevo": {
+      "types": "./dist/driver/brevo.d.mts",
+      "default": "./dist/driver/brevo.mjs"
     },
-    "./drivers/mailersend": {
-      "types": "./dist/drivers/mailersend.d.mts",
-      "default": "./dist/drivers/mailersend.mjs"
+    "./driver/mailersend": {
+      "types": "./dist/driver/mailersend.d.mts",
+      "default": "./dist/driver/mailersend.mjs"
     },
-    "./drivers/loops": {
-      "types": "./dist/drivers/loops.d.mts",
-      "default": "./dist/drivers/loops.mjs"
+    "./driver/loops": {
+      "types": "./dist/driver/loops.d.mts",
+      "default": "./dist/driver/loops.mjs"
     },
-    "./drivers/mailchannels": {
-      "types": "./dist/drivers/mailchannels.d.mts",
-      "default": "./dist/drivers/mailchannels.mjs"
+    "./driver/mailchannels": {
+      "types": "./dist/driver/mailchannels.d.mts",
+      "default": "./dist/driver/mailchannels.mjs"
     },
-    "./drivers/cloudflare-email": {
-      "types": "./dist/drivers/cloudflare-email.d.mts",
-      "default": "./dist/drivers/cloudflare-email.mjs"
+    "./driver/cloudflare-email": {
+      "types": "./dist/driver/cloudflare-email.d.mts",
+      "default": "./dist/driver/cloudflare-email.mjs"
     },
-    "./drivers/mailcrab": {
-      "types": "./dist/drivers/mailcrab.d.mts",
-      "default": "./dist/drivers/mailcrab.mjs"
+    "./driver/mailcrab": {
+      "types": "./dist/driver/mailcrab.d.mts",
+      "default": "./dist/driver/mailcrab.mjs"
     },
-    "./drivers/resend": {
-      "types": "./dist/drivers/resend.d.mts",
-      "default": "./dist/drivers/resend.mjs"
+    "./driver/resend": {
+      "types": "./dist/driver/resend.d.mts",
+      "default": "./dist/driver/resend.mjs"
     },
-    "./drivers/fallback": {
-      "types": "./dist/drivers/fallback.d.mts",
-      "default": "./dist/drivers/fallback.mjs"
+    "./driver/fallback": {
+      "types": "./dist/driver/fallback.d.mts",
+      "default": "./dist/driver/fallback.mjs"
     },
-    "./drivers/round-robin": {
-      "types": "./dist/drivers/round-robin.d.mts",
-      "default": "./dist/drivers/round-robin.mjs"
+    "./driver/round-robin": {
+      "types": "./dist/driver/round-robin.d.mts",
+      "default": "./dist/driver/round-robin.mjs"
     },
-    "./drivers/tee": {
-      "types": "./dist/drivers/tee.d.mts",
-      "default": "./dist/drivers/tee.mjs"
+    "./driver/tee": {
+      "types": "./dist/driver/tee.d.mts",
+      "default": "./dist/driver/tee.mjs"
     },
     "./middleware": {
       "types": "./dist/middleware/index.d.mts",
@@ -204,33 +204,33 @@
       "types": "./dist/inbound/thread.d.mts",
       "default": "./dist/inbound/thread.mjs"
     },
-    "./webhooks": {
-      "types": "./dist/webhooks/index.d.mts",
-      "default": "./dist/webhooks/index.mjs"
+    "./webhook": {
+      "types": "./dist/webhook/index.d.mts",
+      "default": "./dist/webhook/index.mjs"
     },
-    "./webhooks/resend": {
-      "types": "./dist/webhooks/resend.d.mts",
-      "default": "./dist/webhooks/resend.mjs"
+    "./webhook/resend": {
+      "types": "./dist/webhook/resend.d.mts",
+      "default": "./dist/webhook/resend.mjs"
     },
-    "./webhooks/postmark": {
-      "types": "./dist/webhooks/postmark.d.mts",
-      "default": "./dist/webhooks/postmark.mjs"
+    "./webhook/postmark": {
+      "types": "./dist/webhook/postmark.d.mts",
+      "default": "./dist/webhook/postmark.mjs"
     },
-    "./webhooks/mailgun": {
-      "types": "./dist/webhooks/mailgun.d.mts",
-      "default": "./dist/webhooks/mailgun.mjs"
+    "./webhook/mailgun": {
+      "types": "./dist/webhook/mailgun.d.mts",
+      "default": "./dist/webhook/mailgun.mjs"
     },
-    "./webhooks/sendgrid": {
-      "types": "./dist/webhooks/sendgrid.d.mts",
-      "default": "./dist/webhooks/sendgrid.mjs"
+    "./webhook/sendgrid": {
+      "types": "./dist/webhook/sendgrid.d.mts",
+      "default": "./dist/webhook/sendgrid.mjs"
     },
-    "./webhooks/ses": {
-      "types": "./dist/webhooks/ses.d.mts",
-      "default": "./dist/webhooks/ses.mjs"
+    "./webhook/ses": {
+      "types": "./dist/webhook/ses.d.mts",
+      "default": "./dist/webhook/ses.mjs"
     },
-    "./webhooks/standard": {
-      "types": "./dist/webhooks/standard.d.mts",
-      "default": "./dist/webhooks/standard.mjs"
+    "./webhook/standard": {
+      "types": "./dist/webhook/standard.d.mts",
+      "default": "./dist/webhook/standard.mjs"
     },
     "./verify": {
       "types": "./dist/verify/index.d.mts",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import tee from "../../src/drivers/tee.ts"
-import mock from "../../src/drivers/mock.ts"
+import tee from "../../src/driver/tee.ts"
+import mock from "../../src/driver/mock.ts"
 import { createError } from "../../src/errors.ts"
 import type { EmailDriver } from "../../src/types.ts"
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ReplyParser } from "../../../src/drivers/_smtp/reply.ts"
+import { ReplyParser } from "../../../src/driver/_smtp/reply.ts"
 
 describe("ReplyParser", () => {
   it("emits a single 3-digit reply", () => {

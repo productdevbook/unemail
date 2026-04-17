@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { signStandardWebhook, verifyStandardWebhook } from "../../src/webhooks/standard.ts"
+import { signStandardWebhook, verifyStandardWebhook } from "../../src/webhook/standard.ts"
 
 const SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
 

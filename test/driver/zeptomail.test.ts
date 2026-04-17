@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import zeptomail from "../../src/drivers/zeptomail.ts"
+import zeptomail from "../../src/driver/zeptomail.ts"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

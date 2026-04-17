@@ -67,7 +67,7 @@ When you need a real SMTP server to exercise the full pipeline:
 
 ```ts
 import { createEmail } from "unemail"
-import mailcrab from "unemail/drivers/mailcrab"
+import mailcrab from "unemail/driver/mailcrab"
 
 const email = createEmail({ driver: mailcrab({ quiet: true }) })
 await email.send({ from, to, subject, text })

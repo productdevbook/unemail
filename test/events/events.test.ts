@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { EventBus, memoryEventStore, withEvents } from "../../src/events/index.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 import type { EmailEvent } from "../../src/events/index.ts"
 
 describe("unified event stream", () => {

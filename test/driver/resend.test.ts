@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import resend from "../../src/drivers/resend.ts"
+import resend from "../../src/driver/resend.ts"
 
 function jsonResponse(
   body: unknown,

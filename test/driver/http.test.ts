@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import http from "../../src/drivers/http.ts"
+import http from "../../src/driver/http.ts"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

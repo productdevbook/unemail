@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import sendgrid from "../../src/drivers/sendgrid.ts"
-import mock from "../../src/drivers/mock.ts"
+import sendgrid from "../../src/driver/sendgrid.ts"
+import mock from "../../src/driver/mock.ts"
 
 describe("personalizations", () => {
   it("sendgrid sends all personalizations in a single API call", async () => {

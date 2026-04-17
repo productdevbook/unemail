@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { withRateLimit } from "../../src/middleware/rate-limit.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 
 describe("withRateLimit", () => {
   it("passes immediate calls under the budget through without sleeping", async () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { defineTemplate, withRender } from "../../src/render/index.ts"
 import reactRenderer from "../../src/render/react.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 
 describe("defineTemplate", () => {
   it("produces a typed factory that splats into email.send()", async () => {

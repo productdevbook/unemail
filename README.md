@@ -53,7 +53,7 @@ pnpm add pg-boss               # unemail/queue/pg-boss
 
 ```ts
 import { createEmail } from "unemail"
-import resend from "unemail/drivers/resend"
+import resend from "unemail/driver/resend"
 
 const email = createEmail({ driver: resend({ apiKey: process.env.RESEND_KEY! }) })
 
@@ -74,8 +74,8 @@ one-line change.
 ## Message streams (Postmark-style)
 
 ```ts
-import postmark from "unemail/drivers/postmark"
-import ses from "unemail/drivers/ses"
+import postmark from "unemail/driver/postmark"
+import ses from "unemail/driver/ses"
 
 const email = createEmail({ driver: postmark({ token }) })
 email.mount("marketing", ses({ region: "us-east-1" }))
@@ -105,7 +105,7 @@ await email.send({
 **DKIM sign outbound SMTP** (RSA or Ed25519, pure Web-Crypto):
 
 ```ts
-import smtp from "unemail/drivers/smtp"
+import smtp from "unemail/driver/smtp"
 const driver = smtp({
   host: "smtp.acme.com",
   dkim: { selector: "s1", domain: "acme.com", privateKey: pem },
@@ -298,10 +298,10 @@ email.use(
 ## Provider fallback + composition
 
 ```ts
-import fallback from "unemail/drivers/fallback"
-import roundRobin from "unemail/drivers/round-robin"
-import resend from "unemail/drivers/resend"
-import ses from "unemail/drivers/ses"
+import fallback from "unemail/driver/fallback"
+import roundRobin from "unemail/driver/round-robin"
+import resend from "unemail/driver/resend"
+import ses from "unemail/driver/ses"
 
 const email = createEmail({
   driver: fallback({
@@ -367,7 +367,7 @@ SendGrid, SES, plus a zero-dep **Standard Webhooks**
 (`standardwebhooks.com`) verifier that's <5 kB (vs Svix's ~1 MB):
 
 ```ts
-import { verifyStandardWebhook } from "unemail/webhooks/standard"
+import { verifyStandardWebhook } from "unemail/webhook/standard"
 
 const body = await verifyStandardWebhook(request, {
   secret: process.env.WHSEC!,

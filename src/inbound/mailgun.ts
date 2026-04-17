@@ -1,7 +1,7 @@
 import type { InboundAdapter } from "./index.ts"
 import type { ParsedEmail } from "../parse/index.ts"
 import { parseEmail } from "../parse/index.ts"
-import { webCryptoHmacHex } from "../webhooks/_crypto.ts"
+import { webCryptoHmacHex } from "../webhook/_crypto.ts"
 
 /** Mailgun inbound-route adapter. Mailgun sends \`multipart/form-data\`
  *  with \`body-mime\` carrying the raw message (store mode). \`token +

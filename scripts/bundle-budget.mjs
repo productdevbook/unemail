@@ -9,7 +9,7 @@ const DIST = resolve(process.cwd(), "dist")
 
 const BUDGETS = [
   { glob: /^index\.mjs$/, max: 8192, label: "core" },
-  { glob: /^drivers\/.+\.mjs$/, max: 16384, label: "driver" },
+  { glob: /^driver\/.+\.mjs$/, max: 16384, label: "driver" },
 ]
 
 async function* walk(dir, prefix = "") {

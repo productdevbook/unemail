@@ -19,7 +19,7 @@ export type SesInboundEvent =
 
 /** Parse a raw SNS envelope body (the bytes POST'd to your webhook).
  *  The SNS signature is NOT verified here — combine with
- *  `unemail/webhooks/ses` if you want verification. */
+ *  `unemail/webhook/ses` if you want verification. */
 export async function defineSesInboundHandler(opts?: {
   autoConfirm?: (url: string) => void | Promise<void>
 }): Promise<(body: string) => Promise<SesInboundEvent>> {

@@ -8,7 +8,7 @@ you already use, and the `withRender` middleware drops the result into
 
 ```ts
 import { createEmail, withRender } from "unemail"
-import resend from "unemail/drivers/resend"
+import resend from "unemail/driver/resend"
 import reactRender from "unemail/render/react"
 import { Welcome } from "./emails/welcome.tsx"
 

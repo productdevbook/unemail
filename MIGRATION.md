@@ -1,6 +1,42 @@
-# Migrating from v0.x to v1.0
+# Migrating
 
-v1 is a full rewrite. The provider pattern was replaced with a driver-based
+## v1.0 → v1.1 (sub-path rename)
+
+The `drivers/` and `webhooks/` sub-path segments were renamed to their
+singular forms, matching the sibling libraries `ahize` and `etiket`.
+This is the only breaking change in v1.1; every import is a one-token
+find-and-replace.
+
+```diff
+- import resend from "unemail/drivers/resend"
++ import resend from "unemail/driver/resend"
+
+- import resendWebhook from "unemail/webhooks/resend"
++ import resendWebhook from "unemail/webhook/resend"
+
+- import { defineWebhookHandler } from "unemail/webhooks"
++ import { defineWebhookHandler } from "unemail/webhook"
+```
+
+Nothing else moves. All other segments (`render/`, `queue/`,
+`inbound/`, `parse/`, `middleware`, `events`, `suppression`,
+`preferences`, `compliance`, `verify`, `dmarc`, `mta-sts`, `ics`,
+`address`, `result`, `test`) stay identical.
+
+Quick sed recipe:
+
+```bash
+grep -rl 'unemail/drivers/\|unemail/webhooks' . --include='*.ts' --include='*.tsx' \
+  | xargs sed -i '' -e 's|unemail/drivers/|unemail/driver/|g' \
+                    -e 's|unemail/webhooks/|unemail/webhook/|g' \
+                    -e 's|unemail/webhooks"|unemail/webhook"|g'
+```
+
+---
+
+## v0.x → v1.0
+
+v1 was a full rewrite. The provider pattern was replaced with a driver-based
 architecture modeled on [`unjs/unstorage`](https://github.com/unjs/unstorage),
 the error shape is a proper discriminated union, and every provider now
 runs unchanged on Node, Bun, Deno, Cloudflare Workers, and the browser.
@@ -13,7 +49,7 @@ This guide walks through the breaking changes with before/after snippets.
 | ------------------- | ---------------------------------- | ------------------------------------------------------------------------- |
 | Factory             | `createEmailService({ provider })` | `createEmail({ driver })`                                                 |
 | Provider definition | `defineProvider(factory)`          | `defineDriver(factory)` (identical ergonomics, renamed for consistency)   |
-| Import path         | `unemail/providers/<name>`         | `unemail/drivers/<name>`                                                  |
+| Import path         | `unemail/providers/<name>`         | `unemail/driver/<name>`                                                   |
 | Result shape        | `{ success, data?, error? }`       | `{ data, error: null } \| { data: null, error: EmailError }` (narrowable) |
 | Error type          | plain `Error`                      | `EmailError` with `code` taxonomy + `retryable` flag                      |
 | Runtime             | Node-only for most providers       | Node + Bun + Deno + Workers + browser for every HTTP driver               |
@@ -35,7 +71,7 @@ pnpm add unemail@next
 - import { createEmailService } from "unemail"
 - import resendProvider from "unemail/providers/resend"
 + import { createEmail } from "unemail"
-+ import resend from "unemail/drivers/resend"
++ import resend from "unemail/driver/resend"
 
 - const email = createEmailService({
 -   provider: resendProvider({ apiKey: process.env.RESEND_KEY! }),
@@ -147,14 +183,14 @@ through `msg.headers`, the driver's options (driver-scoped), or `msg.tags`.
 
 ## Provider migration table
 
-| v0.x import                   | v1.0 import                        |
-| ----------------------------- | ---------------------------------- |
-| `unemail/providers/smtp`      | `unemail/drivers/smtp`             |
-| `unemail/providers/resend`    | `unemail/drivers/resend`           |
-| `unemail/providers/aws-ses`   | `unemail/drivers/ses` (now SES v2) |
-| `unemail/providers/http`      | `unemail/drivers/http`             |
-| `unemail/providers/zeptomail` | `unemail/drivers/zeptomail`        |
-| (MailCrab helper only in v0)  | `unemail/drivers/mailcrab`         |
+| v0.x import                   | v1.0 import                       |
+| ----------------------------- | --------------------------------- |
+| `unemail/providers/smtp`      | `unemail/driver/smtp`             |
+| `unemail/providers/resend`    | `unemail/driver/resend`           |
+| `unemail/providers/aws-ses`   | `unemail/driver/ses` (now SES v2) |
+| `unemail/providers/http`      | `unemail/driver/http`             |
+| `unemail/providers/zeptomail` | `unemail/driver/zeptomail`        |
+| (MailCrab helper only in v0)  | `unemail/driver/mailcrab`         |
 
 New in v1: `postmark`, `sendgrid`, `mailgun`, `brevo`, `mailersend`,
 `loops`, `mailchannels`, `cloudflare-email`, plus meta drivers

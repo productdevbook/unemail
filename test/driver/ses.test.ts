@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import ses from "../../src/drivers/ses.ts"
+import ses from "../../src/driver/ses.ts"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

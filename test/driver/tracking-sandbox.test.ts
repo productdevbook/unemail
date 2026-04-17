@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import sendgrid from "../../src/drivers/sendgrid.ts"
-import mailgun from "../../src/drivers/mailgun.ts"
-import postmark from "../../src/drivers/postmark.ts"
+import sendgrid from "../../src/driver/sendgrid.ts"
+import mailgun from "../../src/driver/mailgun.ts"
+import postmark from "../../src/driver/postmark.ts"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

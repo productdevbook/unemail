@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import memoryQueue from "../../src/queue/memory.ts"
 import { startWorker } from "../../src/queue/worker.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 import unstorageQueue from "../../src/queue/unstorage.ts"
 import type { UnstorageLike } from "../../src/queue/unstorage.ts"
 

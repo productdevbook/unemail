@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { createEmail, defineDriver } from "../src/index.ts"
-import mock from "../src/drivers/mock.ts"
+import mock from "../src/driver/mock.ts"
 
 describe("createEmail", () => {
   it("sends via the default driver and returns {data, error}", async () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { cidRewrite, darkModeHook, htmlPipeline, withPreheader } from "../../src/render/pipeline.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 
 describe("html pipeline", () => {
   it("withPreheader injects a hidden preview snippet", async () => {

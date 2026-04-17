@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import cloudflareEmail from "../../src/drivers/cloudflare-email.ts"
+import cloudflareEmail from "../../src/driver/cloudflare-email.ts"
 
 /** Minimal shape used by the driver — matches the interface of Cloudflare's
  *  real `EmailMessage` class. */

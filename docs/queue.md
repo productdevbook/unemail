@@ -9,7 +9,7 @@ call `queue.enqueue(msg)` from your app instead of `email.send(msg)`.
 import { createEmail } from "unemail"
 import memoryQueue from "unemail/queue/memory"
 import { startWorker } from "unemail/queue/worker"
-import resend from "unemail/drivers/resend"
+import resend from "unemail/driver/resend"
 
 const email = createEmail({ driver: resend({ apiKey: process.env.RESEND_KEY! }) })
 const queue = memoryQueue()

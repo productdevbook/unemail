@@ -1,7 +1,7 @@
 import type { Email } from "../email.ts"
 import type { EmailMessage } from "../types.ts"
 import { createEmail } from "../email.ts"
-import mock from "../drivers/mock.ts"
+import mock from "../driver/mock.ts"
 
 /** An `Email` instance plus an `inbox` that records every message sent
  *  through it. Use in tests instead of stubbing providers by hand. */

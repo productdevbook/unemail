@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import sendgrid from "../../src/drivers/sendgrid.ts"
-import mailgun from "../../src/drivers/mailgun.ts"
-import postmark from "../../src/drivers/postmark.ts"
-import brevo from "../../src/drivers/brevo.ts"
-import mailersend from "../../src/drivers/mailersend.ts"
-import loops from "../../src/drivers/loops.ts"
-import zeptomail from "../../src/drivers/zeptomail.ts"
+import sendgrid from "../../src/driver/sendgrid.ts"
+import mailgun from "../../src/driver/mailgun.ts"
+import postmark from "../../src/driver/postmark.ts"
+import brevo from "../../src/driver/brevo.ts"
+import mailersend from "../../src/driver/mailersend.ts"
+import loops from "../../src/driver/loops.ts"
+import zeptomail from "../../src/driver/zeptomail.ts"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

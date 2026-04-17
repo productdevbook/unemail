@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { withLogger } from "../../src/middleware/logger.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 import type { LogEntry } from "../../src/middleware/logger.ts"
 
 describe("withLogger", () => {

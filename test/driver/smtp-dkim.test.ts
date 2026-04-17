@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll } from "vitest"
-import { signDkim } from "../../src/drivers/_smtp/dkim.ts"
+import { signDkim } from "../../src/driver/_smtp/dkim.ts"
 
 async function generatePkcs8Rsa(): Promise<{ privatePem: string; publicKey: CryptoKey }> {
   const pair = await crypto.subtle.generateKey(

@@ -28,12 +28,12 @@ type WebhookEvent = {
 ## Wiring it up
 
 ```ts
-import { defineWebhookHandler } from "unemail/webhooks"
-import resendWebhook from "unemail/webhooks/resend"
-import postmarkWebhook from "unemail/webhooks/postmark"
-import mailgunWebhook from "unemail/webhooks/mailgun"
-import sendgridWebhook from "unemail/webhooks/sendgrid"
-import sesWebhook from "unemail/webhooks/ses"
+import { defineWebhookHandler } from "unemail/webhook"
+import resendWebhook from "unemail/webhook/resend"
+import postmarkWebhook from "unemail/webhook/postmark"
+import mailgunWebhook from "unemail/webhook/mailgun"
+import sendgridWebhook from "unemail/webhook/sendgrid"
+import sesWebhook from "unemail/webhook/ses"
 
 export default defineWebhookHandler({
   providers: [

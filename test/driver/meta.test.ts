@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
 import { createError } from "../../src/errors.ts"
-import fallback from "../../src/drivers/fallback.ts"
-import roundRobin from "../../src/drivers/round-robin.ts"
-import mock from "../../src/drivers/mock.ts"
+import fallback from "../../src/driver/fallback.ts"
+import roundRobin from "../../src/driver/round-robin.ts"
+import mock from "../../src/driver/mock.ts"
 import type { EmailDriver } from "../../src/types.ts"
 
 function failing(name: string): EmailDriver {

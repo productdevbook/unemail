@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { createEmail } from "../../src/index.ts"
-import smtp from "../../src/drivers/smtp.ts"
+import smtp from "../../src/driver/smtp.ts"
 import { startFakeServer } from "./_smtp/fake-server.ts"
 import type { FakeServerHandle } from "./_smtp/fake-server.ts"
 

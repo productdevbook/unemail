@@ -3,7 +3,7 @@ import { createEmail } from "../../src/index.ts"
 import { withRender } from "../../src/render/index.ts"
 import reactRenderer from "../../src/render/react.ts"
 import mjmlRenderer from "../../src/render/mjml.ts"
-import mock from "../../src/drivers/mock.ts"
+import mock from "../../src/driver/mock.ts"
 
 describe("withRender middleware", () => {
   it("turns `react:` into `html` + derives text", async () => {

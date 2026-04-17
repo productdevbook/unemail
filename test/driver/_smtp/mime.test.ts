@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildMime, dotStuff, normalizeMimeInput } from "../../../src/drivers/_smtp/mime.ts"
+import { buildMime, dotStuff, normalizeMimeInput } from "../../../src/driver/_smtp/mime.ts"
 
 describe("mime/dotStuff", () => {
   it("doubles dots that begin a line", () => {
