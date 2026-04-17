@@ -164,6 +164,11 @@ function buildPayload(msg: EmailMessage): Record<string, unknown> {
   if (msg.html) body.html = msg.html
   if (msg.headers) body.headers = msg.headers
   if (msg.tags) body.tags = msg.tags.map((t: EmailTag) => ({ name: t.name, value: t.value }))
+  if (msg.metadata) {
+    const headers = (body.headers as Record<string, string>) ?? {}
+    for (const [k, v] of Object.entries(msg.metadata)) headers[`X-Metadata-${k}`] = v
+    body.headers = headers
+  }
   if (msg.attachments?.length) body.attachments = msg.attachments.map(toResendAttachment)
   if (msg.scheduledAt) {
     body.scheduled_at =

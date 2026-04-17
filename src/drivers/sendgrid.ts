@@ -109,6 +109,16 @@ function buildSendGridPayload(
   if (msg.tags?.length) payload.categories = msg.tags.map((t) => t.name)
   if (options.templateId) payload.template_id = options.templateId
   if (options.ipPoolName) payload.ip_pool_name = options.ipPoolName
+  if (msg.metadata) personalization.custom_args = { ...msg.metadata }
+  if (msg.tracking) {
+    const t: Record<string, unknown> = {}
+    if (msg.tracking.opens !== undefined) t.open_tracking = { enable: msg.tracking.opens }
+    if (msg.tracking.clicks !== undefined) t.click_tracking = { enable: msg.tracking.clicks }
+    if (msg.tracking.unsubscribes !== undefined)
+      t.subscription_tracking = { enable: msg.tracking.unsubscribes }
+    if (Object.keys(t).length) payload.tracking_settings = t
+  }
+  if (msg.sandbox) payload.mail_settings = { sandbox_mode: { enable: true } }
   return payload
 }
 

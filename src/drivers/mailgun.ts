@@ -87,6 +87,18 @@ function buildMailgunForm(msg: EmailMessage): FormData {
       form.append("attachment", blob, a.filename)
     }
   }
+  if (msg.sandbox) form.append("o:testmode", "yes")
+  if (msg.tracking) {
+    if (msg.tracking.opens !== undefined)
+      form.append("o:tracking-opens", msg.tracking.opens ? "yes" : "no")
+    if (msg.tracking.clicks !== undefined)
+      form.append("o:tracking-clicks", msg.tracking.clicks ? "yes" : "no")
+    if (msg.tracking.opens !== undefined || msg.tracking.clicks !== undefined)
+      form.append("o:tracking", "yes")
+  }
+  if (msg.metadata) {
+    for (const [k, v] of Object.entries(msg.metadata)) form.append(`v:${k}`, v)
+  }
   return form
 }
 

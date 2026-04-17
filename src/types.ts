@@ -69,6 +69,21 @@ export interface EmailMessage {
    *  Required by Gmail + Yahoo bulk sender rules (Feb 2024). */
   unsubscribe?: UnsubscribeOptions
 
+  /** Per-message tracking overrides. Drivers that don't expose granular
+   *  tracking fall back to their global setting. */
+  tracking?: TrackingOptions
+
+  /** Run this send in sandbox / test mode. Mapped per-driver:
+   *  - Mailgun `o:testmode`, SendGrid `mail_settings.sandbox_mode`,
+   *    SES configuration sets, Postmark test-stream.
+   *  Drivers without sandbox support raise `UNSUPPORTED`. */
+  sandbox?: boolean
+
+  /** Provider-agnostic metadata echoed back in webhook events. SendGrid
+   *  maps to `custom_args`, Postmark to `Metadata`, Mailgun to
+   *  `v:key=value`, Resend to `headers["X-Metadata-*"]`. */
+  metadata?: Record<string, string>
+
   /** Unrendered React element — resolved to `html` by the `withRender`
    *  middleware from `unemail/render/react`. Ignored by drivers. */
   react?: unknown
@@ -78,6 +93,13 @@ export interface EmailMessage {
   /** MJML source — compiled to `html` by the `withRender` middleware
    *  from `unemail/render/mjml`. */
   mjml?: string
+}
+
+/** Per-message tracking overrides. Unset fields defer to driver defaults. */
+export interface TrackingOptions {
+  opens?: boolean
+  clicks?: boolean
+  unsubscribes?: boolean
 }
 
 /** RFC 2369 + RFC 8058 unsubscribe configuration. At least one of

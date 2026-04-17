@@ -137,7 +137,14 @@ function buildPayload(msg: EmailMessage, defaultStream?: string): Record<string,
   if (msg.html) body.HtmlBody = msg.html
   if (msg.headers)
     body.Headers = Object.entries(msg.headers).map(([Name, Value]) => ({ Name, Value }))
-  if (msg.tags?.length) body.Metadata = Object.fromEntries(msg.tags.map((t) => [t.name, t.value]))
+  // Postmark treats Metadata as the metadata bag. Prefer msg.metadata; fall back to tags.
+  if (msg.metadata) body.Metadata = { ...msg.metadata }
+  else if (msg.tags?.length)
+    body.Metadata = Object.fromEntries(msg.tags.map((t) => [t.name, t.value]))
+  if (msg.tags?.length) body.Tag = msg.tags[0]!.name
+  if (msg.tracking?.opens !== undefined) body.TrackOpens = msg.tracking.opens
+  if (msg.tracking?.clicks !== undefined)
+    body.TrackLinks = msg.tracking.clicks ? "HtmlAndText" : "None"
   if (msg.attachments?.length) body.Attachments = msg.attachments.map(toPostmarkAttachment)
   const stream = msg.stream ?? defaultStream
   if (stream) body.MessageStream = stream
