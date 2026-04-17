@@ -3,5 +3,12 @@ export {
   type CircuitBreakerOptions,
   type CircuitState,
 } from "./circuit-breaker.ts"
+export { type LogEntry, type LoggerOptions, withLogger } from "./logger.ts"
 export { withRateLimit, type RateLimitOptions } from "./rate-limit.ts"
 export { withRetry, type RetryOptions } from "./retry.ts"
+export {
+  type OtelSpan,
+  type OtelTracer,
+  type TelemetryOptions,
+  withTelemetry,
+} from "./telemetry.ts"

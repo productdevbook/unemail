@@ -203,6 +203,22 @@
     "./verify": {
       "types": "./dist/verify/index.d.mts",
       "default": "./dist/verify/index.mjs"
+    },
+    "./queue": {
+      "types": "./dist/queue/index.d.mts",
+      "default": "./dist/queue/index.mjs"
+    },
+    "./queue/memory": {
+      "types": "./dist/queue/memory.d.mts",
+      "default": "./dist/queue/memory.mjs"
+    },
+    "./queue/unstorage": {
+      "types": "./dist/queue/unstorage.d.mts",
+      "default": "./dist/queue/unstorage.mjs"
+    },
+    "./queue/worker": {
+      "types": "./dist/queue/worker.d.mts",
+      "default": "./dist/queue/worker.mjs"
     }
   },
   "scripts": {

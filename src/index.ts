@@ -16,11 +16,18 @@ export { createError, createRequiredError, EmailError, toEmailError } from "./er
 export {
   type CircuitBreakerOptions,
   type CircuitState,
+  type LogEntry,
+  type LoggerOptions,
+  type OtelSpan,
+  type OtelTracer,
   type RateLimitOptions,
   type RetryOptions,
+  type TelemetryOptions,
   withCircuitBreaker,
+  withLogger,
   withRateLimit,
   withRetry,
+  withTelemetry,
 } from "./middleware/index.ts"
 export {
   defineTemplate,

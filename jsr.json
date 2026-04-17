@@ -38,7 +38,11 @@
     "./webhooks/mailgun": "./src/webhooks/mailgun.ts",
     "./webhooks/sendgrid": "./src/webhooks/sendgrid.ts",
     "./webhooks/ses": "./src/webhooks/ses.ts",
-    "./verify": "./src/verify/index.ts"
+    "./verify": "./src/verify/index.ts",
+    "./queue": "./src/queue/index.ts",
+    "./queue/memory": "./src/queue/memory.ts",
+    "./queue/unstorage": "./src/queue/unstorage.ts",
+    "./queue/worker": "./src/queue/worker.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],
