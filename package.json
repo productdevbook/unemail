@@ -152,6 +152,22 @@
       "types": "./dist/render/mjml.d.mts",
       "default": "./dist/render/mjml.mjs"
     },
+    "./render/pipeline": {
+      "types": "./dist/render/pipeline.d.mts",
+      "default": "./dist/render/pipeline.mjs"
+    },
+    "./render/handlebars": {
+      "types": "./dist/render/handlebars.d.mts",
+      "default": "./dist/render/handlebars.mjs"
+    },
+    "./render/liquid": {
+      "types": "./dist/render/liquid.d.mts",
+      "default": "./dist/render/liquid.mjs"
+    },
+    "./render/i18n": {
+      "types": "./dist/render/i18n.d.mts",
+      "default": "./dist/render/i18n.mjs"
+    },
     "./test": {
       "types": "./dist/test/index.d.mts",
       "default": "./dist/test/index.mjs"

@@ -49,6 +49,10 @@ export interface EmailMessage {
   replyTo?: EmailAddressInput
 
   subject: string
+  /** Short preview text shown by most mail clients alongside the
+   *  subject. Injected into the rendered HTML by the render
+   *  pipeline's `withPreheader()` transform. */
+  preheader?: string
   text?: string
   html?: string
 
