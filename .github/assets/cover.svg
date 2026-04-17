@@ -1,0 +1,193 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 628" width="1200" height="628">
+  <defs>
+    <filter id="paper">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="11"/>
+      <feColorMatrix values="0 0 0 0 0.82  0 0 0 0 0.74  0 0 0 0 0.62  0 0 0 0.08 0"/>
+      <feComposite in2="SourceGraphic" operator="in"/>
+    </filter>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="4" result="off"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feComposite in2="off" operator="in" result="shadow"/>
+      <feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <linearGradient id="wordmarkGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1b3a2f"/>
+      <stop offset="100%" stop-color="#2d5a48"/>
+    </linearGradient>
+
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff8a65"/>
+      <stop offset="100%" stop-color="#ff5a36"/>
+    </linearGradient>
+
+    <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#83e0bd"/>
+      <stop offset="100%" stop-color="#42b883"/>
+    </linearGradient>
+
+    <linearGradient id="periwinkle" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a5a8ff"/>
+      <stop offset="100%" stop-color="#7073e8"/>
+    </linearGradient>
+
+    <linearGradient id="butter" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffe38a"/>
+      <stop offset="100%" stop-color="#ffb84d"/>
+    </linearGradient>
+
+    <!-- Envelope gradients -->
+    <linearGradient id="envCoralFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffd9c9"/>
+      <stop offset="100%" stop-color="#ffb299"/>
+    </linearGradient>
+
+    <linearGradient id="envMintFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bff3dc"/>
+      <stop offset="100%" stop-color="#83e0bd"/>
+    </linearGradient>
+
+    <linearGradient id="envPeriFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d2d4ff"/>
+      <stop offset="100%" stop-color="#a5a8ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Paper background -->
+  <rect width="1200" height="628" fill="#fbf6ed"/>
+  <rect width="1200" height="628" filter="url(#paper)"/>
+
+  <!-- Subtle diagonal stripes, very faint -->
+  <g opacity="0.05" fill="#1b3a2f">
+    <rect x="-100" y="-100" width="2" height="900" transform="rotate(20 600 314)"/>
+    <rect x="-40"  y="-100" width="2" height="900" transform="rotate(20 600 314)"/>
+    <rect x="20"   y="-100" width="2" height="900" transform="rotate(20 600 314)"/>
+    <rect x="80"   y="-100" width="2" height="900" transform="rotate(20 600 314)"/>
+    <rect x="140"  y="-100" width="2" height="900" transform="rotate(20 600 314)"/>
+  </g>
+
+  <!-- ════════════════════════════════════ -->
+  <!-- LEFT COLUMN: two envelopes stacked  -->
+  <!-- ════════════════════════════════════ -->
+
+  <!-- Envelope 1 — coral, top-left, closed with flap -->
+  <g transform="translate(20, 140) rotate(-7)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="196" height="128" rx="12" fill="url(#envCoralFace)"/>
+    <!-- Flap (triangle open-ish) -->
+    <path d="M0,12 Q0,0 12,0 L184,0 Q196,0 196,12 L98,78 Z" fill="url(#coral)"/>
+    <!-- Stamp corner -->
+    <rect x="148" y="14" width="34" height="26" rx="3" fill="#fff" opacity="0.9"/>
+    <rect x="152" y="19" width="26" height="16" rx="2" fill="url(#mint)" opacity="0.8"/>
+    <!-- Address lines -->
+    <rect x="22" y="90" width="128" height="7" rx="3.5" fill="#1b3a2f" opacity="0.35"/>
+    <rect x="22" y="104" width="96" height="7" rx="3.5" fill="#1b3a2f" opacity="0.22"/>
+  </g>
+
+  <!-- Envelope 2 — mint, bottom-left, with a "sending" arrow trail -->
+  <g transform="translate(56, 410) rotate(-3)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="208" height="130" rx="12" fill="url(#envMintFace)"/>
+    <!-- Open flap at top revealing letter peek -->
+    <path d="M0,12 Q0,0 12,0 L196,0 Q208,0 208,12 L208,18 L104,76 L0,18 Z" fill="url(#mint)"/>
+    <!-- Letter peek -->
+    <rect x="24" y="36" width="160" height="78" rx="6" fill="#fff" opacity="0.95"/>
+    <rect x="38" y="50" width="114" height="7" rx="3.5" fill="#1b3a2f" opacity="0.3"/>
+    <rect x="38" y="66" width="136" height="7" rx="3.5" fill="#1b3a2f" opacity="0.22"/>
+    <rect x="38" y="82" width="80"  height="7" rx="3.5" fill="#1b3a2f" opacity="0.18"/>
+  </g>
+
+  <!-- Sending arrows between left envelopes -->
+  <g opacity="0.5" fill="none" stroke="url(#coral)" stroke-width="4" stroke-linecap="round">
+    <path d="M248,254 Q272,322 258,388"/>
+    <path d="M252,380 L258,390 L266,380"/>
+  </g>
+
+  <!-- ════════════════════════════════════ -->
+  <!-- RIGHT COLUMN: paper-plane + envelope -->
+  <!-- ════════════════════════════════════ -->
+
+  <!-- Paper plane, top-right -->
+  <g transform="translate(1010, 130)">
+    <circle cx="80" cy="80" r="88" fill="#7073e8" opacity="0.16"/>
+    <circle cx="80" cy="80" r="66" fill="#7073e8" opacity="0.26"/>
+    <g transform="translate(18, 28) rotate(-14, 60, 50)" filter="url(#softShadow)">
+      <!-- Plane main body (triangle) -->
+      <path d="M0,32 L122,0 L70,98 L50,60 Z" fill="url(#periwinkle)"/>
+      <!-- Inner fold (darker) -->
+      <path d="M50,60 L70,98 L122,0 Z" fill="#5053c7" opacity="0.7"/>
+      <!-- Crease line -->
+      <path d="M0,32 L50,60 L122,0" stroke="#fff" stroke-width="1.5" fill="none" opacity="0.55"/>
+    </g>
+  </g>
+
+  <!-- Envelope 3 — periwinkle, bottom-right, slightly tilted -->
+  <g transform="translate(980, 420) rotate(7)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="196" height="126" rx="12" fill="url(#envPeriFace)"/>
+    <path d="M0,12 Q0,0 12,0 L184,0 Q196,0 196,12 L98,76 Z" fill="url(#periwinkle)"/>
+    <!-- @ symbol on envelope -->
+    <g transform="translate(82, 74)" fill="#fff">
+      <circle cx="16" cy="16" r="16" fill="#fff" opacity="0.85"/>
+      <text x="16" y="23" text-anchor="middle"
+            font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+            font-size="20" font-weight="900" fill="#5053c7">@</text>
+    </g>
+    <rect x="22" y="100" width="100" height="7" rx="3.5" fill="#1b3a2f" opacity="0.3"/>
+  </g>
+
+  <!-- ════════════════════════════════════ -->
+  <!-- CENTER CONTENT — BIG & LEGIBLE       -->
+  <!-- ════════════════════════════════════ -->
+
+  <!-- Wordmark -->
+  <text x="600" y="270" text-anchor="middle"
+        fill="url(#wordmarkGrad)"
+        font-family="'Cooper','Cooper Black','Georgia',serif"
+        font-size="172" font-weight="900" letter-spacing="-6">unemail</text>
+
+  <!-- Coral underline -->
+  <path d="M340,294 Q600,316 860,294" stroke="url(#coral)" stroke-width="7" fill="none" stroke-linecap="round"/>
+
+  <!-- Tagline -->
+  <text x="600" y="362" text-anchor="middle"
+        fill="#1b3a2f"
+        font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="30" font-weight="700" letter-spacing="-0.3">One API for every email provider.</text>
+
+  <!-- Feature chips -->
+  <g font-family="'Inter','Helvetica Neue',Arial,sans-serif" font-size="18" font-weight="700"
+     text-anchor="middle">
+    <g transform="translate(246, 402)">
+      <rect x="0" y="0" width="176" height="48" rx="24" fill="url(#coral)"/>
+      <text x="88" y="31" fill="#fff">0 dependencies</text>
+    </g>
+    <g transform="translate(436, 402)">
+      <rect x="0" y="0" width="160" height="48" rx="24" fill="url(#mint)"/>
+      <text x="80" y="31" fill="#143a2b">15+ drivers</text>
+    </g>
+    <g transform="translate(610, 402)">
+      <rect x="0" y="0" width="172" height="48" rx="24" fill="url(#periwinkle)"/>
+      <text x="86" y="31" fill="#fff">RFC 8058 ready</text>
+    </g>
+    <g transform="translate(796, 402)">
+      <rect x="0" y="0" width="158" height="48" rx="24" fill="url(#butter)"/>
+      <text x="79" y="31" fill="#5a3a00">edge-first</text>
+    </g>
+  </g>
+
+  <!-- npm install pill -->
+  <g transform="translate(446, 488)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="308" height="56" rx="28" fill="#1b3a2f"/>
+    <text x="154" y="35" text-anchor="middle" xml:space="preserve"
+          font-family="'JetBrains Mono','SF Mono',monospace" font-size="20" font-weight="700">
+      <tspan fill="#ff8a65" font-weight="800">$</tspan><tspan fill="#fbf6ed">&#160;npm&#160;i&#160;</tspan><tspan fill="#83e0bd" font-weight="800">unemail</tspan>
+    </text>
+  </g>
+
+  <!-- GitHub link -->
+  <text x="600" y="590" text-anchor="middle"
+        fill="#1b3a2f" opacity="0.55"
+        font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="16" font-weight="600" letter-spacing="0.3">github.com/productdevbook/unemail</text>
+</svg>
