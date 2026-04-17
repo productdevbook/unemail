@@ -80,6 +80,25 @@ describe("memoryQueue + worker", () => {
     expect(await queue.size()).toBe(0)
   })
 
+  it("defers sends until msg.scheduledAt", async () => {
+    const email = createEmail({ driver: mock() })
+    let clock = 1_700_000_000_000
+    const queue = memoryQueue({ now: () => clock })
+    const worker = startWorker(email, queue, { concurrency: 1, now: () => clock })
+    await queue.enqueue({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "x",
+      text: "x",
+      scheduledAt: new Date(clock + 60_000),
+    })
+    await worker.tick()
+    expect(await queue.size()).toBe(1) // still deferred
+    clock += 60_001
+    await worker.tick()
+    expect(await queue.size()).toBe(0)
+  })
+
   it("respects delayMs", async () => {
     const email = createEmail({ driver: mock() })
     let clock = 1000

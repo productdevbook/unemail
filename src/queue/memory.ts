@@ -23,11 +23,13 @@ export function memoryQueue(options: MemoryQueueOptions = {}): EmailQueue {
       if (items.length >= maxSize)
         throw new Error(`[unemail/queue/memory] max size ${maxSize} reached`)
       const stamp = now()
+      const scheduled = msg.scheduledAt ? new Date(msg.scheduledAt).getTime() : 0
+      const visible = Math.max(stamp + (opts.delayMs ?? 0), scheduled)
       const item: QueueItem = {
         id: opts.id ?? `mq_${++counter}_${stamp.toString(36)}`,
         msg,
         attempts: 0,
-        nextAttemptAt: stamp + (opts.delayMs ?? 0),
+        nextAttemptAt: visible,
         createdAt: stamp,
       }
       items.push(item)

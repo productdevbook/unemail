@@ -45,7 +45,8 @@
     "./queue/unstorage": "./src/queue/unstorage.ts",
     "./queue/worker": "./src/queue/worker.ts",
     "./suppression": "./src/suppression/index.ts",
-    "./compliance": "./src/compliance/index.ts"
+    "./compliance": "./src/compliance/index.ts",
+    "./result": "./src/result/index.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],

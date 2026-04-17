@@ -231,6 +231,10 @@
     "./compliance": {
       "types": "./dist/compliance/index.d.mts",
       "default": "./dist/compliance/index.mjs"
+    },
+    "./result": {
+      "types": "./dist/result/index.d.mts",
+      "default": "./dist/result/index.mjs"
     }
   },
   "scripts": {
