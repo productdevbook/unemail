@@ -2,24 +2,65 @@ name: Release
 
 permissions:
   contents: write
+  id-token: write
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - run: corepack enable
+
+      - uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          registry-url: "https://registry.npmjs.org"
+          cache: pnpm
 
-      - run: npx changelogithub
+      - name: 📦 Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: 👀 Lint
+        run: pnpm lint
+
+      - name: 🔍 Typecheck
+        run: pnpm typecheck
+
+      - name: 🧪 Test
+        run: pnpm test
+
+      - name: 🚀 Build
+        run: pnpm build
+
+      - name: 📐 Bundle size budget
+        run: pnpm bundle-budget
+
+      - name: 🔍 Are The Types Wrong (ATTW)
+        run: pnpm attw
+
+      - name: 📦 Publish to npm
+        run: pnpm publish --provenance --access public --no-git-checks
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: 🦕 Publish to JSR (OIDC)
+        run: npx jsr publish
+
+      - name: 📝 Generate changelog
+        run: pnpm dlx changelogithub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 📊 Summary
+        run: |
+          echo "## Release Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

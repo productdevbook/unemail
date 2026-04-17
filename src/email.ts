@@ -1,195 +1,205 @@
-import type { Provider, ProviderFactory } from './providers/utils/index.ts'
 import type {
-  BaseConfig,
-  EmailOptions,
+  EmailDriver,
+  EmailMessage,
   EmailResult,
-  EmailServiceConfig,
+  IdempotencyStore,
+  MaybePromise,
+  Middleware,
   Result,
-} from './types.ts'
-import smtpProvider from './providers/smtp.ts'
-import { createError } from './utils.ts'
+  SendContext,
+} from "./types.ts"
+import { memoryIdempotencyStore } from "./_idempotency.ts"
+import { toEmailError } from "./errors.ts"
 
-// Import default provider
-const DEFAULT_PROVIDER = smtpProvider
-
-/**
- * Provider options - can be a provider factory, instance, or config with a provider name
- */
-type ProviderOption<ConfigT = any, InstanceT = any, OptsT extends EmailOptions = EmailOptions>
-  = | Provider<ConfigT, InstanceT, OptsT>
-    | ProviderFactory<ConfigT, InstanceT, OptsT>
-    | { name: string, options?: Record<string, any> }
-
-interface EmailServiceOptions<ConfigT = any, InstanceT = any, OptsT extends EmailOptions = EmailOptions> extends BaseConfig {
-  provider?: ProviderOption<ConfigT, InstanceT, OptsT>
-  config?: EmailServiceConfig
+/** Options accepted by `createEmail()`. Only `driver` is required; the rest
+ *  have sensible, zero-dependency defaults. */
+export interface CreateEmailOptions {
+  driver: EmailDriver
+  /** When set, enables idempotency-key deduplication backed by this store.
+   *  Defaults to an in-memory TTL store when `idempotency` is `true`. */
+  idempotency?: boolean | { store?: IdempotencyStore; ttlSeconds?: number }
+  /** Abort signal forwarded to drivers via `SendContext.signal`. */
+  signal?: AbortSignal
 }
 
-/**
- * Main email service class
- */
-export class EmailService<OptsT extends EmailOptions = EmailOptions> {
-  private provider!: Provider<any, any, OptsT>
-  private options: EmailServiceOptions<any, any, OptsT>
-  private initialized: boolean = false
-
-  /**
-   * Creates a new email service instance
-   *
-   * @param options Configuration options for the email service
-   */
-  constructor(options: EmailServiceOptions<any, any, OptsT> = {} as EmailServiceOptions<any, any, OptsT>) {
-    this.options = {
-      debug: options.debug || false,
-      timeout: options.timeout || 30000,
-      retries: options.retries || 3,
-      provider: options.provider,
-      config: options.config,
-    }
-  }
-
-  /**
-   * Get the provider instance
-   */
-  private async getProvider(): Promise<Provider<any, any, OptsT>> {
-    if (!this.provider) {
-      try {
-        const providerOption = this.options.provider || DEFAULT_PROVIDER
-
-        if (typeof providerOption === 'function') {
-          const config = this.options.config?.options || {}
-
-          if (providerOption === DEFAULT_PROVIDER && !('host' in config)) {
-            (config as any).host = 'localhost';
-            (config as any).port = 1025
-          }
-
-          this.provider = providerOption(config as any)
-        }
-        else if (providerOption && typeof providerOption === 'object' && 'initialize' in providerOption) {
-          this.provider = providerOption as Provider<any, any, OptsT>
-        }
-        else if (providerOption && typeof providerOption === 'object' && 'name' in providerOption) {
-          throw new Error(`Provider specification with name property is no longer supported. Please import the provider directly and pass the provider instance or factory.`)
-        }
-        else {
-          throw new Error('Invalid provider configuration. Please provide a valid provider instance or factory function.')
-        }
-      }
-      catch (error) {
-        throw createError(
-          'core',
-          `Failed to initialize provider: ${(error as Error).message}`,
-          { cause: error as Error },
-        )
-      }
-    }
-    return this.provider
-  }
-
-  /**
-   * Initializes the email service and underlying provider
-   */
-  async initialize(): Promise<void> {
-    if (this.initialized) {
-      return
-    }
-
-    try {
-      const provider = await this.getProvider()
-      await provider.initialize()
-      this.initialized = true
-    }
-    catch (error) {
-      throw createError(
-        'core',
-        `Failed to initialize email service: ${(error as Error).message}`,
-        { cause: error as Error },
-      )
-    }
-  }
-
-  /**
-   * Checks if the configured provider is available
-   *
-   * @returns Promise resolving to a boolean indicating availability
-   */
-  async isAvailable(): Promise<boolean> {
-    try {
-      const provider = await this.getProvider()
-      return await provider.isAvailable()
-    }
-    catch (error) {
-      if (this.options.debug) {
-        console.error('Error checking provider availability:', error)
-      }
-      return false
-    }
-  }
-
-  /**
-   * Sends an email using the configured provider
-   *
-   * @param options Email sending options
-   * @returns Promise resolving to email result
-   */
-  async sendEmail(options: OptsT): Promise<Result<EmailResult>> {
-    try {
-      if (!this.initialized) {
-        await this.initialize()
-      }
-
-      const provider = await this.getProvider()
-      return await provider.sendEmail(options)
-    }
-    catch (error) {
-      return {
-        success: false,
-        error: createError(
-          'core',
-          `Failed to send email: ${(error as Error).message}`,
-          { cause: error as Error },
-        ),
-      }
-    }
-  }
-
-  /**
-   * Validates credentials for the current provider
-   *
-   * @returns Promise resolving to a boolean indicating if credentials are valid
-   */
-  async validateCredentials(): Promise<boolean> {
-    try {
-      if (!this.initialized) {
-        await this.initialize()
-      }
-
-      const provider = await this.getProvider()
-
-      if (provider.validateCredentials) {
-        return await provider.validateCredentials()
-      }
-
-      return true
-    }
-    catch (error) {
-      if (this.options.debug) {
-        console.error('Error validating credentials:', error)
-      }
-      return false
-    }
-  }
+/** Public handle returned by `createEmail()`. Mirrors the unstorage-style
+ *  mount API so callers can route by `message.stream`. */
+export interface Email {
+  readonly driver: EmailDriver
+  use: (middleware: Middleware) => Email
+  mount: (stream: string, driver: EmailDriver) => Email
+  unmount: (stream: string, dispose?: boolean) => Promise<void>
+  getMount: (stream?: string) => EmailDriver
+  getMounts: () => ReadonlyArray<{ stream: string; driver: EmailDriver }>
+  isAvailable: (stream?: string) => Promise<boolean>
+  send: (msg: EmailMessage) => Promise<Result<EmailResult>>
+  sendBatch: (msgs: ReadonlyArray<EmailMessage>) => Promise<Result<ReadonlyArray<EmailResult>>>
+  dispose: () => Promise<void>
 }
 
-/**
- * Creates an email service with the given configuration
+/** Construct an `Email` instance. This is the single entry point — every
+ *  transport (SMTP, Resend, SES, Postmark, Workers, …) is a `driver` plug.
  *
- * @param options Configuration options for the email service
- * @returns Configured email service instance
+ *  ```ts
+ *  const email = createEmail({ driver: resend({ apiKey }) })
+ *  const { data, error } = await email.send({ from, to, subject, text })
+ *  ```
  */
-export function createEmailService<OptsT extends EmailOptions = EmailOptions>(
-  options: EmailServiceOptions<any, any, OptsT> = {} as EmailServiceOptions<any, any, OptsT>,
-): EmailService<OptsT> {
-  return new EmailService<OptsT>(options)
+export function createEmail(options: CreateEmailOptions): Email {
+  const mounts = new Map<string, EmailDriver>()
+  const middleware: Middleware[] = []
+  let initialized = false
+
+  const idempotency = resolveIdempotency(options.idempotency)
+
+  const api: Email = {
+    get driver() {
+      return options.driver
+    },
+
+    use(mw) {
+      middleware.push(mw)
+      return api
+    },
+
+    mount(stream, driver) {
+      mounts.set(stream, driver)
+      return api
+    },
+
+    async unmount(stream, dispose = true) {
+      const driver = mounts.get(stream)
+      if (!driver) return
+      mounts.delete(stream)
+      if (dispose) await driver.dispose?.()
+    },
+
+    getMount(stream) {
+      if (!stream) return options.driver
+      return mounts.get(stream) ?? options.driver
+    },
+
+    getMounts() {
+      return Array.from(mounts.entries(), ([stream, driver]) => ({ stream, driver }))
+    },
+
+    async isAvailable(stream) {
+      const driver = api.getMount(stream)
+      if (!driver.isAvailable) return true
+      try {
+        return await driver.isAvailable()
+      } catch {
+        return false
+      }
+    },
+
+    async send(msg) {
+      await ensureInitialized()
+
+      if (msg.idempotencyKey && idempotency) {
+        const cached = await idempotency.store.get(msg.idempotencyKey)
+        if (cached) return { data: cached, error: null }
+      }
+
+      const driver = api.getMount(msg.stream)
+      const ctx: SendContext = {
+        driver: driver.name,
+        stream: msg.stream,
+        attempt: 1,
+        signal: options.signal,
+        meta: {},
+      }
+
+      try {
+        await runHook("beforeSend", (mw) => mw.beforeSend?.(msg, ctx))
+
+        let result = await driver.send(msg, ctx)
+
+        if (result.error) {
+          const recovered = await tryRecover(msg, ctx, result.error)
+          if (recovered) result = recovered
+        }
+
+        if (result.data && msg.idempotencyKey && idempotency) {
+          await idempotency.store.set(msg.idempotencyKey, result.data, idempotency.ttlSeconds)
+        }
+
+        await runHook("afterSend", (mw) => mw.afterSend?.(msg, ctx, result))
+        return result
+      } catch (error) {
+        const emailError = toEmailError(driver.name, error)
+        const recovered = await tryRecover(msg, ctx, emailError)
+        if (recovered) return recovered
+        return { data: null, error: emailError }
+      }
+    },
+
+    async sendBatch(msgs) {
+      await ensureInitialized()
+      if (msgs.length === 0) return { data: [], error: null }
+      const driver = api.getMount(msgs[0]!.stream)
+      const ctx: SendContext = {
+        driver: driver.name,
+        stream: msgs[0]!.stream,
+        attempt: 1,
+        signal: options.signal,
+        meta: {},
+      }
+      if (driver.sendBatch) return Promise.resolve(driver.sendBatch(msgs, ctx)).then(resultOrError)
+      // Fallback — sequential sends honoring individual idempotency keys.
+      const results: EmailResult[] = []
+      for (const msg of msgs) {
+        const res = await api.send(msg)
+        if (res.error) return res as Result<ReadonlyArray<EmailResult>>
+        results.push(res.data)
+      }
+      return { data: results, error: null }
+    },
+
+    async dispose() {
+      await options.driver.dispose?.()
+      for (const driver of mounts.values()) await driver.dispose?.()
+      mounts.clear()
+    },
+  }
+
+  async function ensureInitialized() {
+    if (initialized) return
+    initialized = true
+    await options.driver.initialize?.()
+    for (const driver of mounts.values()) await driver.initialize?.()
+  }
+
+  async function runHook<K extends keyof Middleware>(
+    _kind: K,
+    apply: (mw: Middleware) => MaybePromise<unknown>,
+  ) {
+    for (const mw of middleware) await apply(mw)
+  }
+
+  async function tryRecover(
+    msg: EmailMessage,
+    ctx: SendContext,
+    error: Parameters<Required<Middleware>["onError"]>[2],
+  ) {
+    for (const mw of middleware) {
+      const recovered = await mw.onError?.(msg, ctx, error)
+      if (recovered) return recovered
+    }
+    return null
+  }
+
+  return api
+}
+
+function resolveIdempotency(
+  input: CreateEmailOptions["idempotency"],
+): { store: IdempotencyStore; ttlSeconds?: number } | null {
+  if (!input) return null
+  if (input === true) return { store: memoryIdempotencyStore() }
+  return { store: input.store ?? memoryIdempotencyStore(), ttlSeconds: input.ttlSeconds }
+}
+
+function resultOrError<T>(r: Result<T>): Result<T> {
+  return r
 }

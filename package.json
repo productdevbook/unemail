@@ -1,113 +1,257 @@
 {
   "name": "unemail",
-  "type": "module",
   "version": "0.3.0",
   "private": false,
-  "packageManager": "pnpm@10.28.1",
-  "description": "A modern TypeScript email library with zero dependencies, supporting multiple providers including AWS SES, Resend, MailCrab, and HTTP APIs",
-  "author": "productdevbook <hi@productdevbook.com>",
-  "license": "MIT",
-  "funding": "https://github.com/sponsors/productdevbook",
+  "description": "Driver-based TypeScript email library — send, parse, render, verify. Zero-deps core; works on Node, Bun, Deno, Cloudflare Workers, and the browser.",
+  "keywords": [
+    "aws-ses",
+    "batch-email",
+    "brevo",
+    "cloudflare-email",
+    "cloudflare-workers",
+    "dkim",
+    "dmarc",
+    "driver",
+    "driver-pattern",
+    "email",
+    "email-parser",
+    "email-service",
+    "email-templates",
+    "esm",
+    "idempotency",
+    "jsx-email",
+    "mailchannels",
+    "mailcrab",
+    "mailersend",
+    "mailgun",
+    "mjml",
+    "postal-mime",
+    "postmark",
+    "react-email",
+    "resend",
+    "scheduled-email",
+    "sendgrid",
+    "smtp",
+    "spf",
+    "transactional-email",
+    "typescript",
+    "webhooks",
+    "zeptomail",
+    "zero-dependencies"
+  ],
   "homepage": "https://github.com/productdevbook/unemail#readme",
+  "bugs": "https://github.com/productdevbook/unemail/issues",
+  "license": "MIT",
+  "author": "productdevbook <hi@productdevbook.com>",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/productdevbook/unemail.git"
   },
-  "bugs": "https://github.com/productdevbook/unemail/issues",
-  "keywords": [
-    "email",
-    "email-service",
-    "typescript",
-    "esm",
-    "zero-dependencies",
-    "aws-ses",
-    "resend",
-    "mailcrab",
-    "smtp",
-    "http-provider",
-    "email-attachments",
-    "html-emails",
-    "email-templates",
-    "unified-api",
-    "provider-pattern",
-    "development-tools"
+  "funding": "https://github.com/sponsors/productdevbook",
+  "files": [
+    "dist"
   ],
+  "type": "module",
   "sideEffects": false,
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs"
+      "default": "./dist/index.mjs"
     },
-    "./providers/aws-ses": {
-      "types": "./dist/providers/aws-ses.d.mts",
-      "import": "./dist/providers/aws-ses.mjs"
+    "./drivers/mock": {
+      "types": "./dist/drivers/mock.d.mts",
+      "default": "./dist/drivers/mock.mjs"
     },
-    "./providers/resend": {
-      "types": "./dist/providers/resend.d.mts",
-      "import": "./dist/providers/resend.mjs"
+    "./drivers/smtp": {
+      "types": "./dist/drivers/smtp.d.mts",
+      "default": "./dist/drivers/smtp.mjs"
     },
-    "./providers/http": {
-      "types": "./dist/providers/http.d.mts",
-      "import": "./dist/providers/http.mjs"
+    "./drivers/postmark": {
+      "types": "./dist/drivers/postmark.d.mts",
+      "default": "./dist/drivers/postmark.mjs"
     },
-    "./providers/smtp": {
-      "types": "./dist/providers/smtp.d.mts",
-      "import": "./dist/providers/smtp.mjs"
+    "./drivers/ses": {
+      "types": "./dist/drivers/ses.d.mts",
+      "default": "./dist/drivers/ses.mjs"
     },
-    "./providers/zeptomail": {
-      "types": "./dist/providers/zeptomail.d.mts",
-      "import": "./dist/providers/zeptomail.mjs"
+    "./drivers/http": {
+      "types": "./dist/drivers/http.d.mts",
+      "default": "./dist/drivers/http.mjs"
+    },
+    "./drivers/zeptomail": {
+      "types": "./dist/drivers/zeptomail.d.mts",
+      "default": "./dist/drivers/zeptomail.mjs"
+    },
+    "./drivers/sendgrid": {
+      "types": "./dist/drivers/sendgrid.d.mts",
+      "default": "./dist/drivers/sendgrid.mjs"
+    },
+    "./drivers/mailgun": {
+      "types": "./dist/drivers/mailgun.d.mts",
+      "default": "./dist/drivers/mailgun.mjs"
+    },
+    "./drivers/brevo": {
+      "types": "./dist/drivers/brevo.d.mts",
+      "default": "./dist/drivers/brevo.mjs"
+    },
+    "./drivers/mailersend": {
+      "types": "./dist/drivers/mailersend.d.mts",
+      "default": "./dist/drivers/mailersend.mjs"
+    },
+    "./drivers/loops": {
+      "types": "./dist/drivers/loops.d.mts",
+      "default": "./dist/drivers/loops.mjs"
+    },
+    "./drivers/mailchannels": {
+      "types": "./dist/drivers/mailchannels.d.mts",
+      "default": "./dist/drivers/mailchannels.mjs"
+    },
+    "./drivers/cloudflare-email": {
+      "types": "./dist/drivers/cloudflare-email.d.mts",
+      "default": "./dist/drivers/cloudflare-email.mjs"
+    },
+    "./drivers/mailcrab": {
+      "types": "./dist/drivers/mailcrab.d.mts",
+      "default": "./dist/drivers/mailcrab.mjs"
+    },
+    "./drivers/resend": {
+      "types": "./dist/drivers/resend.d.mts",
+      "default": "./dist/drivers/resend.mjs"
+    },
+    "./drivers/fallback": {
+      "types": "./dist/drivers/fallback.d.mts",
+      "default": "./dist/drivers/fallback.mjs"
+    },
+    "./drivers/round-robin": {
+      "types": "./dist/drivers/round-robin.d.mts",
+      "default": "./dist/drivers/round-robin.mjs"
+    },
+    "./drivers/tee": {
+      "types": "./dist/drivers/tee.d.mts",
+      "default": "./dist/drivers/tee.mjs"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.mts",
+      "default": "./dist/middleware/index.mjs"
+    },
+    "./render": {
+      "types": "./dist/render/index.d.mts",
+      "default": "./dist/render/index.mjs"
+    },
+    "./render/react": {
+      "types": "./dist/render/react.d.mts",
+      "default": "./dist/render/react.mjs"
+    },
+    "./render/jsx-email": {
+      "types": "./dist/render/jsx-email.d.mts",
+      "default": "./dist/render/jsx-email.mjs"
+    },
+    "./render/mjml": {
+      "types": "./dist/render/mjml.d.mts",
+      "default": "./dist/render/mjml.mjs"
+    },
+    "./test": {
+      "types": "./dist/test/index.d.mts",
+      "default": "./dist/test/index.mjs"
+    },
+    "./parse": {
+      "types": "./dist/parse/index.d.mts",
+      "default": "./dist/parse/index.mjs"
+    },
+    "./inbound": {
+      "types": "./dist/inbound/index.d.mts",
+      "default": "./dist/inbound/index.mjs"
+    },
+    "./inbound/cloudflare": {
+      "types": "./dist/inbound/cloudflare.d.mts",
+      "default": "./dist/inbound/cloudflare.mjs"
+    },
+    "./inbound/postmark": {
+      "types": "./dist/inbound/postmark.d.mts",
+      "default": "./dist/inbound/postmark.mjs"
+    },
+    "./inbound/sendgrid": {
+      "types": "./dist/inbound/sendgrid.d.mts",
+      "default": "./dist/inbound/sendgrid.mjs"
+    },
+    "./inbound/mailgun": {
+      "types": "./dist/inbound/mailgun.d.mts",
+      "default": "./dist/inbound/mailgun.mjs"
+    },
+    "./webhooks": {
+      "types": "./dist/webhooks/index.d.mts",
+      "default": "./dist/webhooks/index.mjs"
+    },
+    "./webhooks/resend": {
+      "types": "./dist/webhooks/resend.d.mts",
+      "default": "./dist/webhooks/resend.mjs"
+    },
+    "./webhooks/postmark": {
+      "types": "./dist/webhooks/postmark.d.mts",
+      "default": "./dist/webhooks/postmark.mjs"
+    },
+    "./webhooks/mailgun": {
+      "types": "./dist/webhooks/mailgun.d.mts",
+      "default": "./dist/webhooks/mailgun.mjs"
+    },
+    "./webhooks/sendgrid": {
+      "types": "./dist/webhooks/sendgrid.d.mts",
+      "default": "./dist/webhooks/sendgrid.mjs"
+    },
+    "./webhooks/ses": {
+      "types": "./dist/webhooks/ses.d.mts",
+      "default": "./dist/webhooks/ses.mjs"
+    },
+    "./verify": {
+      "types": "./dist/verify/index.d.mts",
+      "default": "./dist/verify/index.mjs"
+    },
+    "./queue": {
+      "types": "./dist/queue/index.d.mts",
+      "default": "./dist/queue/index.mjs"
+    },
+    "./queue/memory": {
+      "types": "./dist/queue/memory.d.mts",
+      "default": "./dist/queue/memory.mjs"
+    },
+    "./queue/unstorage": {
+      "types": "./dist/queue/unstorage.d.mts",
+      "default": "./dist/queue/unstorage.mjs"
+    },
+    "./queue/worker": {
+      "types": "./dist/queue/worker.d.mts",
+      "default": "./dist/queue/worker.mjs"
     }
   },
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.mts",
-  "bin": {
-    "unemail-mailcrab": "./scripts/setup-mailcrab.mjs"
+  "scripts": {
+    "build": "obuild",
+    "dev": "vitest",
+    "lint": "oxlint . && oxfmt --check .",
+    "lint:fix": "oxlint . --fix && oxfmt .",
+    "fmt": "oxfmt .",
+    "test": "pnpm lint && pnpm typecheck && vitest run",
+    "typecheck": "tsgo --noEmit",
+    "bundle-budget": "node scripts/bundle-budget.mjs",
+    "playground": "cd playground && pnpm install && pnpm dev",
+    "attw": "pnpm dlx @arethetypeswrong/cli --pack . --profile esm-only",
+    "release": "pnpm test && pnpm build && pnpm bundle-budget && bumpp --commit --tag --push --all",
+    "prepack": "pnpm build"
   },
-  "files": [
-    "dist",
-    "scripts"
-  ],
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@typescript/native-preview": "7.0.0-dev.20260316.1",
+    "@vitest/coverage-v8": "^4.1.4",
+    "bumpp": "^11.0.1",
+    "obuild": "^0.4.33",
+    "oxfmt": "^0.45.0",
+    "oxlint": "^1.60.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  },
   "engines": {
     "node": ">=20.11.1"
   },
-  "scripts": {
-    "gen-providers": "npx tsx scripts/gen-providers.ts",
-    "build": "pnpm gen-providers && tsdown",
-    "dev": "tsdown --watch",
-    "type-check": "tsgo --noEmit",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage.enabled true",
-    "mailcrab": "node ./scripts/setup-mailcrab.mjs",
-    "example": "node --esm ./playground/mailcrab-example.ts",
-    "example:aws-ses": "node --esm ./playground/aws-ses-example.ts",
-    "example:resend": "node --esm ./playground/resend-example.ts",
-    "prepare:mailcrab": "chmod +x ./scripts/setup-mailcrab.mjs && npm run build",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm run test",
-    "bumpp": "bumpp package.json",
-    "release": "pnpm build && pnpm bumpp && pnpm publish --no-git-checks --access public"
-  },
-  "devDependencies": {
-    "@antfu/eslint-config": "^7.1.0",
-    "@types/node": "^22.19.7",
-    "@typescript/native-preview": "7.0.0-dev.20260120.1",
-    "@vitest/coverage-v8": "^4.0.17",
-    "bumpp": "^10.4.0",
-    "dotenv": "^17.2.3",
-    "eslint": "^9.39.2",
-    "mlly": "^1.8.0",
-    "scule": "^1.3.0",
-    "ts-node": "^10.9.2",
-    "tsdown": "0.20.0-beta.4",
-    "typescript": "^5.9.3",
-    "vite-tsconfig-paths": "^6.0.4",
-    "vitest": "^4.0.17"
-  },
-  "resolutions": {
-    "unemail": "link:."
-  }
+  "packageManager": "pnpm@10.33.0"
 }
