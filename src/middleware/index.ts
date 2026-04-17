@@ -13,6 +13,12 @@ export {
   type OAuth2TokenResponse,
   withOAuth2,
 } from "./oauth2.ts"
+export {
+  createMetricsRegistry,
+  type MetricsMiddlewareOptions,
+  type MetricsRegistry,
+  withMetrics,
+} from "./metrics.ts"
 export { type PiiScrubberOptions, type ScrubStrategy, scrubPii, withPiiLogging } from "./pii.ts"
 export { type PreferencesMiddlewareOptions, withPreferences } from "./preferences.ts"
 export { rateLimitPresets, withRateLimit, type RateLimitOptions } from "./rate-limit.ts"

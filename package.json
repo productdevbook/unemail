@@ -275,6 +275,26 @@
     "./parse/arf": {
       "types": "./dist/parse/arf.d.mts",
       "default": "./dist/parse/arf.mjs"
+    },
+    "./events": {
+      "types": "./dist/events/index.d.mts",
+      "default": "./dist/events/index.mjs"
+    },
+    "./inbound/ses": {
+      "types": "./dist/inbound/ses.d.mts",
+      "default": "./dist/inbound/ses.mjs"
+    },
+    "./queue/bullmq": {
+      "types": "./dist/queue/bullmq.d.mts",
+      "default": "./dist/queue/bullmq.mjs"
+    },
+    "./queue/pg-boss": {
+      "types": "./dist/queue/pg-boss.d.mts",
+      "default": "./dist/queue/pg-boss.mjs"
+    },
+    "./queue/sqs": {
+      "types": "./dist/queue/sqs.d.mts",
+      "default": "./dist/queue/sqs.mjs"
     }
   },
   "scripts": {

@@ -56,7 +56,12 @@
     "./dmarc": "./src/dmarc/index.ts",
     "./verify/arc": "./src/verify/arc.ts",
     "./mta-sts": "./src/mta-sts/index.ts",
-    "./parse/arf": "./src/parse/arf.ts"
+    "./parse/arf": "./src/parse/arf.ts",
+    "./events": "./src/events/index.ts",
+    "./inbound/ses": "./src/inbound/ses.ts",
+    "./queue/bullmq": "./src/queue/bullmq.ts",
+    "./queue/pg-boss": "./src/queue/pg-boss.ts",
+    "./queue/sqs": "./src/queue/sqs.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],

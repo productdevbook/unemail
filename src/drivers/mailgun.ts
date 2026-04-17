@@ -6,7 +6,10 @@ import { createError, createRequiredError, toEmailError } from "../errors.ts"
 export interface MailgunDriverOptions {
   apiKey: string
   domain: string
-  /** Regional endpoint override: "https://api.eu.mailgun.net" for EU. */
+  /** Region preset — `"us"` (default) or `"eu"`. Maps to the matching
+   *  Mailgun API endpoint. Overridden by `endpoint`. */
+  region?: "us" | "eu"
+  /** Explicit API endpoint override (highest precedence). */
   endpoint?: string
   fetch?: typeof fetch
 }
@@ -17,7 +20,9 @@ const mailgun: DriverFactory<MailgunDriverOptions> = defineDriver<MailgunDriverO
   (options) => {
     if (!options?.apiKey) throw createRequiredError(DRIVER, "apiKey")
     if (!options?.domain) throw createRequiredError(DRIVER, "domain")
-    const endpoint = options.endpoint ?? "https://api.mailgun.net"
+    const endpoint =
+      options.endpoint ??
+      (options.region === "eu" ? "https://api.eu.mailgun.net" : "https://api.mailgun.net")
     const fetchImpl = options.fetch ?? globalThis.fetch
     if (typeof fetchImpl !== "function")
       throw createError(DRIVER, "INVALID_OPTIONS", "fetch is unavailable; pass `fetch` explicitly")
