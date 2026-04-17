@@ -1,4 +1,4 @@
-import type { DriverFactory, EmailMessage, EmailResult, Result } from "../types.ts"
+import type { DriverFactory, EmailResult, Result } from "../types.ts"
 import { defineDriver } from "../_define.ts"
 import { buildMime, normalizeMimeInput } from "./_smtp/mime.ts"
 import { createError, createRequiredError, toEmailError } from "../errors.ts"

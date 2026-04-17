@@ -1,4 +1,4 @@
-import type { DriverFactory, EmailMessage, EmailResult, Result } from "../types.ts"
+import type { DriverFactory, EmailResult, Result } from "../types.ts"
 import { defineDriver } from "../_define.ts"
 import { normalizeAddresses } from "../_normalize.ts"
 import { createError, createRequiredError } from "../errors.ts"
@@ -60,7 +60,7 @@ const loops: DriverFactory<LoopsDriverOptions> = defineDriver<LoopsDriverOptions
         }
       }
       const dataVariables: Record<string, unknown> = {
-        ...(msg.template?.variables ?? {}),
+        ...msg.template?.variables,
       }
       for (const t of msg.tags ?? []) dataVariables[t.name] = t.value
 

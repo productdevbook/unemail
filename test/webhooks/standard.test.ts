@@ -4,7 +4,9 @@ import { signStandardWebhook, verifyStandardWebhook } from "../../src/webhooks/s
 const SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
 
 function request(body: string, headers: Record<string, string>, method = "POST"): Request {
-  return new Request("https://app/webhook", { method, body, headers })
+  const init: RequestInit = { method, headers }
+  if (method !== "GET" && method !== "HEAD") init.body = body
+  return new Request("https://app/webhook", init)
 }
 
 describe("Standard Webhooks", () => {

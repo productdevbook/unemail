@@ -16,7 +16,6 @@
  * @module
  */
 
-import type { EmailMessage } from "../types.ts"
 import type { Renderer } from "./_middleware.ts"
 
 export interface HandlebarsRendererOptions {

@@ -65,7 +65,7 @@ const { data, error } = await email.send({
 })
 
 if (error) throw error // error: EmailError — typed { code, status, retryable, ... }
-console.log(data.id)   // data: EmailResult — TS narrows after the error check
+console.log(data.id) // data: EmailResult — TS narrows after the error check
 ```
 
 Every driver implements the same contract, so swapping providers is a
@@ -81,7 +81,7 @@ const email = createEmail({ driver: postmark({ token }) })
 email.mount("marketing", ses({ region: "us-east-1" }))
 
 await email.send({ stream: "transactional", to, subject, text })
-await email.send({ stream: "marketing",     to, subject, html })
+await email.send({ stream: "marketing", to, subject, html })
 ```
 
 ## Deliverability & compliance
@@ -90,7 +90,10 @@ await email.send({ stream: "marketing",     to, subject, html })
 
 ```ts
 await email.send({
-  from, to, subject, html,
+  from,
+  to,
+  subject,
+  html,
   unsubscribe: {
     url: `https://app.com/u?t=${token}`, // RFC 8058 one-click
     mailto: "unsubscribe@acme.com",
@@ -133,7 +136,9 @@ Eight drivers map `msg.template` into native template APIs:
 
 ```ts
 await email.send({
-  from, to, subject,
+  from,
+  to,
+  subject,
   template: { id: "tpl_welcome", variables: { name: "Ada" } },
 })
 // → SendGrid dynamic_template_data, Postmark TemplateModel,
@@ -148,7 +153,8 @@ driver supports it, or an automatic loop when it doesn't:
 
 ```ts
 await email.send({
-  from, subject: "Welcome",
+  from,
+  subject: "Welcome",
   personalizations: [
     { to: "ada@x.com", variables: { name: "Ada" } },
     { to: "bob@x.com", variables: { name: "Bob" }, subject: "Just for Bob" },
@@ -172,23 +178,27 @@ import { createEmail, withRender } from "unemail"
 import reactRender from "unemail/render/react"
 import { handlebarsRenderer } from "unemail/render/handlebars"
 
-const email = createEmail({ driver }).use(
-  withRender(reactRender(), handlebarsRenderer()),
-)
+const email = createEmail({ driver }).use(withRender(reactRender(), handlebarsRenderer()))
 ```
 
 **HTML post-processing pipeline** — preheader, dark-mode, CID
 auto-rewrite, juice inlining:
 
 ```ts
-import { htmlPipeline, withPreheader, cidRewrite, darkModeHook, inlineCss } from "unemail/render/pipeline"
+import {
+  htmlPipeline,
+  withPreheader,
+  cidRewrite,
+  darkModeHook,
+  inlineCss,
+} from "unemail/render/pipeline"
 
 email.use(
   htmlPipeline(
-    withPreheader(),                                   // reads msg.preheader
-    cidRewrite(),                                      // <img src="logo.png"> → cid:logo
+    withPreheader(), // reads msg.preheader
+    cidRewrite(), // <img src="logo.png"> → cid:logo
     darkModeHook({ darkCss: "body{background:#000}" }),
-    inlineCss(),                                       // peer: juice
+    inlineCss(), // peer: juice
   ),
 )
 ```
@@ -198,10 +208,23 @@ email.use(
 ```ts
 import { i18nRenderer } from "unemail/render/i18n"
 
-email.use(withRender(i18nRenderer({
-  fallback: handlebarsRenderer({ /* defaults */ }),
-  byLocale: { tr: handlebarsRenderer({ /* tr */ }), en: handlebarsRenderer({ /* en */ }) },
-})))
+email.use(
+  withRender(
+    i18nRenderer({
+      fallback: handlebarsRenderer({
+        /* defaults */
+      }),
+      byLocale: {
+        tr: handlebarsRenderer({
+          /* tr */
+        }),
+        en: handlebarsRenderer({
+          /* en */
+        }),
+      },
+    }),
+  ),
+)
 ```
 
 **Calendar invites** (ICS) attach to any message:
@@ -210,13 +233,15 @@ email.use(withRender(i18nRenderer({
 import { icalEvent } from "unemail/ics"
 
 await email.send({
-  from, to, subject: "Design sync",
+  from,
+  to,
+  subject: "Design sync",
   text: "...",
   attachments: [
     icalEvent({
       uid: "evt-1@acme.com",
       start: new Date("2026-05-01T10:00:00Z"),
-      end:   new Date("2026-05-01T11:00:00Z"),
+      end: new Date("2026-05-01T11:00:00Z"),
       summary: "Design sync",
       organizer: { email: "host@acme.com" },
       attendees: [{ email: "ada@acme.com", rsvp: true }],
@@ -261,11 +286,13 @@ app.get("/metrics", () => new Response(metrics.expose()))
 ```ts
 import { oauth2Gmail } from "unemail/middleware"
 
-email.use(oauth2Gmail({
-  clientId:     process.env.GOOGLE_CLIENT_ID!,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-  refreshToken: process.env.GOOGLE_REFRESH_TOKEN!,
-}))
+email.use(
+  oauth2Gmail({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    refreshToken: process.env.GOOGLE_REFRESH_TOKEN!,
+  }),
+)
 ```
 
 ## Provider fallback + composition
@@ -278,10 +305,7 @@ import ses from "unemail/drivers/ses"
 
 const email = createEmail({
   driver: fallback({
-    drivers: [
-      resend({ apiKey: process.env.RESEND_KEY! }),
-      ses({ region: "us-east-1" }),
-    ],
+    drivers: [resend({ apiKey: process.env.RESEND_KEY! }), ses({ region: "us-east-1" })],
   }),
 })
 ```
@@ -300,7 +324,9 @@ const queue = memoryQueue()
 startWorker(email, queue, { concurrency: 5, maxAttempts: 5 }).start()
 
 await queue.enqueue({
-  from, to, subject,
+  from,
+  to,
+  subject,
   scheduledAt: new Date(Date.now() + 60 * 60 * 1000), // send in 1h
 })
 ```
@@ -320,7 +346,9 @@ import { defineSesInboundHandler } from "unemail/inbound/ses"
 
 export default defineInboundHandler({
   providers: [sendgridInbound()],
-  onEmail(mail) { /* ParsedEmail */ },
+  onEmail(mail) {
+    /* ParsedEmail */
+  },
 })
 ```
 
@@ -353,7 +381,7 @@ Send events + webhook events converge on one `EmailEvent` shape:
 ```ts
 import { EventBus, withEvents, memoryEventStore } from "unemail/events"
 
-const bus   = new EventBus()
+const bus = new EventBus()
 const store = memoryEventStore()
 bus.on((e) => store.append(e))
 
@@ -374,7 +402,7 @@ import { parseAddress } from "unemail/address"
 
 const { data, error } = parseAddress("Ada <ada@acme.com>")
 if (error) throw error
-data.local  // "ada"
+data.local // "ada"
 data.domain // "acme.com"
 ```
 
@@ -415,8 +443,12 @@ export default defineDriver<{ apiKey: string }>((opts) => ({
     const body = (await res.json()) as { id: string }
     return { data: { id: body.id, driver: "my-driver", at: new Date() }, error: null }
   },
-  async cancel(id) { /* optional */ },
-  async retrieve(id) { /* optional */ },
+  async cancel(id) {
+    /* optional */
+  },
+  async retrieve(id) {
+    /* optional */
+  },
 }))
 ```
 

@@ -49,7 +49,7 @@ export function withOAuth2(options: OAuth2Options): Middleware {
     name: "oauth2",
     async beforeSend(msg) {
       const token = await ensureToken()
-      const headers: Record<string, string> = { ...(msg.headers ?? {}) }
+      const headers: Record<string, string> = { ...msg.headers }
       headers.authorization = `Bearer ${token}`
       ;(msg as { headers?: Record<string, string> }).headers = headers
     },
