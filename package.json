@@ -68,6 +68,14 @@
       "types": "./dist/drivers/smtp.d.mts",
       "default": "./dist/drivers/smtp.mjs"
     },
+    "./drivers/postmark": {
+      "types": "./dist/drivers/postmark.d.mts",
+      "default": "./dist/drivers/postmark.mjs"
+    },
+    "./drivers/ses": {
+      "types": "./dist/drivers/ses.d.mts",
+      "default": "./dist/drivers/ses.mjs"
+    },
     "./drivers/resend": {
       "types": "./dist/drivers/resend.d.mts",
       "default": "./dist/drivers/resend.mjs"

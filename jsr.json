@@ -5,6 +5,8 @@
     ".": "./src/index.ts",
     "./drivers/mock": "./src/drivers/mock.ts",
     "./drivers/smtp": "./src/drivers/smtp.ts",
+    "./drivers/postmark": "./src/drivers/postmark.ts",
+    "./drivers/ses": "./src/drivers/ses.ts",
     "./drivers/resend": "./src/drivers/resend.ts",
     "./drivers/fallback": "./src/drivers/fallback.ts",
     "./drivers/round-robin": "./src/drivers/round-robin.ts",
