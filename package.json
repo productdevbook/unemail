@@ -259,6 +259,22 @@
     "./preferences": {
       "types": "./dist/preferences/index.d.mts",
       "default": "./dist/preferences/index.mjs"
+    },
+    "./dmarc": {
+      "types": "./dist/dmarc/index.d.mts",
+      "default": "./dist/dmarc/index.mjs"
+    },
+    "./verify/arc": {
+      "types": "./dist/verify/arc.d.mts",
+      "default": "./dist/verify/arc.mjs"
+    },
+    "./mta-sts": {
+      "types": "./dist/mta-sts/index.d.mts",
+      "default": "./dist/mta-sts/index.mjs"
+    },
+    "./parse/arf": {
+      "types": "./dist/parse/arf.d.mts",
+      "default": "./dist/parse/arf.mjs"
     }
   },
   "scripts": {

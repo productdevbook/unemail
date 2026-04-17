@@ -52,7 +52,11 @@
     "./inbound/reply": "./src/inbound/reply.ts",
     "./inbound/thread": "./src/inbound/thread.ts",
     "./address": "./src/address.ts",
-    "./preferences": "./src/preferences/index.ts"
+    "./preferences": "./src/preferences/index.ts",
+    "./dmarc": "./src/dmarc/index.ts",
+    "./verify/arc": "./src/verify/arc.ts",
+    "./mta-sts": "./src/mta-sts/index.ts",
+    "./parse/arf": "./src/parse/arf.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],
