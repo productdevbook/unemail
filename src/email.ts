@@ -34,6 +34,11 @@ export interface Email {
   isAvailable: (stream?: string) => Promise<boolean>
   send: (msg: EmailMessage) => Promise<Result<EmailResult>>
   sendBatch: (msgs: ReadonlyArray<EmailMessage>) => Promise<Result<ReadonlyArray<EmailResult>>>
+  /** Stream the results of `sendBatch` one at a time — useful for
+   *  large (5k+) fan-outs where you don't want every `EmailResult` in
+   *  memory. Unlike `sendBatch` it never short-circuits on the first
+   *  error; each message yields its own Result. */
+  sendBatchStream: (msgs: ReadonlyArray<EmailMessage>) => AsyncIterable<Result<EmailResult>>
   dispose: () => Promise<void>
 }
 
@@ -155,6 +160,16 @@ export function createEmail(options: CreateEmailOptions): Email {
         results.push(res.data)
       }
       return { data: results, error: null }
+    },
+
+    sendBatchStream(msgs) {
+      const api2 = api
+      return {
+        async *[Symbol.asyncIterator]() {
+          await ensureInitialized()
+          for (const msg of msgs) yield await api2.send(msg)
+        },
+      }
     },
 
     async dispose() {
