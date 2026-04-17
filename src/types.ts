@@ -69,6 +69,13 @@ export interface EmailMessage {
    *  Required by Gmail + Yahoo bulk sender rules (Feb 2024). */
   unsubscribe?: UnsubscribeOptions
 
+  /** Provider-side template. `id` is the provider's template id (or alias
+   *  for Postmark). `variables` are passed to the template engine under
+   *  provider-specific names (`dynamic_template_data`, `TemplateModel`,
+   *  `params`, `dataVariables`, …). Drivers without templating raise
+   *  `UNSUPPORTED`. */
+  template?: TemplateOptions
+
   /** Per-message tracking overrides. Drivers that don't expose granular
    *  tracking fall back to their global setting. */
   tracking?: TrackingOptions
@@ -93,6 +100,18 @@ export interface EmailMessage {
   /** MJML source — compiled to `html` by the `withRender` middleware
    *  from `unemail/render/mjml`. */
   mjml?: string
+}
+
+/** Provider-side template settings. `id` is required when the provider
+ *  addresses templates by id; `alias` is used when they address by
+ *  name (Postmark). `variables` is a plain object — drivers stringify
+ *  or serialize as their API demands. */
+export interface TemplateOptions {
+  id?: string
+  alias?: string
+  variables?: Record<string, unknown>
+  /** Override locale for multi-locale template systems. */
+  locale?: string
 }
 
 /** Per-message tracking overrides. Unset fields defer to driver defaults. */

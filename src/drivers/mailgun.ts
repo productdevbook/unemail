@@ -87,6 +87,11 @@ function buildMailgunForm(msg: EmailMessage): FormData {
       form.append("attachment", blob, a.filename)
     }
   }
+  if (msg.template) {
+    if (msg.template.id) form.append("template", msg.template.id)
+    if (msg.template.variables)
+      form.append("h:X-Mailgun-Variables", JSON.stringify(msg.template.variables))
+  }
   if (msg.sandbox) form.append("o:testmode", "yes")
   if (msg.tracking) {
     if (msg.tracking.opens !== undefined)

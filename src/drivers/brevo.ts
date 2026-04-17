@@ -95,6 +95,11 @@ function buildBrevoPayload(msg: EmailMessage): Record<string, unknown> {
     payload.scheduledAt = d.toISOString()
   }
   if (msg.attachments?.length) payload.attachment = msg.attachments.map(toBrevoAttachment)
+  if (msg.template) {
+    if (msg.template.id)
+      payload.templateId = Number.parseInt(msg.template.id, 10) || msg.template.id
+    if (msg.template.variables) payload.params = { ...msg.template.variables }
+  }
   return payload
 }
 

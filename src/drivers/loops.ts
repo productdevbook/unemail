@@ -40,14 +40,15 @@ const loops: DriverFactory<LoopsDriverOptions> = defineDriver<LoopsDriverOptions
     },
 
     async send(msg) {
-      const transactionalId = msg.headers?.["x-loops-transactional-id"] ?? options.transactionalId
+      const transactionalId =
+        msg.template?.id ?? msg.headers?.["x-loops-transactional-id"] ?? options.transactionalId
       if (!transactionalId) {
         return {
           data: null,
           error: createError(
             DRIVER,
             "INVALID_OPTIONS",
-            "transactionalId is required: pass via driver options or headers['x-loops-transactional-id']",
+            "transactionalId is required: pass via msg.template.id, headers['x-loops-transactional-id'] or driver options",
           ),
         }
       }
@@ -58,7 +59,10 @@ const loops: DriverFactory<LoopsDriverOptions> = defineDriver<LoopsDriverOptions
           error: createError(DRIVER, "INVALID_OPTIONS", "`to` is required"),
         }
       }
-      const dataVariables = Object.fromEntries((msg.tags ?? []).map((t) => [t.name, t.value]))
+      const dataVariables: Record<string, unknown> = {
+        ...(msg.template?.variables ?? {}),
+      }
+      for (const t of msg.tags ?? []) dataVariables[t.name] = t.value
 
       const res = await httpJson({
         fetch: fetchImpl,

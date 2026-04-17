@@ -107,7 +107,9 @@ function buildSendGridPayload(
   if (msg.attachments?.length) payload.attachments = msg.attachments.map(toSgAttachment)
   if (msg.headers) payload.headers = msg.headers
   if (msg.tags?.length) payload.categories = msg.tags.map((t) => t.name)
-  if (options.templateId) payload.template_id = options.templateId
+  const templateId = msg.template?.id ?? options.templateId
+  if (templateId) payload.template_id = templateId
+  if (msg.template?.variables) personalization.dynamic_template_data = { ...msg.template.variables }
   if (options.ipPoolName) payload.ip_pool_name = options.ipPoolName
   if (msg.metadata) personalization.custom_args = { ...msg.metadata }
   if (msg.tracking) {
