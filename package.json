@@ -63,6 +63,22 @@
     "./drivers/mock": {
       "types": "./dist/drivers/mock.d.mts",
       "default": "./dist/drivers/mock.mjs"
+    },
+    "./drivers/resend": {
+      "types": "./dist/drivers/resend.d.mts",
+      "default": "./dist/drivers/resend.mjs"
+    },
+    "./drivers/fallback": {
+      "types": "./dist/drivers/fallback.d.mts",
+      "default": "./dist/drivers/fallback.mjs"
+    },
+    "./drivers/round-robin": {
+      "types": "./dist/drivers/round-robin.d.mts",
+      "default": "./dist/drivers/round-robin.mjs"
+    },
+    "./middleware": {
+      "types": "./dist/middleware/index.d.mts",
+      "default": "./dist/middleware/index.mjs"
     }
   },
   "scripts": {

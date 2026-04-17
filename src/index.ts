@@ -13,6 +13,15 @@ export { defineDriver } from "./_define.ts"
 export { memoryIdempotencyStore } from "./_idempotency.ts"
 export { formatAddress, isValidEmail, normalizeAddresses, parseAddress } from "./_normalize.ts"
 export { createError, createRequiredError, EmailError, toEmailError } from "./errors.ts"
+export {
+  type CircuitBreakerOptions,
+  type CircuitState,
+  type RateLimitOptions,
+  type RetryOptions,
+  withCircuitBreaker,
+  withRateLimit,
+  withRetry,
+} from "./middleware/index.ts"
 export type {
   Attachment,
   DriverFactory,

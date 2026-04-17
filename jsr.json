@@ -3,7 +3,11 @@
   "version": "0.3.0",
   "exports": {
     ".": "./src/index.ts",
-    "./drivers/mock": "./src/drivers/mock.ts"
+    "./drivers/mock": "./src/drivers/mock.ts",
+    "./drivers/resend": "./src/drivers/resend.ts",
+    "./drivers/fallback": "./src/drivers/fallback.ts",
+    "./drivers/round-robin": "./src/drivers/round-robin.ts",
+    "./middleware": "./src/middleware/index.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],
