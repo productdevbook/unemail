@@ -1,4 +1,4 @@
-import type { DriverFactory, EmailResult } from "../types.ts"
+import type { DriverFactory, EmailMessage, EmailResult } from "../types.ts"
 import type { ConnectionOptions } from "./_smtp/connection.ts"
 import type { PoolOptions } from "./_smtp/pool.ts"
 import type { AuthMethod } from "./_smtp/auth.ts"
@@ -36,7 +36,7 @@ export interface SmtpDriverOptions {
   /** Sign outbound messages with DKIM (RFC 6376 / RFC 8463). Accepts a
    *  single signer config or a per-message resolver for multi-tenant
    *  sending. */
-  dkim?: DkimSignerOptions | ((msg: import("../types.ts").EmailMessage) => DkimSignerOptions | null)
+  dkim?: DkimSignerOptions | ((msg: EmailMessage) => DkimSignerOptions | null)
 }
 
 const DRIVER = "smtp"
