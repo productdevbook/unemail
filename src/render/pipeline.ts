@@ -99,12 +99,21 @@ export function cidRewrite(): HtmlTransform {
  *  through HTML unchanged when juice isn't available. */
 export function inlineCss(): HtmlTransform {
   return async (html) => {
-    const juice = await import("juice").catch(() => null)
-    if (!juice) return html
-    const fn = (juice as unknown as { default?: (html: string) => string }).default ?? juice
+    const mod = (await dynamicImport("juice").catch(() => null)) as {
+      default?: (html: string) => string
+    } | null
+    if (!mod) return html
+    const fn = mod.default ?? (mod as unknown as (html: string) => string)
     return (fn as (html: string) => string)(html)
   }
 }
+
+/** Hidden behind a Function constructor so the typechecker doesn't
+ *  require the peer dep to be installed. */
+const dynamicImport: (specifier: string) => Promise<unknown> = new Function(
+  "s",
+  "return import(s)",
+) as (s: string) => Promise<unknown>
 
 function escapeHtml(value: string): string {
   return value

@@ -55,8 +55,13 @@ interface HandlebarsLike {
   registerPartial: (name: string, source: string) => void
 }
 
+const dynamicImport: (specifier: string) => Promise<unknown> = new Function(
+  "s",
+  "return import(s)",
+) as (s: string) => Promise<unknown>
+
 async function loadHandlebars(): Promise<HandlebarsLike> {
-  const mod = (await import("handlebars").catch(() => null)) as
+  const mod = (await dynamicImport("handlebars").catch(() => null)) as
     | { default?: HandlebarsLike }
     | HandlebarsLike
     | null

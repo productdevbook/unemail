@@ -29,6 +29,11 @@ interface LiquidCtor {
   new (options?: Record<string, unknown>): LiquidLike
 }
 
+const dynamicImport: (specifier: string) => Promise<unknown> = new Function(
+  "s",
+  "return import(s)",
+) as (s: string) => Promise<unknown>
+
 export function liquidRenderer(options: LiquidRendererOptions = {}): Renderer {
   let engine: LiquidLike | null = null
   return {
@@ -36,7 +41,9 @@ export function liquidRenderer(options: LiquidRendererOptions = {}): Renderer {
     match: (msg) => Boolean((msg as { liquid?: string }).liquid),
     async render(msg) {
       if (!engine) {
-        const mod = (await import("liquidjs").catch(() => null)) as { Liquid?: LiquidCtor } | null
+        const mod = (await dynamicImport("liquidjs").catch(() => null)) as {
+          Liquid?: LiquidCtor
+        } | null
         if (!mod?.Liquid)
           throw new Error("[unemail/render/liquid] install `liquidjs` as a peer dep")
         engine = new mod.Liquid(options.engineOptions)
