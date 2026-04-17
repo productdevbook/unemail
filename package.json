@@ -76,6 +76,46 @@
       "types": "./dist/drivers/ses.d.mts",
       "default": "./dist/drivers/ses.mjs"
     },
+    "./drivers/http": {
+      "types": "./dist/drivers/http.d.mts",
+      "default": "./dist/drivers/http.mjs"
+    },
+    "./drivers/zeptomail": {
+      "types": "./dist/drivers/zeptomail.d.mts",
+      "default": "./dist/drivers/zeptomail.mjs"
+    },
+    "./drivers/sendgrid": {
+      "types": "./dist/drivers/sendgrid.d.mts",
+      "default": "./dist/drivers/sendgrid.mjs"
+    },
+    "./drivers/mailgun": {
+      "types": "./dist/drivers/mailgun.d.mts",
+      "default": "./dist/drivers/mailgun.mjs"
+    },
+    "./drivers/brevo": {
+      "types": "./dist/drivers/brevo.d.mts",
+      "default": "./dist/drivers/brevo.mjs"
+    },
+    "./drivers/mailersend": {
+      "types": "./dist/drivers/mailersend.d.mts",
+      "default": "./dist/drivers/mailersend.mjs"
+    },
+    "./drivers/loops": {
+      "types": "./dist/drivers/loops.d.mts",
+      "default": "./dist/drivers/loops.mjs"
+    },
+    "./drivers/mailchannels": {
+      "types": "./dist/drivers/mailchannels.d.mts",
+      "default": "./dist/drivers/mailchannels.mjs"
+    },
+    "./drivers/cloudflare-email": {
+      "types": "./dist/drivers/cloudflare-email.d.mts",
+      "default": "./dist/drivers/cloudflare-email.mjs"
+    },
+    "./drivers/mailcrab": {
+      "types": "./dist/drivers/mailcrab.d.mts",
+      "default": "./dist/drivers/mailcrab.mjs"
+    },
     "./drivers/resend": {
       "types": "./dist/drivers/resend.d.mts",
       "default": "./dist/drivers/resend.mjs"
