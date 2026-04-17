@@ -51,7 +51,8 @@
     "./ics": "./src/ics/index.ts",
     "./inbound/reply": "./src/inbound/reply.ts",
     "./inbound/thread": "./src/inbound/thread.ts",
-    "./address": "./src/address.ts"
+    "./address": "./src/address.ts",
+    "./preferences": "./src/preferences/index.ts"
   },
   "publish": {
     "include": ["src/**/*.ts", "README.md", "LICENSE"],

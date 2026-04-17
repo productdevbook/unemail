@@ -255,6 +255,10 @@
     "./address": {
       "types": "./dist/address.d.mts",
       "default": "./dist/address.mjs"
+    },
+    "./preferences": {
+      "types": "./dist/preferences/index.d.mts",
+      "default": "./dist/preferences/index.mjs"
     }
   },
   "scripts": {
