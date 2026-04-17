@@ -324,7 +324,8 @@
     "bundle-budget": "node scripts/bundle-budget.mjs",
     "playground": "cd playground && pnpm install && pnpm dev",
     "attw": "pnpm dlx @arethetypeswrong/cli --pack . --profile esm-only",
-    "release": "pnpm test && pnpm build && pnpm bundle-budget && bumpp --commit --tag --push --all",
+    "jsr:check": "pnpm dlx jsr publish --dry-run --allow-dirty",
+    "release": "pnpm test && pnpm build && pnpm bundle-budget && pnpm attw && pnpm jsr:check && bumpp --commit --tag --push --all",
     "prepack": "pnpm build"
   },
   "devDependencies": {

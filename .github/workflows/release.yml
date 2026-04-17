@@ -46,13 +46,28 @@ jobs:
       - name: 🔍 Are The Types Wrong (ATTW)
         run: pnpm attw
 
-      - name: 📦 Publish to npm
-        run: pnpm publish --provenance --access public --no-git-checks
+      - name: 📦 Publish to npm (idempotent)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          PKG=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "${PKG}@${VERSION}" version >/dev/null 2>&1; then
+            echo "✅ ${PKG}@${VERSION} already on npm — skipping publish."
+          else
+            pnpm publish --provenance --access public --no-git-checks
+          fi
 
-      - name: 🦕 Publish to JSR (OIDC)
-        run: npx jsr publish
+      - name: 🦕 Publish to JSR (OIDC, idempotent)
+        run: |
+          SCOPE_PKG=$(node -p "require('./jsr.json').name")
+          VERSION=$(node -p "require('./jsr.json').version")
+          META_URL="https://jsr.io/${SCOPE_PKG}/${VERSION}_meta.json"
+          if curl -sSf -o /dev/null "$META_URL"; then
+            echo "✅ ${SCOPE_PKG}@${VERSION} already on JSR — skipping publish."
+          else
+            npx jsr publish
+          fi
 
       - name: 📝 Generate changelog
         run: pnpm dlx changelogithub

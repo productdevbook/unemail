@@ -53,10 +53,3 @@ export function liquidRenderer(options: LiquidRendererOptions = {}): Renderer {
     },
   }
 }
-
-declare module "../types.ts" {
-  interface EmailMessage {
-    liquid?: string
-    liquidVars?: Record<string, unknown>
-  }
-}

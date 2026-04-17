@@ -60,9 +60,3 @@ function pick(
   }
   return options.fallback
 }
-
-declare module "../types.ts" {
-  interface EmailMessage {
-    locale?: string
-  }
-}

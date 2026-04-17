@@ -69,10 +69,3 @@ async function loadHandlebars(): Promise<HandlebarsLike> {
     "default" in mod ? (mod.default as HandlebarsLike) : (mod as HandlebarsLike)
   ) as HandlebarsLike
 }
-
-declare module "../types.ts" {
-  interface EmailMessage {
-    handlebars?: string
-    handlebarsVars?: Record<string, unknown>
-  }
-}

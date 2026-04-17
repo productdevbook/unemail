@@ -74,129 +74,140 @@ function inboxOf(received: unknown): readonly EmailMessage[] | null {
  *  - `toHaveSentWithAttachment(filename | predicate)`.
  *  - `toHaveSentMatching(predicate)` — fully custom.
  */
-export const emailMatchers = {
-  toHaveSent(
-    received: { inbox: readonly EmailMessage[] },
-    match: EmailMatch,
-  ): { pass: boolean; message: () => string } {
-    const inbox = inboxOf(received)
-    if (!inbox)
-      return {
-        pass: false,
-        message: () =>
-          `toHaveSent: received value does not expose an inbox; pass a TestEmail instance`,
-      }
-    const hits: string[] = []
-    for (const msg of inbox) {
-      const { pass, diff } = matchesEmail(msg, match)
-      if (pass)
-        return { pass: true, message: () => `expected no email to match ${JSON.stringify(match)}` }
-      if (diff) hits.push(diff)
-    }
+export type MatcherResult = { pass: boolean; message: () => string }
+export type AttachmentPredicate = (a: NonNullable<EmailMessage["attachments"]>[number]) => boolean
+type HasInbox = { inbox: readonly EmailMessage[] }
+
+export function toHaveSent(received: HasInbox, match: EmailMatch): MatcherResult {
+  const inbox = inboxOf(received)
+  if (!inbox)
     return {
       pass: false,
       message: () =>
-        `expected an email to match ${JSON.stringify(match)}; checked ${inbox.length} message(s):\n  - ${hits.join("\n  - ")}`,
+        `toHaveSent: received value does not expose an inbox; pass a TestEmail instance`,
     }
-  },
+  const hits: string[] = []
+  for (const msg of inbox) {
+    const { pass, diff } = matchesEmail(msg, match)
+    if (pass)
+      return { pass: true, message: () => `expected no email to match ${JSON.stringify(match)}` }
+    if (diff) hits.push(diff)
+  }
+  return {
+    pass: false,
+    message: () =>
+      `expected an email to match ${JSON.stringify(match)}; checked ${inbox.length} message(s):\n  - ${hits.join("\n  - ")}`,
+  }
+}
 
-  toHaveSentTo(
-    received: { inbox: readonly EmailMessage[] },
-    recipient: string,
-  ): { pass: boolean; message: () => string } {
-    const inbox = inboxOf(received)
-    if (!inbox)
-      return {
-        pass: false,
-        message: () =>
-          `toHaveSentTo: received value does not expose an inbox; pass a TestEmail instance`,
-      }
-    for (const msg of inbox) {
-      const emails = [
-        ...normalizeAddresses(msg.to),
-        ...normalizeAddresses(msg.cc),
-        ...normalizeAddresses(msg.bcc),
-      ].map((a) => a.email.toLowerCase())
-      if (emails.includes(recipient.toLowerCase()))
-        return { pass: true, message: () => `expected no email to be sent to ${recipient}` }
-    }
+export function toHaveSentTo(received: HasInbox, recipient: string): MatcherResult {
+  const inbox = inboxOf(received)
+  if (!inbox)
     return {
       pass: false,
       message: () =>
-        `expected an email to ${recipient}; ${inbox.length} message(s) checked but none matched`,
+        `toHaveSentTo: received value does not expose an inbox; pass a TestEmail instance`,
     }
-  },
+  for (const msg of inbox) {
+    const emails = [
+      ...normalizeAddresses(msg.to),
+      ...normalizeAddresses(msg.cc),
+      ...normalizeAddresses(msg.bcc),
+    ].map((a) => a.email.toLowerCase())
+    if (emails.includes(recipient.toLowerCase()))
+      return { pass: true, message: () => `expected no email to be sent to ${recipient}` }
+  }
+  return {
+    pass: false,
+    message: () =>
+      `expected an email to ${recipient}; ${inbox.length} message(s) checked but none matched`,
+  }
+}
 
-  toHaveSentWithSubject(
-    received: { inbox: readonly EmailMessage[] },
-    pattern: string | RegExp,
-  ): { pass: boolean; message: () => string } {
-    const inbox = inboxOf(received)
-    if (!inbox)
-      return {
-        pass: false,
-        message: () =>
-          `toHaveSentWithSubject: received value does not expose an inbox; pass a TestEmail instance`,
-      }
-    for (const msg of inbox) {
-      const ok = pattern instanceof RegExp ? pattern.test(msg.subject) : msg.subject === pattern
-      if (ok)
-        return {
-          pass: true,
-          message: () => `expected no email with subject ${formatExpected(pattern)}`,
-        }
-    }
+export function toHaveSentWithSubject(received: HasInbox, pattern: string | RegExp): MatcherResult {
+  const inbox = inboxOf(received)
+  if (!inbox)
     return {
       pass: false,
       message: () =>
-        `expected an email with subject ${formatExpected(pattern)}; got ${inbox.map((m) => JSON.stringify(m.subject)).join(", ")}`,
+        `toHaveSentWithSubject: received value does not expose an inbox; pass a TestEmail instance`,
     }
-  },
-
-  toHaveSentWithAttachment(
-    received: { inbox: readonly EmailMessage[] },
-    match: string | ((a: NonNullable<EmailMessage["attachments"]>[number]) => boolean),
-  ): { pass: boolean; message: () => string } {
-    const inbox = inboxOf(received)
-    if (!inbox)
+  for (const msg of inbox) {
+    const ok = pattern instanceof RegExp ? pattern.test(msg.subject) : msg.subject === pattern
+    if (ok)
       return {
-        pass: false,
-        message: () =>
-          `toHaveSentWithAttachment: received value does not expose an inbox; pass a TestEmail instance`,
+        pass: true,
+        message: () => `expected no email with subject ${formatExpected(pattern)}`,
       }
-    const predicate =
-      typeof match === "string" ? (a: { filename: string }) => a.filename === match : match
-    for (const msg of inbox) {
-      if ((msg.attachments ?? []).some(predicate))
-        return { pass: true, message: () => `expected no email with a matching attachment` }
-    }
+  }
+  return {
+    pass: false,
+    message: () =>
+      `expected an email with subject ${formatExpected(pattern)}; got ${inbox.map((m) => JSON.stringify(m.subject)).join(", ")}`,
+  }
+}
+
+export function toHaveSentWithAttachment(
+  received: HasInbox,
+  match: string | AttachmentPredicate,
+): MatcherResult {
+  const inbox = inboxOf(received)
+  if (!inbox)
     return {
       pass: false,
       message: () =>
-        `expected an email with an attachment matching ${typeof match === "string" ? match : "<predicate>"}; checked ${inbox.length} message(s)`,
+        `toHaveSentWithAttachment: received value does not expose an inbox; pass a TestEmail instance`,
     }
-  },
+  const predicate =
+    typeof match === "string"
+      ? (a: NonNullable<EmailMessage["attachments"]>[number]) => a.filename === match
+      : match
+  for (const msg of inbox) {
+    if ((msg.attachments ?? []).some(predicate))
+      return { pass: true, message: () => `expected no email with a matching attachment` }
+  }
+  return {
+    pass: false,
+    message: () =>
+      `expected an email with an attachment matching ${typeof match === "string" ? match : "<predicate>"}; checked ${inbox.length} message(s)`,
+  }
+}
 
-  toHaveSentMatching(
-    received: { inbox: readonly EmailMessage[] },
-    predicate: (msg: EmailMessage) => boolean,
-  ): { pass: boolean; message: () => string } {
-    const inbox = inboxOf(received)
-    if (!inbox)
-      return {
-        pass: false,
-        message: () =>
-          `toHaveSentMatching: received value does not expose an inbox; pass a TestEmail instance`,
-      }
-    for (const msg of inbox) {
-      if (predicate(msg))
-        return { pass: true, message: () => `expected no email to match the predicate` }
-    }
+export function toHaveSentMatching(
+  received: HasInbox,
+  predicate: (msg: EmailMessage) => boolean,
+): MatcherResult {
+  const inbox = inboxOf(received)
+  if (!inbox)
     return {
       pass: false,
-      message: () => `expected an email to match the predicate; ${inbox.length} checked`,
+      message: () =>
+        `toHaveSentMatching: received value does not expose an inbox; pass a TestEmail instance`,
     }
-  },
+  for (const msg of inbox) {
+    if (predicate(msg))
+      return { pass: true, message: () => `expected no email to match the predicate` }
+  }
+  return {
+    pass: false,
+    message: () => `expected an email to match the predicate; ${inbox.length} checked`,
+  }
+}
+
+/** Vitest-compatible matcher object. Has an explicit index signature
+ *  so it type-checks against `expect.extend`'s `MatchersObject`. */
+export const emailMatchers: {
+  toHaveSent: typeof toHaveSent
+  toHaveSentTo: typeof toHaveSentTo
+  toHaveSentWithSubject: typeof toHaveSentWithSubject
+  toHaveSentWithAttachment: typeof toHaveSentWithAttachment
+  toHaveSentMatching: typeof toHaveSentMatching
+} = {
+  toHaveSent,
+  toHaveSentTo,
+  toHaveSentWithSubject,
+  toHaveSentWithAttachment,
+  toHaveSentMatching,
 }
 
 /** Snapshot helper — returns a stable, serializable view of an email.

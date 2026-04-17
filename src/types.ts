@@ -120,6 +120,18 @@ export interface EmailMessage {
   /** MJML source — compiled to `html` by the `withRender` middleware
    *  from `unemail/render/mjml`. */
   mjml?: string
+  /** Handlebars template source — rendered by
+   *  `unemail/render/handlebars` using `handlebarsVars` as the
+   *  context. */
+  handlebars?: string
+  handlebarsVars?: Record<string, unknown>
+  /** Liquid template source — rendered by `unemail/render/liquid`
+   *  using `liquidVars` as the context. */
+  liquid?: string
+  liquidVars?: Record<string, unknown>
+  /** Locale hint consumed by `unemail/render/i18n` to dispatch to the
+   *  right sub-renderer. */
+  locale?: string
 }
 
 /** Per-recipient personalization (SendGrid-native). Loops fall back
