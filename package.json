@@ -24,6 +24,7 @@
     "mailcrab",
     "mailersend",
     "mailgun",
+    "mailtrap",
     "mjml",
     "postal-mime",
     "postmark",
@@ -91,6 +92,10 @@
     "./driver/mailgun": {
       "types": "./dist/driver/mailgun.d.mts",
       "default": "./dist/driver/mailgun.mjs"
+    },
+    "./driver/mailtrap": {
+      "types": "./dist/driver/mailtrap.d.mts",
+      "default": "./dist/driver/mailtrap.mjs"
     },
     "./driver/brevo": {
       "types": "./dist/driver/brevo.d.mts",

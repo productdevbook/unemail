@@ -7,6 +7,7 @@ import brevo from "../../src/driver/brevo.ts"
 import mailersend from "../../src/driver/mailersend.ts"
 import loops from "../../src/driver/loops.ts"
 import zeptomail from "../../src/driver/zeptomail.ts"
+import mailtrap from "../../src/driver/mailtrap.ts"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -101,6 +102,18 @@ describe("msg.template pass-through across drivers", () => {
     const body = JSON.parse(init.body as string)
     expect(body.transactionalId).toBe("tpl-1")
     expect(body.dataVariables).toEqual({ name: "Ada" })
+  })
+
+  it("mailtrap maps to template_uuid + template_variables", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, message_ids: ["m"] }))
+    const email = createEmail({
+      driver: mailtrap({ apiKey: "k", fetch: fetchMock as unknown as typeof fetch }),
+    })
+    await email.send(baseMsg)
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    const body = JSON.parse(init.body as string)
+    expect(body.template_uuid).toBe("tpl-1")
+    expect(body.template_variables).toEqual({ name: "Ada" })
   })
 
   it("zeptomail maps to template_key + merge_info", async () => {

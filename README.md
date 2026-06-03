@@ -17,15 +17,15 @@
 
 ## Design goals
 
-| Goal                         | How `unemail` delivers                                                                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **One API, many transports** | `createEmail({ driver })` — 15+ built-in drivers (SMTP, Resend, SES, Postmark, SendGrid, Mailgun, Brevo, MailerSend, Loops, Zeptomail, MailChannels, Cloudflare Email, …) |
-| **Cross-runtime**            | Node, Bun, Deno, Cloudflare Workers, browser — core is zero-dep and Web-API only. No `axios`, ever.                                                                       |
-| **Compliance-ready**         | RFC 8058 one-click List-Unsubscribe, DKIM + ARC signing, suppression/preference stores, DMARC + TLS-RPT + ARF parsers                                                     |
-| **Resilient by default**     | Idempotency, retry w/ jitter, per-provider rate-limit, circuit breaker, dedupe, dead-letter, provider fallback                                                            |
-| **Unified observability**    | Structured logging, OpenTelemetry, Prometheus metrics, normalized `EmailEvent` stream across send + webhook paths                                                         |
-| **Modern DX**                | `{ data, error }` Result discriminated union, typed `Address` primitive, `react:`/`mjml:`/`handlebars:`/`liquid:` props                                                   |
-| **Testing-first**            | `createTestEmail()` with inbox + `waitFor` + 5 Vitest matchers + snapshot helper                                                                                          |
+| Goal                         | How `unemail` delivers                                                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **One API, many transports** | `createEmail({ driver })` — 15+ built-in drivers (SMTP, Resend, SES, Postmark, SendGrid, Mailgun, Mailtrap, Brevo, MailerSend, Loops, Zeptomail, MailChannels, Cloudflare Email, …) |
+| **Cross-runtime**            | Node, Bun, Deno, Cloudflare Workers, browser — core is zero-dep and Web-API only. No `axios`, ever.                                                                                 |
+| **Compliance-ready**         | RFC 8058 one-click List-Unsubscribe, DKIM + ARC signing, suppression/preference stores, DMARC + TLS-RPT + ARF parsers                                                               |
+| **Resilient by default**     | Idempotency, retry w/ jitter, per-provider rate-limit, circuit breaker, dedupe, dead-letter, provider fallback                                                                      |
+| **Unified observability**    | Structured logging, OpenTelemetry, Prometheus metrics, normalized `EmailEvent` stream across send + webhook paths                                                                   |
+| **Modern DX**                | `{ data, error }` Result discriminated union, typed `Address` primitive, `react:`/`mjml:`/`handlebars:`/`liquid:` props                                                             |
+| **Testing-first**            | `createTestEmail()` with inbox + `waitFor` + 5 Vitest matchers + snapshot helper                                                                                                    |
 
 ## Install
 

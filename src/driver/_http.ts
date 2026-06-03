@@ -2,7 +2,7 @@ import type { Result } from "../types.ts"
 import { createError, toEmailError } from "../errors.ts"
 
 /** Thin wrapper around `fetch` used by every HTTP-based driver (Resend,
- *  Postmark, SendGrid, Mailgun, Brevo, MailerSend, Loops, Zeptomail,
+ *  Postmark, SendGrid, Mailgun, Mailtrap, Brevo, MailerSend, Loops, Zeptomail,
  *  MailChannels, HTTP). Handles JSON encoding, response parsing, and
  *  mapping HTTP status codes to our `EmailErrorCode` taxonomy.
  *

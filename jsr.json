@@ -11,6 +11,7 @@
     "./driver/zeptomail": "./src/driver/zeptomail.ts",
     "./driver/sendgrid": "./src/driver/sendgrid.ts",
     "./driver/mailgun": "./src/driver/mailgun.ts",
+    "./driver/mailtrap": "./src/driver/mailtrap.ts",
     "./driver/brevo": "./src/driver/brevo.ts",
     "./driver/mailersend": "./src/driver/mailersend.ts",
     "./driver/loops": "./src/driver/loops.ts",
