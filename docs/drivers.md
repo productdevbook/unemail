@@ -16,6 +16,7 @@ touch it again; swapping providers is a one-line change.
 | `unemail/driver/ses`              | all (Web-Crypto)   |      ✓      | ✓ (seq) |     –      |      –      |     –     |  ✓   |    –    |
 | `unemail/driver/sendgrid`         | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
 | `unemail/driver/mailgun`          | all                |      ✓      |    –    |     ✓      |      –      |     –     |  ✓   |    –    |
+| `unemail/driver/mailtrap`         | all                |      ✓      |    ✓    |     –      |      –      |     ✓     |  ✓   |    –    |
 | `unemail/driver/brevo`            | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
 | `unemail/driver/mailersend`       | all                |      ✓      |    ✓    |     ✓      |      –      |     –     |  ✓   |    –    |
 | `unemail/driver/loops`            | all                |      –      |    –    |     –      |      –      |     ✓     |  ✓   |    –    |
