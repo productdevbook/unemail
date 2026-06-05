@@ -171,6 +171,182 @@ describe("mailtrap driver", () => {
     expect(body.requests).toHaveLength(2)
   })
 
+  it("routes sandbox send to sandbox.api with inboxId in path", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ success: true, message_ids: ["sb_1"] }))
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "token",
+        inboxId: 2564102,
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    await email.send({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "x",
+      text: "x",
+      sandbox: true,
+    })
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe("https://sandbox.api.mailtrap.io/api/send/2564102")
+    const headers = init.headers as Record<string, string>
+    expect(headers["api-token"]).toBe("token")
+    const body = JSON.parse(init.body as string)
+    expect(body.sandbox).toBeUndefined()
+  })
+
+  it("uses driver sandbox default when msg.sandbox is unset", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, message_ids: ["x"] }))
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "k",
+        sandbox: true,
+        inboxId: 100,
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
+    const [url] = fetchMock.mock.calls[0] as [string]
+    expect(url).toBe("https://sandbox.api.mailtrap.io/api/send/100")
+  })
+
+  it("msg.sandbox false overrides driver sandbox default", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ success: true, message_ids: ["x"] }))
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "k",
+        sandbox: true,
+        inboxId: 100,
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    await email.send({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "x",
+      text: "x",
+      sandbox: false,
+    })
+    const [url] = fetchMock.mock.calls[0] as [string]
+    expect(url).toBe("https://send.api.mailtrap.io/api/send")
+  })
+
+  it("returns INVALID_OPTIONS for sandbox send without inboxId", async () => {
+    const fetchMock = vi.fn()
+    const email = createEmail({
+      driver: mailtrap({ apiKey: "k", fetch: fetchMock as unknown as typeof fetch }),
+    })
+    const { error } = await email.send({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "x",
+      text: "x",
+      sandbox: true,
+    })
+    expect(error?.code).toBe("INVALID_OPTIONS")
+    expect(error?.message).toContain("inboxId")
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("returns INVALID_OPTIONS for empty string inboxId in sandbox", async () => {
+    const fetchMock = vi.fn()
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "k",
+        inboxId: "  ",
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    const { error } = await email.send({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "x",
+      text: "x",
+      sandbox: true,
+    })
+    expect(error?.code).toBe("INVALID_OPTIONS")
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("sendBatch routes to sandbox batch URL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        success: true,
+        responses: [{ success: true, message_ids: ["a"] }],
+      }),
+    )
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "k",
+        inboxId: 2564102,
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    await email.sendBatch([
+      { from: "a@b.com", to: "x@y.com", subject: "1", text: "x", sandbox: true },
+    ])
+    const [url] = fetchMock.mock.calls[0] as [string]
+    expect(url).toBe("https://sandbox.api.mailtrap.io/api/batch/2564102")
+  })
+
+  it("sendBatch uses driver sandbox default", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        success: true,
+        responses: [
+          { success: true, message_ids: ["a"] },
+          { success: true, message_ids: ["b"] },
+        ],
+      }),
+    )
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "k",
+        sandbox: true,
+        inboxId: 100,
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    await email.sendBatch([
+      { from: "a@b.com", to: "x@y.com", subject: "1", text: "x" },
+      { from: "a@b.com", to: "y@y.com", subject: "2", text: "x" },
+    ])
+    const [url] = fetchMock.mock.calls[0] as [string]
+    expect(url).toBe("https://sandbox.api.mailtrap.io/api/batch/100")
+  })
+
+  it("sendBatch returns INVALID_OPTIONS without inboxId in sandbox", async () => {
+    const fetchMock = vi.fn()
+    const email = createEmail({
+      driver: mailtrap({ apiKey: "k", fetch: fetchMock as unknown as typeof fetch }),
+    })
+    const { error } = await email.sendBatch([
+      { from: "a@b.com", to: "x@y.com", subject: "1", text: "x", sandbox: true },
+    ])
+    expect(error?.code).toBe("INVALID_OPTIONS")
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("sendBatch rejects mixed sandbox and production messages", async () => {
+    const fetchMock = vi.fn()
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "k",
+        inboxId: 100,
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    const { error } = await email.sendBatch([
+      { from: "a@b.com", to: "x@y.com", subject: "1", text: "x", sandbox: true },
+      { from: "a@b.com", to: "y@y.com", subject: "2", text: "x", sandbox: false },
+    ])
+    expect(error?.code).toBe("INVALID_OPTIONS")
+    expect(error?.message).toContain("mixed sandbox")
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it("sendBatch fails when a batch item has success false", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
