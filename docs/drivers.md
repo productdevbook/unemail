@@ -25,6 +25,35 @@ touch it again; swapping providers is a one-line change.
 | `unemail/driver/cloudflare-email` | CF Workers binding |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
 | `unemail/driver/http`             | all                |  (custom)   |    –    |  (custom)  |      –      |     –     |  –   |    –    |
 
+### Mailtrap (production + Email Sandbox)
+
+The Mailtrap driver uses one API token for both environments. Production sends
+go to `send.api.mailtrap.io`; Email Sandbox (test inbox capture) uses
+`sandbox.api.mailtrap.io` with your inbox ID in the path.
+
+```ts
+import { createEmail } from "unemail"
+import mailtrap from "unemail/driver/mailtrap"
+
+const email = createEmail({
+  driver: mailtrap({
+    apiKey: process.env.MAILTRAP_API_KEY!,
+    inboxId: process.env.MAILTRAP_INBOX_ID,
+    sandbox: process.env.MAILTRAP_USE_SANDBOX === "true",
+  }),
+})
+
+// Sandbox (captured in test inbox)
+await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "hi", sandbox: true })
+
+// Production
+await email.send({ from: "a@verified.com", to: "c@d.com", subject: "x", text: "hi" })
+```
+
+Set `msg.sandbox` per message to override the driver default. `sendBatch`
+works in both modes; all messages in one batch must target the same environment.
+Sandbox sends require `inboxId` (from `mailtrap.io/sandboxes/{id}`).
+
 ### Meta drivers
 
 These wrap other drivers:
