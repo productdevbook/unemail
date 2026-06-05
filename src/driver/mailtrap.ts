@@ -12,14 +12,25 @@ import { normalizeAddresses } from "../_normalize.ts"
 import { createError, createRequiredError } from "../errors.ts"
 import { httpJson } from "./_http.ts"
 
+/** Mailtrap Email API driver — production sending and Email Sandbox testing
+ *  with the same API token. Mirrors the official SDK env pattern:
+ *  \`MAILTRAP_API_KEY\` → \`apiKey\`, \`MAILTRAP_USE_SANDBOX\` → \`sandbox\`,
+ *  \`MAILTRAP_INBOX_ID\` → \`inboxId\`. */
 export interface MailtrapDriverOptions {
   apiKey: string
+  /** Production send API base. Default \`https://send.api.mailtrap.io\`. */
   endpoint?: string
   fetch?: typeof fetch
   /** Used when no \`tags\` entry has \`name: "category"\`. */
   defaultCategory?: string
   /** Mailtrap edge protection may block requests without a User-Agent. */
   userAgent?: string
+  /** Default sandbox mode when \`msg.sandbox\` is unset. */
+  sandbox?: boolean
+  /** Sandbox inbox ID (from mailtrap.io/sandboxes/{id}). Required for sandbox sends. */
+  inboxId?: number | string
+  /** Sandbox API base. Default \`https://sandbox.api.mailtrap.io\`. */
+  sandboxEndpoint?: string
 }
 
 interface MailtrapSendSuccess {
@@ -42,12 +53,14 @@ interface MailtrapBatchSuccess {
 
 const DRIVER = "mailtrap"
 const DEFAULT_ENDPOINT = "https://send.api.mailtrap.io"
+const DEFAULT_SANDBOX_ENDPOINT = "https://sandbox.api.mailtrap.io"
 
 const mailtrap: DriverFactory<MailtrapDriverOptions> = defineDriver<MailtrapDriverOptions>(
   (options) => {
     if (!options?.apiKey) throw createRequiredError(DRIVER, "apiKey")
 
-    const endpoint = options.endpoint ?? DEFAULT_ENDPOINT
+    const sendEndpoint = options.endpoint ?? DEFAULT_ENDPOINT
+    const sandboxEndpoint = options.sandboxEndpoint ?? DEFAULT_SANDBOX_ENDPOINT
     const fetchImpl = options.fetch ?? globalThis.fetch
     if (typeof fetchImpl !== "function")
       throw createError(DRIVER, "INVALID_OPTIONS", "fetch is unavailable; pass `fetch` explicitly")
@@ -69,6 +82,7 @@ const mailtrap: DriverFactory<MailtrapDriverOptions> = defineDriver<MailtrapDriv
         text: true,
         batch: true,
         templates: true,
+        tagging: true,
         replyTo: true,
         customHeaders: true,
       },
@@ -81,11 +95,15 @@ const mailtrap: DriverFactory<MailtrapDriverOptions> = defineDriver<MailtrapDriv
         const unsupported = rejectUnsupported(msg)
         if (unsupported) return unsupported
 
+        const useSandbox = resolveSandboxMode(msg, options)
+        const inboxErr = requireInboxIdForSandbox(useSandbox, options)
+        if (inboxErr) return inboxErr as Result<EmailResult>
+
         const payload = buildPayload(msg, defaultCategory)
         const res = await httpJson({
           fetch: fetchImpl,
           driver: DRIVER,
-          url: `${endpoint}/api/send`,
+          url: resolveApiUrl(useSandbox, "send", options, sendEndpoint, sandboxEndpoint),
           headers: mailtrapHeaders(),
           body: payload,
           classifyError: classifyMailtrapError,
@@ -101,13 +119,20 @@ const mailtrap: DriverFactory<MailtrapDriverOptions> = defineDriver<MailtrapDriv
           if (unsupported) return unsupported as Result<ReadonlyArray<EmailResult>>
         }
 
+        const mixed = validateBatchSandboxModes(msgs, options)
+        if (mixed) return mixed as Result<ReadonlyArray<EmailResult>>
+
+        const useSandbox = resolveSandboxMode(msgs[0]!, options)
+        const inboxErr = requireInboxIdForSandbox(useSandbox, options)
+        if (inboxErr) return inboxErr as Result<ReadonlyArray<EmailResult>>
+
         const payload = {
           requests: msgs.map((m) => buildPayload(m, defaultCategory)),
         }
         const res = await httpJson({
           fetch: fetchImpl,
           driver: DRIVER,
-          url: `${endpoint}/api/batch`,
+          url: resolveApiUrl(useSandbox, "batch", options, sendEndpoint, sandboxEndpoint),
           headers: mailtrapHeaders(),
           body: payload,
           classifyError: classifyMailtrapError,
@@ -156,6 +181,69 @@ const mailtrap: DriverFactory<MailtrapDriverOptions> = defineDriver<MailtrapDriv
 )
 
 export default mailtrap
+
+function resolveSandboxMode(msg: EmailMessage, options: MailtrapDriverOptions): boolean {
+  return msg.sandbox ?? options.sandbox ?? false
+}
+
+function isValidInboxId(inboxId: number | string | undefined): boolean {
+  if (inboxId === undefined || inboxId === null) return false
+  if (typeof inboxId === "number") return true
+  return String(inboxId).trim().length > 0
+}
+
+function requireInboxIdForSandbox(
+  useSandbox: boolean,
+  options: MailtrapDriverOptions,
+): Result<null> | null {
+  if (!useSandbox) return null
+  if (!isValidInboxId(options.inboxId)) {
+    return {
+      data: null,
+      error: createError(
+        DRIVER,
+        "INVALID_OPTIONS",
+        "`inboxId` is required for Mailtrap Email Sandbox",
+        { retryable: false },
+      ),
+    }
+  }
+  return null
+}
+
+function resolveApiUrl(
+  useSandbox: boolean,
+  kind: "send" | "batch",
+  options: MailtrapDriverOptions,
+  sendEndpoint: string,
+  sandboxEndpoint: string,
+): string {
+  const host = useSandbox ? sandboxEndpoint : sendEndpoint
+  const suffix = useSandbox && isValidInboxId(options.inboxId) ? `/${options.inboxId}` : ""
+  return `${host}/api/${kind}${suffix}`
+}
+
+function validateBatchSandboxModes(
+  msgs: ReadonlyArray<EmailMessage>,
+  options: MailtrapDriverOptions,
+): Result<null> | null {
+  if (msgs.length === 0) return null
+  const first = resolveSandboxMode(msgs[0]!, options)
+  for (let i = 1; i < msgs.length; i++) {
+    if (resolveSandboxMode(msgs[i]!, options) !== first) {
+      return {
+        data: null,
+        error: createError(
+          DRIVER,
+          "INVALID_OPTIONS",
+          "mixed sandbox and production messages in one batch",
+          { retryable: false },
+        ),
+      }
+    }
+  }
+  return null
+}
 
 function rejectUnsupported(msg: EmailMessage): Result<EmailResult> | null {
   if (msg.scheduledAt) {
