@@ -71,6 +71,24 @@ console.log(data.id) // data: EmailResult — TS narrows after the error check
 Every driver implements the same contract, so swapping providers is a
 one-line change.
 
+### Mailtrap (production + Email Sandbox)
+
+```ts
+import mailtrap from "unemail/driver/mailtrap"
+
+const email = createEmail({
+  driver: mailtrap({
+    apiKey: process.env.MAILTRAP_API_KEY!,
+    inboxId: process.env.MAILTRAP_INBOX_ID,
+    sandbox: process.env.MAILTRAP_USE_SANDBOX === "true",
+  }),
+})
+
+await email.send({ from: "a@b.com", to: "c@d.com", subject: "Test", text: "hi", sandbox: true })
+```
+
+See [docs/drivers.md](docs/drivers.md) for production vs sandbox routing.
+
 ## Message streams (Postmark-style)
 
 ```ts
