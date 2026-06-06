@@ -12,13 +12,13 @@ import { normalizeAddresses } from "../_normalize.ts"
 import { createError, createRequiredError } from "../errors.ts"
 import { httpJson } from "./_http.ts"
 
-/** Mailtrap Email API driver — production sending and Email Sandbox testing
+/** Mailtrap driver — Email API sending and Email Sandbox testing
  *  with the same API token. Mirrors the official SDK env pattern:
  *  \`MAILTRAP_API_KEY\` → \`apiKey\`, \`MAILTRAP_USE_SANDBOX\` → \`sandbox\`,
  *  \`MAILTRAP_INBOX_ID\` → \`inboxId\`. */
 export interface MailtrapDriverOptions {
   apiKey: string
-  /** Production send API base. Default \`https://send.api.mailtrap.io\`. */
+  /** Email API base. Default \`https://send.api.mailtrap.io\`. */
   endpoint?: string
   fetch?: typeof fetch
   /** Used when no \`tags\` entry has \`name: "category"\`. */
@@ -236,7 +236,7 @@ function validateBatchSandboxModes(
         error: createError(
           DRIVER,
           "INVALID_OPTIONS",
-          "mixed sandbox and production messages in one batch",
+          "mixed Email Sandbox and Email API messages in one batch",
           { retryable: false },
         ),
       }
