@@ -329,7 +329,7 @@ describe("mailtrap driver", () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("sendBatch rejects mixed sandbox and production messages", async () => {
+  it("sendBatch rejects mixed Email Sandbox and Email API messages", async () => {
     const fetchMock = vi.fn()
     const email = createEmail({
       driver: mailtrap({
@@ -343,7 +343,7 @@ describe("mailtrap driver", () => {
       { from: "a@b.com", to: "y@y.com", subject: "2", text: "x", sandbox: false },
     ])
     expect(error?.code).toBe("INVALID_OPTIONS")
-    expect(error?.message).toContain("mixed sandbox")
+    expect(error?.message).toContain("mixed Email Sandbox")
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
