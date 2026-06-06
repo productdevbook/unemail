@@ -25,9 +25,9 @@ touch it again; swapping providers is a one-line change.
 | `unemail/driver/cloudflare-email` | CF Workers binding |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
 | `unemail/driver/http`             | all                |  (custom)   |    –    |  (custom)  |      –      |     –     |  –   |    –    |
 
-### Mailtrap (production + Email Sandbox)
+### Mailtrap (Email API + Email Sandbox)
 
-The Mailtrap driver uses one API token for both environments. Production sends
+The Mailtrap driver uses one API token for both environments. Email API sends
 go to `send.api.mailtrap.io`; Email Sandbox (test inbox capture) uses
 `sandbox.api.mailtrap.io` with your inbox ID in the path.
 
@@ -46,7 +46,7 @@ const email = createEmail({
 // Sandbox (captured in test inbox)
 await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "hi", sandbox: true })
 
-// Production
+// Email API
 await email.send({ from: "a@verified.com", to: "c@d.com", subject: "x", text: "hi" })
 ```
 
