@@ -3,6 +3,7 @@ import { createEmail } from "../../src/index.ts"
 import sendgrid from "../../src/driver/sendgrid.ts"
 import mailgun from "../../src/driver/mailgun.ts"
 import postmark from "../../src/driver/postmark.ts"
+import mailtrap from "../../src/driver/mailtrap.ts"
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -60,6 +61,32 @@ describe("per-message tracking / sandbox / metadata", () => {
     expect(form.get("o:tracking-opens")).toBe("yes")
     expect(form.get("o:tracking-clicks")).toBe("yes")
     expect(form.get("v:tenant")).toBe("acme")
+  })
+
+  it("mailtrap sandbox switches API host, not payload flag", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ success: true, message_ids: ["mt_1"] }))
+    const email = createEmail({
+      driver: mailtrap({
+        apiKey: "k",
+        inboxId: 42,
+        fetch: fetchMock as unknown as typeof fetch,
+      }),
+    })
+    await email.send({
+      from: "a@b.com",
+      to: "c@d.com",
+      subject: "x",
+      text: "x",
+      sandbox: true,
+      metadata: { tenant: "acme" },
+    })
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe("https://sandbox.api.mailtrap.io/api/send/42")
+    const body = JSON.parse(init.body as string)
+    expect(body.sandbox).toBeUndefined()
+    expect(body.custom_variables).toEqual({ tenant: "acme" })
   })
 
   it("postmark maps TrackOpens, TrackLinks, Metadata, and first tag → Tag", async () => {

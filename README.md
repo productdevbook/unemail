@@ -17,15 +17,15 @@
 
 ## Design goals
 
-| Goal                         | How `unemail` delivers                                                                                                                                                    |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **One API, many transports** | `createEmail({ driver })` — 15+ built-in drivers (SMTP, Resend, SES, Postmark, SendGrid, Mailgun, Brevo, MailerSend, Loops, Zeptomail, MailChannels, Cloudflare Email, …) |
-| **Cross-runtime**            | Node, Bun, Deno, Cloudflare Workers, browser — core is zero-dep and Web-API only. No `axios`, ever.                                                                       |
-| **Compliance-ready**         | RFC 8058 one-click List-Unsubscribe, DKIM + ARC signing, suppression/preference stores, DMARC + TLS-RPT + ARF parsers                                                     |
-| **Resilient by default**     | Idempotency, retry w/ jitter, per-provider rate-limit, circuit breaker, dedupe, dead-letter, provider fallback                                                            |
-| **Unified observability**    | Structured logging, OpenTelemetry, Prometheus metrics, normalized `EmailEvent` stream across send + webhook paths                                                         |
-| **Modern DX**                | `{ data, error }` Result discriminated union, typed `Address` primitive, `react:`/`mjml:`/`handlebars:`/`liquid:` props                                                   |
-| **Testing-first**            | `createTestEmail()` with inbox + `waitFor` + 5 Vitest matchers + snapshot helper                                                                                          |
+| Goal                         | How `unemail` delivers                                                                                                                                                              |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **One API, many transports** | `createEmail({ driver })` — 15+ built-in drivers (SMTP, Resend, SES, Postmark, SendGrid, Mailgun, Mailtrap, Brevo, MailerSend, Loops, Zeptomail, MailChannels, Cloudflare Email, …) |
+| **Cross-runtime**            | Node, Bun, Deno, Cloudflare Workers, browser — core is zero-dep and Web-API only. No `axios`, ever.                                                                                 |
+| **Compliance-ready**         | RFC 8058 one-click List-Unsubscribe, DKIM + ARC signing, suppression/preference stores, DMARC + TLS-RPT + ARF parsers                                                               |
+| **Resilient by default**     | Idempotency, retry w/ jitter, per-provider rate-limit, circuit breaker, dedupe, dead-letter, provider fallback                                                                      |
+| **Unified observability**    | Structured logging, OpenTelemetry, Prometheus metrics, normalized `EmailEvent` stream across send + webhook paths                                                                   |
+| **Modern DX**                | `{ data, error }` Result discriminated union, typed `Address` primitive, `react:`/`mjml:`/`handlebars:`/`liquid:` props                                                             |
+| **Testing-first**            | `createTestEmail()` with inbox + `waitFor` + 5 Vitest matchers + snapshot helper                                                                                                    |
 
 ## Install
 
@@ -70,6 +70,24 @@ console.log(data.id) // data: EmailResult — TS narrows after the error check
 
 Every driver implements the same contract, so swapping providers is a
 one-line change.
+
+### Mailtrap (Email API + Email Sandbox)
+
+```ts
+import mailtrap from "unemail/driver/mailtrap"
+
+const email = createEmail({
+  driver: mailtrap({
+    apiKey: process.env.MAILTRAP_API_KEY!,
+    inboxId: process.env.MAILTRAP_INBOX_ID,
+    sandbox: process.env.MAILTRAP_USE_SANDBOX === "true",
+  }),
+})
+
+await email.send({ from: "a@b.com", to: "c@d.com", subject: "Test", text: "hi", sandbox: true })
+```
+
+See [docs/drivers.md](docs/drivers.md) for Email API vs sandbox routing.
 
 ## Message streams (Postmark-style)
 

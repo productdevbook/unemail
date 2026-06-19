@@ -87,6 +87,9 @@ export interface EmailMessage {
   /** Run this send in sandbox / test mode. Mapped per-driver:
    *  - Mailgun `o:testmode`, SendGrid `mail_settings.sandbox_mode`,
    *    SES configuration sets, Postmark test-stream.
+   *  - Mailtrap: routes to Email Sandbox API (`sandbox.api.mailtrap.io/.../{inboxId}`)
+   *    when true; Email API uses `send.api.mailtrap.io`. Requires driver `inboxId` for sandbox.
+   *    Not the same as SendGrid/Mailgun test flags.
    *  Drivers without sandbox support raise `UNSUPPORTED`. */
   sandbox?: boolean
 
