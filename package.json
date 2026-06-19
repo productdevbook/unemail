@@ -329,18 +329,18 @@
     "prepack": "pnpm build"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "@typescript/native-preview": "7.0.0-dev.20260316.1",
-    "@vitest/coverage-v8": "^4.1.4",
-    "bumpp": "^11.0.1",
-    "obuild": "^0.4.33",
-    "oxfmt": "^0.45.0",
-    "oxlint": "^1.60.0",
+    "@types/node": "^26.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20260619.1",
+    "@vitest/coverage-v8": "^4.1.9",
+    "bumpp": "^11.1.0",
+    "obuild": "^0.4.36",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.9"
   },
   "engines": {
     "node": ">=20.11.1"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@11.8.0"
 }
