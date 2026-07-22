@@ -6,24 +6,25 @@ touch it again; swapping providers is a one-line change.
 
 ## Built-in drivers
 
-| Sub-path                          | Runtime            | Attachments |  Batch  | Scheduling | Idempotency | Templates | Tags | Streams |
-| --------------------------------- | ------------------ | :---------: | :-----: | :--------: | :---------: | :-------: | :--: | :-----: |
-| `unemail/driver/mock`             | all                |      ✓      |    ✓    |     ✓      |      ✓      |     –     |  ✓   |    –    |
-| `unemail/driver/smtp`             | Node + Bun         |      ✓      | ✓ (seq) |     –      |      –      |     –     |  –   |    –    |
-| `unemail/driver/mailcrab`         | Node (local only)  |      ✓      |    ✓    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/driver/resend`           | all                |      ✓      |    ✓    |     ✓      |      ✓      |     ✓     |  ✓   |    –    |
-| `unemail/driver/postmark`         | all                |      ✓      |    ✓    |     –      |      –      |     ✓     |  ✓   |    ✓    |
-| `unemail/driver/ses`              | all (Web-Crypto)   |      ✓      | ✓ (seq) |     –      |      –      |     –     |  ✓   |    –    |
-| `unemail/driver/sendgrid`         | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
-| `unemail/driver/mailgun`          | all                |      ✓      |    –    |     ✓      |      –      |     –     |  ✓   |    –    |
-| `unemail/driver/mailtrap`         | all                |      ✓      |    ✓    |     –      |      –      |     ✓     |  ✓   |    –    |
-| `unemail/driver/brevo`            | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
-| `unemail/driver/mailersend`       | all                |      ✓      |    ✓    |     ✓      |      –      |     –     |  ✓   |    –    |
-| `unemail/driver/loops`            | all                |      –      |    –    |     –      |      –      |     ✓     |  ✓   |    –    |
-| `unemail/driver/zeptomail`        | all                |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/driver/mailchannels`     | all (CF Workers)   |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/driver/cloudflare-email` | CF Workers binding |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
-| `unemail/driver/http`             | all                |  (custom)   |    –    |  (custom)  |      –      |     –     |  –   |    –    |
+| Sub-path                                  | Runtime            | Attachments |  Batch  | Scheduling | Idempotency | Templates | Tags | Streams |
+| ----------------------------------------- | ------------------ | :---------: | :-----: | :--------: | :---------: | :-------: | :--: | :-----: |
+| `unemail/driver/mock`                     | all                |      ✓      |    ✓    |     ✓      |      ✓      |     –     |  ✓   |    –    |
+| `unemail/driver/smtp`                     | Node + Bun         |      ✓      | ✓ (seq) |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/mailcrab`                 | Node (local only)  |      ✓      |    ✓    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/resend`                   | all                |      ✓      |    ✓    |     ✓      |      ✓      |     ✓     |  ✓   |    –    |
+| `unemail/driver/postmark`                 | all                |      ✓      |    ✓    |     –      |      –      |     ✓     |  ✓   |    ✓    |
+| `unemail/driver/ses`                      | all (Web-Crypto)   |      ✓      | ✓ (seq) |     –      |      –      |     –     |  ✓   |    –    |
+| `unemail/driver/sendgrid`                 | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
+| `unemail/driver/mailgun`                  | all                |      ✓      |    –    |     ✓      |      –      |     –     |  ✓   |    –    |
+| `unemail/driver/mailtrap`                 | all                |      ✓      |    ✓    |     –      |      –      |     ✓     |  ✓   |    –    |
+| `unemail/driver/brevo`                    | all                |      ✓      |    –    |     ✓      |      –      |     ✓     |  ✓   |    –    |
+| `unemail/driver/mailersend`               | all                |      ✓      |    ✓    |     ✓      |      –      |     –     |  ✓   |    –    |
+| `unemail/driver/loops`                    | all                |      –      |    –    |     –      |      –      |     ✓     |  ✓   |    –    |
+| `unemail/driver/zeptomail`                | all                |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/mailchannels`             | all (CF Workers)   |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/cloudflare-email`         | CF Workers binding |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/cloudflare-email-service` | CF Workers binding |      ✓      |    –    |     –      |      –      |     –     |  –   |    –    |
+| `unemail/driver/http`                     | all                |  (custom)   |    –    |  (custom)  |      –      |     –     |  –   |    –    |
 
 ### Mailtrap (Email API + Email Sandbox)
 
@@ -53,6 +54,43 @@ await email.send({ from: "a@verified.com", to: "c@d.com", subject: "x", text: "h
 Set `msg.sandbox` per message to override the driver default. `sendBatch`
 works in both modes; all messages in one batch must target the same environment.
 Sandbox sends require `inboxId` (from `mailtrap.io/sandboxes/{id}`).
+
+### Cloudflare: Email Routing vs Email Service
+
+Cloudflare exposes two send APIs on the same `send_email` binding, so there are
+two drivers:
+
+- `unemail/driver/cloudflare-email` — **Email Routing**. Builds raw RFC 5322 and
+  hands it to `EmailMessage` from the virtual `cloudflare:email` module. Single
+  recipient per send, by construction.
+- `unemail/driver/cloudflare-email-service` — **Email Service** (Email Sending).
+  Passes structured fields. No ambient global, no virtual module, no MIME
+  builder in your bundle; multiple recipients in one call.
+
+```ts
+import { createEmail } from "unemail"
+import cloudflareEmailService from "unemail/driver/cloudflare-email-service"
+
+export default {
+  async fetch(req: Request, env: Env) {
+    const email = createEmail({ driver: cloudflareEmailService({ binding: env.EMAIL }) })
+    await email.send({
+      from: { email: "welcome@yourdomain.com", name: "Acme" },
+      to: ["a@example.com", "b@example.com"],
+      subject: "Welcome",
+      html: "<h1>Welcome</h1>",
+      text: "Welcome",
+    })
+    return new Response("ok")
+  },
+}
+```
+
+Needs `"send_email": [{ "name": "EMAIL" }]` in `wrangler.jsonc` and a sender
+domain onboarded with `wrangler email sending enable <domain>`. Combined
+`to` + `cc` + `bcc` is capped at 50 addresses per send by the provider; the
+binding's `E_*` errors are mapped onto the [error taxonomy](#error-taxonomy),
+so rate limits stay retryable while validation failures do not.
 
 ### Meta drivers
 
