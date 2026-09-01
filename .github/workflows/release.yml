@@ -17,34 +17,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      - run: corepack enable
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
+      # npm publish needs a Node with the npm registry configured; bun runs
+      # everything else.
       - uses: actions/setup-node@v6
         with:
           node-version: lts/*
           registry-url: "https://registry.npmjs.org"
-          cache: pnpm
 
       - name: 📦 Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       - name: 👀 Lint
-        run: pnpm lint
+        run: bun run lint
 
       - name: 🔍 Typecheck
-        run: pnpm typecheck
+        run: bun run typecheck
 
       - name: 🧪 Test
-        run: pnpm test
+        run: bun run test
+
+      - name: 🔢 Version consistency
+        run: bun run check:version
 
       - name: 🚀 Build
-        run: pnpm build
+        run: bun run build
 
       - name: 📐 Bundle size budget
-        run: pnpm bundle-budget
+        run: bun run bundle-budget
 
       - name: 🔍 Are The Types Wrong (ATTW)
-        run: pnpm attw
+        run: bun run attw
 
       - name: 📦 Publish to npm (idempotent)
         env:
@@ -55,27 +61,26 @@ jobs:
           if npm view "${PKG}@${VERSION}" version >/dev/null 2>&1; then
             echo "✅ ${PKG}@${VERSION} already on npm — skipping publish."
           else
-            pnpm publish --provenance --access public --no-git-checks
+            npm publish --provenance --access public
           fi
 
       - name: 🦕 Publish to JSR (OIDC, idempotent)
         run: |
           SCOPE_PKG=$(node -p "require('./jsr.json').name")
           VERSION=$(node -p "require('./jsr.json').version")
-          META_URL="https://jsr.io/${SCOPE_PKG}/${VERSION}_meta.json"
-          if curl -sSf -o /dev/null "$META_URL"; then
+          if curl -sSf -o /dev/null "https://jsr.io/${SCOPE_PKG}/${VERSION}_meta.json"; then
             echo "✅ ${SCOPE_PKG}@${VERSION} already on JSR — skipping publish."
           else
-            npx jsr publish
+            bunx jsr publish
           fi
 
       - name: 📝 Generate changelog
-        run: pnpm dlx changelogithub
+        run: bunx changelogithub
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: 📊 Summary
         run: |
-          echo "## Release Complete 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "## Release complete 🚀" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

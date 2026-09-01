@@ -8,8 +8,11 @@ import { resolve } from "node:path"
 const DIST = resolve(process.cwd(), "dist")
 
 const BUDGETS = [
-  { glob: /^index\.mjs$/, max: 8192, label: "core" },
-  { glob: /^driver\/.+\.mjs$/, max: 16384, label: "driver" },
+  { glob: /^index\.mjs$/, max: 4096, label: "core entry" },
+  { glob: /^core\/.+\.mjs$/, max: 8192, label: "core" },
+  { glob: /^drivers\/[^_].*\.mjs$/, max: 12288, label: "driver" },
+  { glob: /^middleware\/.+\.mjs$/, max: 8192, label: "middleware" },
+  { glob: /^render\/.+\.mjs$/, max: 8192, label: "render" },
 ]
 
 async function* walk(dir, prefix = "") {

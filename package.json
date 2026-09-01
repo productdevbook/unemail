@@ -1,44 +1,25 @@
 {
   "name": "unemail",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "private": false,
-  "description": "Driver-based TypeScript email library — send, parse, render, verify. Zero-deps core; works on Node, Bun, Deno, Cloudflare Workers, and the browser.",
+  "description": "Driver-based TypeScript email library. Batch-native middleware pipeline, zero dependencies, ESM-only — runs on Node, Bun, Deno, Cloudflare Workers and the browser.",
   "keywords": [
     "aws-ses",
     "batch-email",
-    "brevo",
-    "cloudflare-email",
-    "cloudflare-email-service",
-    "cloudflare-workers",
     "dkim",
-    "dmarc",
     "driver",
     "driver-pattern",
     "email",
-    "email-parser",
     "email-service",
-    "email-templates",
     "esm",
     "idempotency",
-    "jsx-email",
-    "mailchannels",
-    "mailcrab",
-    "mailersend",
-    "mailgun",
-    "mailtrap",
-    "mjml",
-    "postal-mime",
+    "middleware",
     "postmark",
     "react-email",
     "resend",
-    "scheduled-email",
-    "sendgrid",
     "smtp",
-    "spf",
     "transactional-email",
     "typescript",
-    "webhooks",
-    "zeptomail",
     "zero-dependencies"
   ],
   "homepage": "https://github.com/productdevbook/unemail#readme",
@@ -62,85 +43,33 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
-    "./driver/mock": {
-      "types": "./dist/driver/mock.d.mts",
-      "default": "./dist/driver/mock.mjs"
+    "./drivers/mock": {
+      "types": "./dist/drivers/mock.d.mts",
+      "default": "./dist/drivers/mock.mjs"
     },
-    "./driver/smtp": {
-      "types": "./dist/driver/smtp.d.mts",
-      "default": "./dist/driver/smtp.mjs"
+    "./drivers/smtp": {
+      "types": "./dist/drivers/smtp.d.mts",
+      "default": "./dist/drivers/smtp.mjs"
     },
-    "./driver/postmark": {
-      "types": "./dist/driver/postmark.d.mts",
-      "default": "./dist/driver/postmark.mjs"
+    "./drivers/resend": {
+      "types": "./dist/drivers/resend.d.mts",
+      "default": "./dist/drivers/resend.mjs"
     },
-    "./driver/ses": {
-      "types": "./dist/driver/ses.d.mts",
-      "default": "./dist/driver/ses.mjs"
+    "./drivers/postmark": {
+      "types": "./dist/drivers/postmark.d.mts",
+      "default": "./dist/drivers/postmark.mjs"
     },
-    "./driver/http": {
-      "types": "./dist/driver/http.d.mts",
-      "default": "./dist/driver/http.mjs"
+    "./drivers/ses": {
+      "types": "./dist/drivers/ses.d.mts",
+      "default": "./dist/drivers/ses.mjs"
     },
-    "./driver/zeptomail": {
-      "types": "./dist/driver/zeptomail.d.mts",
-      "default": "./dist/driver/zeptomail.mjs"
+    "./drivers/fallback": {
+      "types": "./dist/drivers/fallback.d.mts",
+      "default": "./dist/drivers/fallback.mjs"
     },
-    "./driver/sendgrid": {
-      "types": "./dist/driver/sendgrid.d.mts",
-      "default": "./dist/driver/sendgrid.mjs"
-    },
-    "./driver/mailgun": {
-      "types": "./dist/driver/mailgun.d.mts",
-      "default": "./dist/driver/mailgun.mjs"
-    },
-    "./driver/mailtrap": {
-      "types": "./dist/driver/mailtrap.d.mts",
-      "default": "./dist/driver/mailtrap.mjs"
-    },
-    "./driver/brevo": {
-      "types": "./dist/driver/brevo.d.mts",
-      "default": "./dist/driver/brevo.mjs"
-    },
-    "./driver/mailersend": {
-      "types": "./dist/driver/mailersend.d.mts",
-      "default": "./dist/driver/mailersend.mjs"
-    },
-    "./driver/loops": {
-      "types": "./dist/driver/loops.d.mts",
-      "default": "./dist/driver/loops.mjs"
-    },
-    "./driver/mailchannels": {
-      "types": "./dist/driver/mailchannels.d.mts",
-      "default": "./dist/driver/mailchannels.mjs"
-    },
-    "./driver/cloudflare-email": {
-      "types": "./dist/driver/cloudflare-email.d.mts",
-      "default": "./dist/driver/cloudflare-email.mjs"
-    },
-    "./driver/cloudflare-email-service": {
-      "types": "./dist/driver/cloudflare-email-service.d.mts",
-      "default": "./dist/driver/cloudflare-email-service.mjs"
-    },
-    "./driver/mailcrab": {
-      "types": "./dist/driver/mailcrab.d.mts",
-      "default": "./dist/driver/mailcrab.mjs"
-    },
-    "./driver/resend": {
-      "types": "./dist/driver/resend.d.mts",
-      "default": "./dist/driver/resend.mjs"
-    },
-    "./driver/fallback": {
-      "types": "./dist/driver/fallback.d.mts",
-      "default": "./dist/driver/fallback.mjs"
-    },
-    "./driver/round-robin": {
-      "types": "./dist/driver/round-robin.d.mts",
-      "default": "./dist/driver/round-robin.mjs"
-    },
-    "./driver/tee": {
-      "types": "./dist/driver/tee.d.mts",
-      "default": "./dist/driver/tee.mjs"
+    "./drivers/round-robin": {
+      "types": "./dist/drivers/round-robin.d.mts",
+      "default": "./dist/drivers/round-robin.mjs"
     },
     "./middleware": {
       "types": "./dist/middleware/index.d.mts",
@@ -154,174 +83,7 @@
       "types": "./dist/render/react.d.mts",
       "default": "./dist/render/react.mjs"
     },
-    "./render/jsx-email": {
-      "types": "./dist/render/jsx-email.d.mts",
-      "default": "./dist/render/jsx-email.mjs"
-    },
-    "./render/mjml": {
-      "types": "./dist/render/mjml.d.mts",
-      "default": "./dist/render/mjml.mjs"
-    },
-    "./render/pipeline": {
-      "types": "./dist/render/pipeline.d.mts",
-      "default": "./dist/render/pipeline.mjs"
-    },
-    "./render/handlebars": {
-      "types": "./dist/render/handlebars.d.mts",
-      "default": "./dist/render/handlebars.mjs"
-    },
-    "./render/liquid": {
-      "types": "./dist/render/liquid.d.mts",
-      "default": "./dist/render/liquid.mjs"
-    },
-    "./render/i18n": {
-      "types": "./dist/render/i18n.d.mts",
-      "default": "./dist/render/i18n.mjs"
-    },
-    "./test": {
-      "types": "./dist/test/index.d.mts",
-      "default": "./dist/test/index.mjs"
-    },
-    "./parse": {
-      "types": "./dist/parse/index.d.mts",
-      "default": "./dist/parse/index.mjs"
-    },
-    "./inbound": {
-      "types": "./dist/inbound/index.d.mts",
-      "default": "./dist/inbound/index.mjs"
-    },
-    "./inbound/cloudflare": {
-      "types": "./dist/inbound/cloudflare.d.mts",
-      "default": "./dist/inbound/cloudflare.mjs"
-    },
-    "./inbound/postmark": {
-      "types": "./dist/inbound/postmark.d.mts",
-      "default": "./dist/inbound/postmark.mjs"
-    },
-    "./inbound/sendgrid": {
-      "types": "./dist/inbound/sendgrid.d.mts",
-      "default": "./dist/inbound/sendgrid.mjs"
-    },
-    "./inbound/mailgun": {
-      "types": "./dist/inbound/mailgun.d.mts",
-      "default": "./dist/inbound/mailgun.mjs"
-    },
-    "./inbound/reply": {
-      "types": "./dist/inbound/reply.d.mts",
-      "default": "./dist/inbound/reply.mjs"
-    },
-    "./inbound/thread": {
-      "types": "./dist/inbound/thread.d.mts",
-      "default": "./dist/inbound/thread.mjs"
-    },
-    "./webhook": {
-      "types": "./dist/webhook/index.d.mts",
-      "default": "./dist/webhook/index.mjs"
-    },
-    "./webhook/resend": {
-      "types": "./dist/webhook/resend.d.mts",
-      "default": "./dist/webhook/resend.mjs"
-    },
-    "./webhook/postmark": {
-      "types": "./dist/webhook/postmark.d.mts",
-      "default": "./dist/webhook/postmark.mjs"
-    },
-    "./webhook/mailgun": {
-      "types": "./dist/webhook/mailgun.d.mts",
-      "default": "./dist/webhook/mailgun.mjs"
-    },
-    "./webhook/sendgrid": {
-      "types": "./dist/webhook/sendgrid.d.mts",
-      "default": "./dist/webhook/sendgrid.mjs"
-    },
-    "./webhook/ses": {
-      "types": "./dist/webhook/ses.d.mts",
-      "default": "./dist/webhook/ses.mjs"
-    },
-    "./webhook/standard": {
-      "types": "./dist/webhook/standard.d.mts",
-      "default": "./dist/webhook/standard.mjs"
-    },
-    "./verify": {
-      "types": "./dist/verify/index.d.mts",
-      "default": "./dist/verify/index.mjs"
-    },
-    "./queue": {
-      "types": "./dist/queue/index.d.mts",
-      "default": "./dist/queue/index.mjs"
-    },
-    "./queue/memory": {
-      "types": "./dist/queue/memory.d.mts",
-      "default": "./dist/queue/memory.mjs"
-    },
-    "./queue/unstorage": {
-      "types": "./dist/queue/unstorage.d.mts",
-      "default": "./dist/queue/unstorage.mjs"
-    },
-    "./queue/worker": {
-      "types": "./dist/queue/worker.d.mts",
-      "default": "./dist/queue/worker.mjs"
-    },
-    "./suppression": {
-      "types": "./dist/suppression/index.d.mts",
-      "default": "./dist/suppression/index.mjs"
-    },
-    "./compliance": {
-      "types": "./dist/compliance/index.d.mts",
-      "default": "./dist/compliance/index.mjs"
-    },
-    "./result": {
-      "types": "./dist/result/index.d.mts",
-      "default": "./dist/result/index.mjs"
-    },
-    "./ics": {
-      "types": "./dist/ics/index.d.mts",
-      "default": "./dist/ics/index.mjs"
-    },
-    "./address": {
-      "types": "./dist/address.d.mts",
-      "default": "./dist/address.mjs"
-    },
-    "./preferences": {
-      "types": "./dist/preferences/index.d.mts",
-      "default": "./dist/preferences/index.mjs"
-    },
-    "./dmarc": {
-      "types": "./dist/dmarc/index.d.mts",
-      "default": "./dist/dmarc/index.mjs"
-    },
-    "./verify/arc": {
-      "types": "./dist/verify/arc.d.mts",
-      "default": "./dist/verify/arc.mjs"
-    },
-    "./mta-sts": {
-      "types": "./dist/mta-sts/index.d.mts",
-      "default": "./dist/mta-sts/index.mjs"
-    },
-    "./parse/arf": {
-      "types": "./dist/parse/arf.d.mts",
-      "default": "./dist/parse/arf.mjs"
-    },
-    "./events": {
-      "types": "./dist/events/index.d.mts",
-      "default": "./dist/events/index.mjs"
-    },
-    "./inbound/ses": {
-      "types": "./dist/inbound/ses.d.mts",
-      "default": "./dist/inbound/ses.mjs"
-    },
-    "./queue/bullmq": {
-      "types": "./dist/queue/bullmq.d.mts",
-      "default": "./dist/queue/bullmq.mjs"
-    },
-    "./queue/pg-boss": {
-      "types": "./dist/queue/pg-boss.d.mts",
-      "default": "./dist/queue/pg-boss.mjs"
-    },
-    "./queue/sqs": {
-      "types": "./dist/queue/sqs.d.mts",
-      "default": "./dist/queue/sqs.mjs"
-    }
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "obuild",
@@ -329,14 +91,15 @@
     "lint": "oxlint . && oxfmt --check .",
     "lint:fix": "oxlint . --fix && oxfmt .",
     "fmt": "oxfmt .",
-    "test": "pnpm lint && pnpm typecheck && vitest run",
     "typecheck": "tsgo --noEmit",
+    "test": "vitest run",
+    "check": "bun run lint && bun run typecheck && bun run test && bun run check:version",
+    "check:version": "node scripts/check-version.mjs",
     "bundle-budget": "node scripts/bundle-budget.mjs",
-    "playground": "cd playground && pnpm install && pnpm dev",
-    "attw": "pnpm dlx @arethetypeswrong/cli --pack . --profile esm-only",
-    "jsr:check": "pnpm dlx jsr publish --dry-run --allow-dirty",
-    "release": "pnpm test && pnpm build && pnpm bundle-budget && pnpm attw && pnpm jsr:check && bumpp --commit --tag --push --all",
-    "prepack": "pnpm build"
+    "attw": "bunx --bun @arethetypeswrong/cli --pack . --profile esm-only",
+    "jsr:check": "bunx jsr publish --dry-run --allow-dirty",
+    "release": "bun run check && bun run build && bun run bundle-budget && bun run attw && bun run jsr:check && bumpp --commit --tag --push --all",
+    "prepack": "bun run build"
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
@@ -349,8 +112,15 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.9"
   },
+  "peerDependencies": {
+    "@react-email/render": "*"
+  },
+  "peerDependenciesMeta": {
+    "@react-email/render": {
+      "optional": true
+    }
+  },
   "engines": {
     "node": ">=20.11.1"
-  },
-  "packageManager": "pnpm@11.8.0"
+  }
 }

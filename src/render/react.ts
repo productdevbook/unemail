@@ -1,67 +1,74 @@
-import type { EmailMessage } from "../types.ts"
-import type { Renderer, WithRenderOptions } from "./_middleware.ts"
-import { withRender } from "./_middleware.ts"
+import type { MessageContent } from "../core/types.ts"
+import type { Renderer } from "./index.ts"
+import { createError } from "../core/error.ts"
 
-/** React Email adapter. Accepts a `react:` prop on `email.send()`.
- *
- *  Requires the optional peer `@react-email/render` (or the bundled
- *  renderer from `react-email`). We resolve it lazily so users who don't
- *  use React pay nothing — the module is Workers-parseable even without
- *  the peer installed. */
-export interface ReactRenderOptions {
-  /** Bring-your-own renderer — useful for testing or custom setups. */
-  render?: (element: unknown) => Promise<string> | string
-  /** Pretty-print the rendered HTML. Forwarded to `@react-email/render`. */
-  pretty?: boolean
+/** `content` shape this renderer claims. */
+export interface ReactContent extends MessageContent {
+  type: "react"
+  /** A React element — typically a `react-email` component. */
+  element: unknown
 }
 
-export function reactRenderer(options: ReactRenderOptions = {}): Renderer {
-  let cached: ((element: unknown) => Promise<string>) | null = null
-  const resolveRender = async (): Promise<(element: unknown) => Promise<string>> => {
-    if (cached) return cached
-    if (options.render) {
-      const userRender = options.render
-      cached = async (el) => userRender(el)
-      return cached
-    }
-    try {
-      const mod = await import("@react-email/render" as string)
-      const render = (mod.render ?? mod.default?.render) as
-        | undefined
-        | ((el: unknown, opts?: { pretty?: boolean }) => Promise<string> | string)
-      if (!render) throw new Error("@react-email/render has no `render` export")
-      cached = async (el) => render(el, { pretty: options.pretty ?? false })
-      return cached
-    } catch (err) {
-      throw new Error(
-        "[unemail/render/react] requires `@react-email/render` as a peer dependency. " +
-          `Install it or pass \`render\` via options. Original error: ${(err as Error).message}`,
-      )
-    }
+export interface ReactRendererOptions {
+  /** Supply your own renderer instead of loading `@react-email/render`.
+   *  Useful for a pinned version, or for `renderToStaticMarkup`. */
+  render?: (element: unknown, options?: { plainText?: boolean }) => Promise<string> | string
+  /** Also produce the text alternative with `react-email`'s own plain-text
+   *  pass, which reads better than deriving it from the HTML.
+   *  Default: true when `@react-email/render` supplies it. */
+  plainText?: boolean
+}
+
+/**
+ * Render `react-email` components.
+ *
+ * `@react-email/render` is an optional peer dependency — it is imported on
+ * first use, so nothing is pulled into a bundle that does not call this.
+ *
+ * ```ts
+ * import reactRenderer from "unemail/render/react"
+ *
+ * email.use(withRender(reactRenderer()))
+ * await email.send({ to, subject, content: { type: "react", element: <Welcome /> } })
+ * ```
+ */
+export default function reactRenderer(options: ReactRendererOptions = {}): Renderer {
+  let load: Promise<NonNullable<ReactRendererOptions["render"]>> | null = null
+
+  function resolveRender() {
+    if (options.render) return Promise.resolve(options.render)
+    load ??= import("@react-email/render").then(
+      (mod) => mod.render,
+      (cause) => {
+        throw createError(
+          "render/react",
+          "INVALID_OPTIONS",
+          "`@react-email/render` is not installed — add it, or pass `render` explicitly",
+          { cause },
+        )
+      },
+    )
+    return load
   }
 
   return {
     name: "react",
-    match: (msg: EmailMessage) => msg.react != null,
-    async render(msg) {
-      const r = await resolveRender()
-      return r(msg.react)
+    type: "react",
+    async render(content) {
+      const element = (content as ReactContent).element
+      if (element == null) {
+        throw createError("render/react", "INVALID_OPTIONS", "`content.element` is required")
+      }
+      const render = await resolveRender()
+      const html = await render(element)
+      if (options.plainText === false) return { html }
+      try {
+        return { html, text: await render(element, { plainText: true }) }
+      } catch {
+        // Older `@react-email/render` has no plainText mode; the render
+        // middleware derives text from the HTML instead.
+        return { html }
+      }
     },
   }
 }
-
-/** Convenience factory identical in spirit to the other drivers:
- *
- *  ```ts
- *  import { withRender } from "unemail"
- *  import reactRender from "unemail/render/react"
- *
- *  email.use(withRender(reactRender()))
- *  ```
- *
- *  Default export mirrors the driver convention for consistency.
- */
-export default reactRenderer
-
-export type { Renderer, WithRenderOptions }
-export { withRender }

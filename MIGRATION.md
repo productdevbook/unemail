@@ -1,202 +1,202 @@
-# Migrating
+# Migrating from 0.x to 1.0
 
-## v1.0 → v1.1 (sub-path rename)
+v1 is a rewrite. The driver idea survives; almost every signature around it
+changed. Read the two sections that apply to you and skip the rest.
 
-The `drivers/` and `webhooks/` sub-path segments were renamed to their
-singular forms, matching the sibling libraries `ahize` and `etiket`.
-This is the only breaking change in v1.1; every import is a one-token
-find-and-replace.
+## Why
 
-```diff
-- import resend from "unemail/drivers/resend"
-+ import resend from "unemail/driver/resend"
+0.x had two composition models side by side — hook-based `Middleware`
+(`beforeSend` / `afterSend` / `onError`) and driver decorators
+(`withRetry(driver)`). The second existed because retry cannot be written
+with the first. v1 has one model, and it operates on a list, which is what
+lets retry re-send only the messages that failed.
 
-- import resendWebhook from "unemail/webhooks/resend"
-+ import resendWebhook from "unemail/webhook/resend"
+Four defects came out with the old design:
 
-- import { defineWebhookHandler } from "unemail/webhooks"
-+ import { defineWebhookHandler } from "unemail/webhook"
-```
+- `sendBatch` returned on the first failure, losing the results of messages
+  that had already been accepted.
+- `initialize()` set its "done" flag before awaiting, so concurrent sends
+  raced past a half-initialized driver, and a driver mounted after the
+  first send was never initialized at all.
+- `withRender` mutated the caller's message object, so a reused template
+  quietly accumulated `html` and `text` between sends.
+- A driver that did not support `personalizations` had all but the first
+  silently dropped.
 
-Nothing else moves. All other segments (`render/`, `queue/`,
-`inbound/`, `parse/`, `middleware`, `events`, `suppression`,
-`preferences`, `compliance`, `verify`, `dmarc`, `mta-sts`, `ics`,
-`address`, `result`, `test`) stay identical.
+## Scope
 
-Quick sed recipe:
+v1 ships the core, five drivers and the render layer. These 0.x entry
+points are **not** in 1.0.0 and are being reintroduced against the new core:
 
-```bash
-grep -rl 'unemail/drivers/\|unemail/webhooks' . --include='*.ts' --include='*.tsx' \
-  | xargs sed -i '' -e 's|unemail/drivers/|unemail/driver/|g' \
-                    -e 's|unemail/webhooks/|unemail/webhook/|g' \
-                    -e 's|unemail/webhooks"|unemail/webhook"|g'
-```
+`unemail/inbound/*` · `unemail/webhook/*` · `unemail/queue/*` ·
+`unemail/verify/*` · `unemail/parse/*` · `unemail/dmarc` ·
+`unemail/mta-sts` · `unemail/ics` · `unemail/suppression` ·
+`unemail/compliance` · `unemail/preferences` · `unemail/events` ·
+`unemail/test`, and the SendGrid, Mailgun, Brevo, MailerSend, Loops,
+Mailtrap, Zeptomail, MailChannels, Mailcrab, Cloudflare and Tee drivers.
 
----
+Pin `unemail@^0.5.0` if you depend on one of those today.
 
-## v0.x → v1.0
+## Import paths
 
-v1 was a full rewrite. The provider pattern was replaced with a driver-based
-architecture modeled on [`unjs/unstorage`](https://github.com/unjs/unstorage),
-the error shape is a proper discriminated union, and every provider now
-runs unchanged on Node, Bun, Deno, Cloudflare Workers, and the browser.
-
-This guide walks through the breaking changes with before/after snippets.
-
-## At a glance
-
-| Concern             | v0.x                               | v1.0                                                                      |
-| ------------------- | ---------------------------------- | ------------------------------------------------------------------------- |
-| Factory             | `createEmailService({ provider })` | `createEmail({ driver })`                                                 |
-| Provider definition | `defineProvider(factory)`          | `defineDriver(factory)` (identical ergonomics, renamed for consistency)   |
-| Import path         | `unemail/providers/<name>`         | `unemail/driver/<name>`                                                   |
-| Result shape        | `{ success, data?, error? }`       | `{ data, error: null } \| { data: null, error: EmailError }` (narrowable) |
-| Error type          | plain `Error`                      | `EmailError` with `code` taxonomy + `retryable` flag                      |
-| Runtime             | Node-only for most providers       | Node + Bun + Deno + Workers + browser for every HTTP driver               |
-| Rendering           | manual `html` / `text`             | `email.use(withRender(reactRender()))` + `send({ react: <Welcome/> })`    |
-| Testing             | stub the provider yourself         | `createTestEmail()` with `.inbox` + `waitFor` + Vitest matchers           |
-
-## Step-by-step
-
-### 1. Install the new entry points
-
-```bash
-pnpm remove unemail
-pnpm add unemail@next
-```
-
-### 2. Replace `createEmailService` with `createEmail`
+`driver` became `drivers`, matching `unstorage`:
 
 ```diff
-- import { createEmailService } from "unemail"
-- import resendProvider from "unemail/providers/resend"
-+ import { createEmail } from "unemail"
-+ import resend from "unemail/driver/resend"
-
-- const email = createEmailService({
--   provider: resendProvider({ apiKey: process.env.RESEND_KEY! }),
-- })
-+ const email = createEmail({
-+   driver: resend({ apiKey: process.env.RESEND_KEY! }),
-+ })
+-import resend from "unemail/driver/resend"
++import resend from "unemail/drivers/resend"
 ```
 
-### 3. Update your Result handling
+`unemail/test` is gone; the mock driver carries the inbox now.
+
+## Messages
+
+Renderer-specific fields left the core message type. One `content` block
+replaces all of them:
 
 ```diff
-- const result = await email.sendEmail(msg)
-- if (result.success) {
--   console.log(result.data!.messageId)
-- } else {
--   console.error(result.error!.message)
-- }
-+ const { data, error } = await email.send(msg)
-+ if (error) {
-+   console.error(error.message)  // error.code, error.status, error.retryable also typed
-+   return
-+ }
-+ console.log(data.id)             // TS narrows — data is non-null here
+-await email.send({ from, to, subject, react: <Welcome /> })
++await email.send({ to, subject, content: { type: "react", element: <Welcome /> } })
 ```
 
-### 4. Rename custom provider implementations
+Same for `jsx`, `mjml`, `handlebars` + `handlebarsVars`, and
+`liquid` + `liquidVars` — each becomes a `content.type` its renderer claims.
+
+`from` can now come from the instance:
 
 ```diff
-- import { defineProvider } from "unemail"
-+ import { defineDriver } from "unemail"
-
-- export default defineProvider((options) => ({
--   name: "my-provider",
--   async initialize() { ... },
--   async isAvailable() { ... },
--   async sendEmail(msg) { ... },
-- }))
-+ export default defineDriver((options) => ({
-+   name: "my-driver",
-+   async initialize() { ... },
-+   async isAvailable() { ... },
-+   async send(msg, ctx) { ... },
-+ }))
+-await email.send({ from: "Acme <hi@acme.com>", to, subject, text })
++const email = createEmail({ driver, defaults: { from: "Acme <hi@acme.com>" } })
++await email.send({ to, subject, text })
 ```
 
-`send` now takes a second `ctx` argument with `driver`, `stream`, `attempt`,
-`signal`, and `meta` fields (middleware chain context).
+Removed: `personalizations` (use `sendBatch`), `amp`, `dsn`, and
+`template.locale`.
 
-### 5. Replace your ad-hoc provider mocks
+New: `preheader` injects a hidden preview line into the HTML, and a header
+value containing `\r` or `\n` is now rejected instead of being written into
+the message.
+
+## Batches
+
+The return type changed, and it no longer short-circuits:
 
 ```diff
-- const spy = vi.fn()
-- const email = createEmailService({
--   provider: { name: "test", initialize: () => {}, isAvailable: () => true,
--     sendEmail: spy, features: {} } as any,
-- })
-+ import { createTestEmail } from "unemail/test"
-+ const email = createTestEmail()
-+ // …run your code…
-+ expect(email.inbox).toHaveLength(1)
-+ expect(email.last?.subject).toMatch(/welcome/i)
+-const { data, error } = await email.sendBatch(messages)
+-if (error) throw error            // and every accepted message was lost
+-console.log(data.length)
++const batch = await email.sendBatch(messages)
++console.log(batch.sent.length, batch.failed.length)
++for (const { index, error } of batch.failed) retryLater(messages[index], error)
 ```
 
-### 6. Provider-specific fields removed from the base message
+`batch.results[i]` always corresponds to `messages[i]`.
 
-These fields existed as top-level message options in v0.x:
-
-- `useDkim`, `dsn`, `priority`, `inReplyTo`, `references`, `listUnsubscribe`,
-  `googleMailHeaders` (all SMTP-only)
-- `customParams`, `endpointOverride`, `methodOverride` (HTTP-only)
-- `templateId`, `templateData`, `scheduledAt`, `tags` (Resend)
-- `configurationSetName`, `messageTags`, `sourceArn` (SES)
-- `trackClicks`, `trackOpens`, `clientReference`, `mimeHeaders` (Zeptomail)
-
-In v1 the base message stays narrow. Anything not in the core shape goes
-through `msg.headers`, the driver's options (driver-scoped), or `msg.tags`.
+`sendBatchStream` became `sendStream`, takes a sync or async iterable, and
+accepts `{ chunkSize }`:
 
 ```diff
-- await email.sendEmail({ ..., priority: "high" })
-+ await email.send({ ..., headers: { "X-Priority": "1" } })
+-for await (const r of email.sendBatchStream(messages)) …
++for await (const r of email.sendStream(messages, { chunkSize: 100 })) …
 ```
 
-### 7. Retries and timeouts moved to middleware
+## Middleware
+
+Hooks are gone. A middleware wraps the next handler:
 
 ```diff
-- const email = createEmailService({
--   provider: smtp(...),
--   retries: 3,
--   timeout: 5000,
-- })
-+ import { withRetry } from "unemail"
-+ const email = createEmail({ driver: smtp({ commandTimeoutMs: 5000 }) })
-+ email.use(withRetry({ retries: 3 }))
+-email.use({
+-  name: "audit",
+-  async beforeSend(msg, ctx) { await log(msg) },
+-  async afterSend(msg, ctx, result) { await log(result) },
+-})
++email.use(defineMiddleware("audit", (next) => async (msgs, ctx) => {
++  await log(msgs)
++  const results = await next(msgs, ctx)
++  await log(results)
++  return results
++}))
 ```
 
-### 8. New capabilities you probably want
+`onError` has no direct equivalent — inspect the results after `next` and
+return replacements, which is also how you recover.
 
-- **Idempotency**: `createEmail({ driver, idempotency: true })` plus
-  `send({ idempotencyKey })` dedupes across retries and crashes. Works
-  with any driver; Resend/Postmark native headers used where available.
-- **Streams**: `email.mount("marketing", ses(...))` then
-  `send({ stream: "marketing", ... })` — route by purpose without
-  juggling multiple `Email` instances.
-- **Fallback**: `fallback({ drivers: [resend(...), ses(...)] })` tries
-  each driver in order on retryable failures.
-- **Rendering**: `email.use(withRender(reactRender()))` and pass
-  `react: <Welcome/>` directly to `send()`.
+`withRetry`, `withRateLimit` and `withCircuitBreaker` are middleware now,
+not driver decorators:
 
-## Provider migration table
+```diff
+-const driver = withRetry(resend({ apiKey }), { retries: 3 })
+-const email = createEmail({ driver })
++const email = createEmail({ driver: resend({ apiKey }), use: [withRetry({ retries: 3 })] })
+```
 
-| v0.x import                   | v1.0 import                       |
-| ----------------------------- | --------------------------------- |
-| `unemail/providers/smtp`      | `unemail/driver/smtp`             |
-| `unemail/providers/resend`    | `unemail/driver/resend`           |
-| `unemail/providers/aws-ses`   | `unemail/driver/ses` (now SES v2) |
-| `unemail/providers/http`      | `unemail/driver/http`             |
-| `unemail/providers/zeptomail` | `unemail/driver/zeptomail`        |
-| (MailCrab helper only in v0)  | `unemail/driver/mailcrab`         |
+To attach one to a single driver — the pattern that made
+`fallback([withRetry(a), withRetry(b)])` work — use `wrap`:
 
-New in v1: `postmark`, `sendgrid`, `mailgun`, `brevo`, `mailersend`,
-`loops`, `mailchannels`, `cloudflare-email`, plus meta drivers
-`mock`, `fallback`, `round-robin`.
+```diff
+-fallback([withRetry(resend({ apiKey })), withRetry(ses({ region }))])
++fallback([wrap(resend({ apiKey }), withRetry()), wrap(ses({ region }), withRetry())])
+```
 
-## Feature flag matrix
+Idempotency moved out of `createEmail` into middleware:
 
-Each driver advertises what it supports via `driver.flags`. See
-`docs/drivers.md` for the full matrix.
+```diff
+-createEmail({ driver, idempotency: { store, ttlSeconds: 3600 } })
++createEmail({ driver, use: [withIdempotency({ store, ttlSeconds: 3600 })] })
+```
+
+`withRetry`'s `deadLetter` option is gone. Route failures yourself from
+`batch.failed`, or put the dead-letter driver behind `fallback`.
+
+Default backoff changed from `exponential` to `exponential-jitter` — plain
+exponential synchronizes every client that failed at the same moment into
+the same retry wave.
+
+## Rendering
+
+```diff
+-email.use(withRender(reactRenderer()))
++email.use(withRender(reactRenderer()))   // unchanged
+```
+
+But a `Renderer` now claims a content type rather than probing the message,
+and returns `{ html, text? }` instead of a bare string:
+
+```diff
+ const markdown: Renderer = {
+   name: "markdown",
+-  match: (msg) => msg.markdown != null,
+-  render: (msg) => toHtml(msg.markdown),
++  type: "markdown",
++  render: (content) => ({ html: toHtml(content.source as string) }),
+ }
+```
+
+`withRender` no longer writes into your message. If you relied on reading
+`msg.html` back after `send()`, read the driver's copy instead.
+
+## Drivers
+
+`defineDriver` now makes required options actually required —
+`resend()` with no key is a compile error rather than a runtime throw.
+
+Inside a driver, `msg` arrives normalized:
+
+```diff
+-const from = normalizeAddresses(msg.from)[0]
+-if (!from) throw createError(DRIVER, "INVALID_OPTIONS", "`from` is required")
+-const to = normalizeAddresses(msg.to).map(formatAddress)
++const from = formatAddress(msg.from)          // guaranteed present
++const to = msg.to.map(formatAddress)          // never undefined, never empty
+```
+
+Other renames: `driver.flags` → `driver.features`; `SendStatusState` →
+`SendState`; `driver.sendBatch` returns `Result<EmailResult>[]` (one per
+input, in order) instead of `Result<EmailResult[]>`; `EmailError` lives in
+`unemail` rather than in the types module.
+
+## Tooling
+
+The repo builds with Bun. There is no `pnpm-lock.yaml` and no
+`packageManager` field; `bun install` and `bun run check`. This affects
+contributors, not consumers — the published package is unchanged in how it
+is installed.
