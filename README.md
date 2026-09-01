@@ -360,6 +360,14 @@ list of any of those.
 SMTP needs `node:net` and `node:tls`. Everything else is `fetch` and Web
 Crypto.
 
+## Docs
+
+- [Architecture](./docs/architecture.md) — the pipeline, and why the unit of
+  work is a list
+- [Drivers](./docs/drivers.md) — every option, provider quirks, capability
+  matrix
+- [Migration](./MIGRATION.md) — upgrading from 0.x
+
 ## Upgrading from 0.x
 
 v1 is a rewrite. See [MIGRATION.md](./MIGRATION.md).

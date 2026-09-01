@@ -2,7 +2,7 @@
   "name": "unemail",
   "version": "1.0.0",
   "private": false,
-  "description": "Driver-based TypeScript email library. Batch-native middleware pipeline, zero dependencies, ESM-only — runs on Node, Bun, Deno, Cloudflare Workers and the browser.",
+  "description": "Driver-based TypeScript email library. Batch-native middleware pipeline, zero dependencies, ESM-only \u2014 runs on Node, Bun, Deno, Cloudflare Workers and the browser.",
   "keywords": [
     "aws-ses",
     "batch-email",
@@ -103,13 +103,13 @@
   },
   "devDependencies": {
     "@types/node": "^26.0.0",
-    "@typescript/native-preview": "7.0.0-dev.20260619.1",
+    "@typescript/native-preview": "7.0.0-dev.20260707.2",
     "@vitest/coverage-v8": "^4.1.9",
-    "bumpp": "^11.1.0",
+    "bumpp": "^12.2.2",
     "obuild": "^0.4.36",
-    "oxfmt": "^0.55.0",
+    "oxfmt": "^0.66.0",
     "oxlint": "^1.70.0",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.9"
   },
   "peerDependencies": {
