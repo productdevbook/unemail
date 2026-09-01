@@ -30,7 +30,7 @@ describe("cloudflare-email-service driver", () => {
     expect(data?.driver).toBe("cloudflare-email-service")
     expect(sent(send)).toMatchObject({
       from: { email: "sender@acme.com", name: "Acme" },
-      to: ["user@example.com"],
+      to: [{ email: "user@example.com" }],
       subject: "hi",
       text: "hello",
       html: "<p>hello</p>",
@@ -43,7 +43,7 @@ describe("cloudflare-email-service driver", () => {
 
     await email.send({
       from: "sender@acme.com",
-      to: ["a@example.com", "b@example.com"],
+      to: ["Ada <a@example.com>", { email: "b@example.com", name: "Bob" }],
       cc: "cc@example.com",
       bcc: ["bcc@example.com"],
       replyTo: "Support <support@acme.com>",
@@ -52,12 +52,29 @@ describe("cloudflare-email-service driver", () => {
     })
 
     expect(send).toHaveBeenCalledTimes(1)
-    expect(sent(send)).toMatchObject({
-      to: ["a@example.com", "b@example.com"],
-      cc: ["cc@example.com"],
-      bcc: ["bcc@example.com"],
-      replyTo: "support@acme.com",
-    })
+    expect(sent(send)).toEqual(
+      expect.objectContaining({
+        from: { email: "sender@acme.com" },
+        to: [
+          { email: "a@example.com", name: "Ada" },
+          { email: "b@example.com", name: "Bob" },
+        ],
+        cc: [{ email: "cc@example.com" }],
+        bcc: [{ email: "bcc@example.com" }],
+        replyTo: { email: "support@acme.com", name: "Support" },
+      }),
+    )
+  })
+
+  it("never sends `name: undefined` to the binding", async () => {
+    const send = vi.fn().mockResolvedValue({ messageId: "msg-2b" })
+    const email = createEmail({ driver: cloudflareEmailService({ binding: { send } }) })
+
+    await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
+
+    const payload = sent(send)
+    expect(Object.keys(payload.from)).toEqual(["email"])
+    expect(Object.keys(payload.to[0]!)).toEqual(["email"])
   })
 
   it("omits cc, bcc and attachments when unused", async () => {
@@ -84,23 +101,24 @@ describe("cloudflare-email-service driver", () => {
       attachments: [
         { filename: "report.csv", content: "a,b", contentType: "text/csv" },
         { filename: "logo.png", content: "iVBOR", contentType: "image/png", cid: "logo" },
+        { filename: "blob.bin", content: "AAAA" },
       ],
     })
 
     expect(sent(send).attachments).toEqual([
-      {
-        filename: "report.csv",
-        content: "a,b",
-        type: "text/csv",
-        disposition: "attachment",
-        contentId: undefined,
-      },
+      { filename: "report.csv", content: "a,b", type: "text/csv", disposition: "attachment" },
       {
         filename: "logo.png",
         content: "iVBOR",
         type: "image/png",
         disposition: "inline",
         contentId: "logo",
+      },
+      {
+        filename: "blob.bin",
+        content: "AAAA",
+        type: "application/octet-stream",
+        disposition: "attachment",
       },
     ])
   })

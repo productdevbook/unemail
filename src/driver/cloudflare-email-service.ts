@@ -1,4 +1,11 @@
-import type { Attachment, DriverFactory, EmailErrorCode, EmailResult, Result } from "../types.ts"
+import type {
+  Attachment,
+  DriverFactory,
+  EmailAddress,
+  EmailErrorCode,
+  EmailResult,
+  Result,
+} from "../types.ts"
 import { defineDriver } from "../_define.ts"
 import { createError, createRequiredError, toEmailError } from "../errors.ts"
 import { normalizeAddresses } from "../_normalize.ts"
@@ -35,14 +42,14 @@ export interface CloudflareEmailServiceBinding {
  *  depends on neither `@cloudflare/workers-types` nor `cloudflare:email` —
  *  when those types are available, prefer them at the call site. */
 export interface CloudflareEmailServiceMessage {
-  from: { email: string; name?: string }
-  to: string[]
+  from: EmailAddress
+  to: EmailAddress[]
   subject: string
   text?: string
   html?: string
-  cc?: string[]
-  bcc?: string[]
-  replyTo?: string
+  cc?: EmailAddress[]
+  bcc?: EmailAddress[]
+  replyTo?: EmailAddress
   headers?: Record<string, string>
   attachments?: CloudflareEmailServiceAttachment[]
 }
@@ -50,8 +57,8 @@ export interface CloudflareEmailServiceMessage {
 export interface CloudflareEmailServiceAttachment {
   content: string | Uint8Array
   filename: string
-  type?: string
-  disposition?: "attachment" | "inline"
+  type: string
+  disposition: "attachment" | "inline"
   contentId?: string
 }
 
@@ -68,6 +75,7 @@ const ERROR_CODES: Record<string, EmailErrorCode> = {
   E_VALIDATION_ERROR: "INVALID_OPTIONS",
   E_FIELD_MISSING: "INVALID_OPTIONS",
   E_TOO_MANY_RECIPIENTS: "INVALID_OPTIONS",
+  E_TOO_MANY_ATTACHMENTS: "INVALID_OPTIONS",
   E_CONTENT_TOO_LARGE: "INVALID_OPTIONS",
   E_HEADER_NOT_ALLOWED: "INVALID_OPTIONS",
   E_HEADER_USE_API_FIELD: "INVALID_OPTIONS",
@@ -79,6 +87,7 @@ const ERROR_CODES: Record<string, EmailErrorCode> = {
   E_SENDER_NOT_VERIFIED: "AUTH",
   E_SENDER_DOMAIN_NOT_AVAILABLE: "AUTH",
   E_RECIPIENT_NOT_ALLOWED: "AUTH",
+  E_RECIPIENT_SUPPRESSED: "PROVIDER",
   E_RATE_LIMIT_EXCEEDED: "RATE_LIMIT",
   E_DAILY_LIMIT_EXCEEDED: "RATE_LIMIT",
   E_DELIVERY_FAILED: "NETWORK",
@@ -91,16 +100,23 @@ function toDriverError(err: unknown) {
   return createError(DRIVER, code, (err as Error).message, { cause: err })
 }
 
+/** The binding validates every key it receives, so `name` is left out
+ *  entirely rather than sent as `undefined`. */
+function toAddress(addr: EmailAddress): EmailAddress {
+  return addr.name ? { email: addr.email, name: addr.name } : { email: addr.email }
+}
+
 /** Email Service takes structured attachments rather than MIME parts, so the
  *  mapping is a rename: `contentType` → `type`, `cid` → `contentId`. */
 function toCloudflareAttachment(file: Attachment): CloudflareEmailServiceAttachment {
-  return {
+  const out: CloudflareEmailServiceAttachment = {
     content: file.content,
     filename: file.filename,
-    type: file.contentType,
+    type: file.contentType ?? "application/octet-stream",
     disposition: file.disposition ?? (file.cid ? "inline" : "attachment"),
-    contentId: file.cid,
   }
+  if (file.cid) out.contentId = file.cid
+  return out
 }
 
 const cloudflareEmailService: DriverFactory<CloudflareEmailServiceDriverOptions> =
@@ -125,26 +141,26 @@ const cloudflareEmailService: DriverFactory<CloudflareEmailServiceDriverOptions>
       async send(msg): Promise<Result<EmailResult>> {
         try {
           const from = normalizeAddresses(msg.from)[0]
-          const to = normalizeAddresses(msg.to).map((addr) => addr.email)
+          const to = normalizeAddresses(msg.to).map(toAddress)
           if (!from || !to.length)
             return {
               data: null,
               error: createError(DRIVER, "INVALID_OPTIONS", "`from` and `to` are required"),
             }
 
-          const cc = normalizeAddresses(msg.cc).map((addr) => addr.email)
-          const bcc = normalizeAddresses(msg.bcc).map((addr) => addr.email)
+          const cc = normalizeAddresses(msg.cc).map(toAddress)
+          const bcc = normalizeAddresses(msg.bcc).map(toAddress)
           const replyTo = normalizeAddresses(msg.replyTo)[0]
 
           const result = await options.binding.send({
-            from: { email: from.email, name: from.name },
+            from: toAddress(from),
             to,
             subject: msg.subject,
             text: msg.text,
             html: msg.html,
             cc: cc.length ? cc : undefined,
             bcc: bcc.length ? bcc : undefined,
-            replyTo: replyTo?.email,
+            replyTo: replyTo ? toAddress(replyTo) : undefined,
             headers: msg.headers,
             attachments: msg.attachments?.length
               ? msg.attachments.map(toCloudflareAttachment)

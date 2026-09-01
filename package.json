@@ -8,6 +8,7 @@
     "batch-email",
     "brevo",
     "cloudflare-email",
+    "cloudflare-email-service",
     "cloudflare-workers",
     "dkim",
     "dmarc",
