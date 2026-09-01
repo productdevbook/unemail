@@ -38,7 +38,7 @@ jobs:
         run: bun run typecheck
 
       - name: 🧪 Test
-        run: bun run test
+        run: bun run test:coverage
 
       - name: 🔢 Version consistency
         run: bun run check:version
@@ -51,6 +51,9 @@ jobs:
 
       - name: 🔍 Are The Types Wrong (ATTW)
         run: bun run attw
+
+      - name: 🦕 JSR publishable (dry run)
+        run: bun run jsr:check
 
       - name: 📦 Publish to npm (idempotent)
         env:

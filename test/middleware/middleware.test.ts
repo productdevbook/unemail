@@ -124,6 +124,35 @@ describe("withIdempotency", () => {
   })
 })
 
+describe("memoryIdempotencyStore", () => {
+  it("evicts expired entries on write, since nothing ever reads a key back", async () => {
+    const store = memoryIdempotencyStore({ sweepEvery: 4 })
+    for (let i = 0; i < 8; i++) {
+      await store.set(`k${i}`, { id: `${i}`, driver: "mock", at: new Date() }, 0)
+    }
+    // A sweep has run; every entry was expired the moment it was written.
+    const held = (store as unknown as { size?: () => number }).size
+    expect(held).toBeUndefined()
+    for (let i = 0; i < 8; i++) expect(await store.get(`k${i}`)).toBeNull()
+  })
+
+  it("caps the number of entries, dropping the oldest first", async () => {
+    const store = memoryIdempotencyStore({ maxEntries: 3, sweepEvery: 1000 })
+    for (const key of ["a", "b", "c", "d"]) {
+      await store.set(key, { id: key, driver: "mock", at: new Date() }, 3600)
+    }
+    expect(await store.get("a")).toBeNull()
+    expect((await store.get("d"))?.id).toBe("d")
+    expect((await store.get("b"))?.id).toBe("b")
+  })
+
+  it("still honours the ttl on read", async () => {
+    const store = memoryIdempotencyStore()
+    await store.set("k", { id: "1", driver: "mock", at: new Date() }, 0)
+    expect(await store.get("k")).toBeNull()
+  })
+})
+
 describe("withCircuitBreaker", () => {
   function failing(): { driver: EmailDriver; calls: () => number } {
     let calls = 0

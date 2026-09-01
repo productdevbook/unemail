@@ -17,6 +17,10 @@ export interface ResendOptions {
   apiKey: string
   /** Override the base URL — for a gateway or a test stub. */
   endpoint?: string
+  /** Abort a request after this long, in milliseconds. Default: 30_000.
+   *  Lower it behind a user-facing handler so the retry middleware gets
+   *  control before the caller's own request times out. */
+  timeoutMs?: number
   /** Injected fetch. Defaults to the global. */
   fetch?: typeof fetch
 }
@@ -38,7 +42,12 @@ const resend: DriverFactory<ResendOptions> = defineDriver<ResendOptions>((option
   const endpoint = (options.endpoint ?? "https://api.resend.com").replace(/\/$/, "")
   const fetchImpl = resolveFetch(DRIVER, options.fetch)
 
-  function request(path: string, method: string, body: unknown, idempotencyKey?: string) {
+  function request(
+    path: string,
+    method: string,
+    body: unknown,
+    extra: { idempotencyKey?: string; signal?: AbortSignal } = {},
+  ) {
     return httpJson({
       fetch: fetchImpl,
       driver: DRIVER,
@@ -46,9 +55,11 @@ const resend: DriverFactory<ResendOptions> = defineDriver<ResendOptions>((option
       method,
       headers: {
         authorization: `Bearer ${options.apiKey}`,
-        ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
+        ...(extra.idempotencyKey ? { "idempotency-key": extra.idempotencyKey } : {}),
       },
       ...(body === undefined ? {} : { body }),
+      ...(extra.signal ? { signal: extra.signal } : {}),
+      ...(options.timeoutMs == null ? {} : { timeoutMs: options.timeoutMs }),
     })
   }
 
@@ -70,16 +81,21 @@ const resend: DriverFactory<ResendOptions> = defineDriver<ResendOptions>((option
 
     isAvailable: () => Boolean(options.apiKey),
 
-    async send(msg) {
-      const response = await request("/emails", "POST", toPayload(msg), msg.idempotencyKey)
+    async send(msg, ctx) {
+      const response = await request("/emails", "POST", toPayload(msg), {
+        ...(msg.idempotencyKey ? { idempotencyKey: msg.idempotencyKey } : {}),
+        ...(ctx.signal ? { signal: ctx.signal } : {}),
+      })
       if (response.error) return err(response.error)
       const body = (response.data ?? {}) as { id?: string }
       if (!body.id) return err(missingId(response.data))
       return ok(toResult(body.id, msg, body))
     },
 
-    async sendBatch(msgs) {
-      const response = await request("/emails/batch", "POST", msgs.map(toPayload))
+    async sendBatch(msgs, ctx) {
+      const response = await request("/emails/batch", "POST", msgs.map(toPayload), {
+        ...(ctx.signal ? { signal: ctx.signal } : {}),
+      })
       if (response.error) return msgs.map(() => err<EmailResult>(response.error))
       const body = (response.data ?? {}) as { data?: { id: string }[] }
       const entries = body.data ?? []

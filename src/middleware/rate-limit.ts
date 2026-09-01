@@ -2,6 +2,7 @@ import type { Middleware } from "../core/types.ts"
 import { defineMiddleware } from "../core/define.ts"
 import { createError } from "../core/error.ts"
 import { err } from "../core/result.ts"
+import { scoped } from "./_scope.ts"
 
 export interface RateLimitOptions {
   /** Sustained sends allowed per `intervalMs`. */
@@ -30,11 +31,23 @@ export const rateLimitPresets: Record<"resend" | "postmark" | "ses" | "smtp", Ra
   smtp: { limit: 10, intervalMs: 1000 },
 }
 
+interface Bucket {
+  tokens: number
+  lastRefill: number
+  /** Serializes waiters so they drain in arrival order instead of all
+   *  waking on the same refill and stampeding the provider. */
+  queue: Promise<void>
+}
+
 /**
  * Token bucket in front of the driver.
  *
  * A batch takes as many tokens as it has messages, so a 500-message
  * `sendBatch` is throttled like 500 sends rather than like one.
+ *
+ * Each destination gets its own bucket. Rate limits belong to providers —
+ * and, on a provider like Postmark, to individual streams — so one shared
+ * bucket would throttle capacity you are paying for elsewhere.
  *
  * ```ts
  * email.use(withRateLimit(rateLimitPresets.resend))
@@ -47,39 +60,37 @@ export function withRateLimit(options: RateLimitOptions): Middleware {
   const onLimit = options.onLimit ?? "wait"
   const maxWaitMs = options.maxWaitMs ?? 30_000
   const now = options.now ?? Date.now
-  const sleep = options.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)))
+  const sleep = options.sleep ?? ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)))
 
-  let tokens = capacity
-  let lastRefill = now()
-  // Serializes waiters so they drain in arrival order instead of all
-  // waking on the same refill and stampeding the provider.
-  let queue: Promise<void> = Promise.resolve()
+  const buckets = new Map<string, Bucket>()
 
-  function refill() {
-    const at = now()
-    tokens = Math.min(capacity, tokens + (at - lastRefill) * refillPerMs)
-    lastRefill = at
-  }
-
-  async function acquire(cost: number): Promise<boolean> {
+  async function acquire(bucket: Bucket, cost: number): Promise<boolean> {
     const deadline = now() + maxWaitMs
     for (;;) {
-      refill()
-      if (tokens >= cost) {
-        tokens -= cost
+      const at = now()
+      bucket.tokens = Math.min(capacity, bucket.tokens + (at - bucket.lastRefill) * refillPerMs)
+      bucket.lastRefill = at
+      if (bucket.tokens >= cost) {
+        bucket.tokens -= cost
         return true
       }
       if (onLimit === "reject") return false
-      const waitMs = Math.ceil((cost - tokens) / refillPerMs)
+      const waitMs = Math.ceil((cost - bucket.tokens) / refillPerMs)
       if (now() + waitMs > deadline) return false
       await sleep(waitMs)
     }
   }
 
   return defineMiddleware("rate-limit", (next) => async (msgs, ctx) => {
+    const bucket = scoped(buckets, ctx, () => ({
+      tokens: capacity,
+      lastRefill: now(),
+      queue: Promise.resolve(),
+    }))
+
     const cost = Math.min(msgs.length, capacity)
-    const turn = queue.then(() => acquire(cost))
-    queue = turn.then(
+    const turn = bucket.queue.then(() => acquire(bucket, cost))
+    bucket.queue = turn.then(
       () => undefined,
       () => undefined,
     )
@@ -91,9 +102,7 @@ export function withRateLimit(options: RateLimitOptions): Middleware {
           ctx.driver,
           "RATE_LIMIT",
           `local rate limit reached (${options.limit}/${intervalMs}ms)`,
-          {
-            retryable: true,
-          },
+          { retryable: true },
         ),
       )
       return msgs.map(() => failure)

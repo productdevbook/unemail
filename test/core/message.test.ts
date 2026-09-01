@@ -54,6 +54,24 @@ describe("normalizeMessage", () => {
     expect(msg.metadata).toEqual({ env: "prod" })
   })
 
+  it("deduplicates an address across to, cc and bcc, keeping the strongest", () => {
+    const msg = normalizeMessage({
+      ...base,
+      from: "a@b.com",
+      to: "dup@x.com",
+      cc: ["dup@x.com", "cc@x.com"],
+      bcc: ["dup@x.com", "cc@x.com", "bcc@x.com"],
+    })
+    expect(msg.to.map((a) => a.email)).toEqual(["dup@x.com"])
+    expect(msg.cc.map((a) => a.email)).toEqual(["cc@x.com"])
+    expect(msg.bcc.map((a) => a.email)).toEqual(["bcc@x.com"])
+  })
+
+  it("compares addresses case-insensitively when deduplicating across fields", () => {
+    const msg = normalizeMessage({ ...base, from: "a@b.com", to: "Dup@X.com", cc: "dup@x.com" })
+    expect(msg.cc).toEqual([])
+  })
+
   it("rejects a missing `from`", () => {
     expect(() => normalizeMessage(base)).toThrow(/`from` is required/)
   })

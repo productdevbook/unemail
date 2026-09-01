@@ -19,7 +19,9 @@ export interface MockDriverOptions {
    *  breaker, and failover without a network. */
   fail?: boolean | { code?: "NETWORK" | "AUTH" | "RATE_LIMIT" | "PROVIDER"; message?: string }
   /** Fail only the messages this predicate matches — for testing partial
-   *  batch failures, which is where most batch bugs live. */
+   *  batch failures, which is where most batch bugs live. `index` counts
+   *  every message the driver has accepted, so it keeps meaning "which
+   *  message" whether it arrived through `send` or `sendBatch`. */
   failWhen?: (msg: NormalizedMessage, index: number) => boolean
   /** Artificial delay per send, in milliseconds. */
   latencyMs?: number
@@ -44,6 +46,7 @@ const mock: (options?: MockDriverOptions) => DriverWithInstance<MockInbox> = def
   const opts = options || {}
   const inbox = opts.inbox ?? createInbox()
   let counter = 0
+  let seen = 0
 
   function failure(): Result<EmailResult> {
     const spec = typeof opts.fail === "object" ? opts.fail : {}
@@ -72,7 +75,7 @@ const mock: (options?: MockDriverOptions) => DriverWithInstance<MockInbox> = def
 
     async send(msg, ctx) {
       if (opts.latencyMs) await new Promise((resolve) => setTimeout(resolve, opts.latencyMs))
-      if (opts.fail || opts.failWhen?.(msg, 0)) return failure()
+      if (opts.fail || opts.failWhen?.(msg, seen++)) return failure()
       ;(inbox.messages as NormalizedMessage[]).push(msg)
       return ok({
         id: `mock_${++counter}`,
@@ -84,9 +87,9 @@ const mock: (options?: MockDriverOptions) => DriverWithInstance<MockInbox> = def
 
     async sendBatch(msgs, ctx) {
       const results: Result<EmailResult>[] = []
-      for (const [index, msg] of msgs.entries()) {
+      for (const msg of msgs) {
         if (opts.latencyMs) await new Promise((resolve) => setTimeout(resolve, opts.latencyMs))
-        if (opts.fail || opts.failWhen?.(msg, index)) {
+        if (opts.fail || opts.failWhen?.(msg, seen++)) {
           results.push(failure())
           continue
         }

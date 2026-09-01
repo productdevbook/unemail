@@ -77,6 +77,16 @@ number of results — each becomes a `Result` in the slot it belongs to.
 its whole batch loudly, because every downstream index would otherwise be
 silently wrong.
 
+## Middleware state is per destination
+
+`use()` registers a middleware once, and it wraps every mounted driver. So
+any state it keeps has to be partitioned by destination — `ctx.driver` plus
+`ctx.stream` — or one provider's outage becomes every provider's, which is
+the opposite of what mounting a second provider is for.
+
+`src/middleware/_scope.ts` is the shared keying helper. The circuit breaker
+and the rate limiter both use it; anything stateful you write should too.
+
 ## Drivers are transports
 
 A driver takes a normalized message and gets it to a provider. It does not
@@ -120,4 +130,8 @@ costs no bytes in a Worker bundle.
 - **`isolatedDeclarations`** — a file that cannot emit its own `.d.mts`
   fails typecheck rather than shipping a package with missing types.
 - **ATTW** — the published `exports` map is checked against an ESM-only
-  profile on every release.
+  profile on every pull request.
+- **JSR dry run** — a slow type fails the pull request that introduced it,
+  rather than halfway through a release with npm already published.
+- **Coverage floors** — set at what the suite measured the day they were
+  added, so they can only be raised.

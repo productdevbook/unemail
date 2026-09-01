@@ -24,6 +24,7 @@ export {
 export {
   type IdempotencyOptions,
   type IdempotencyStore,
+  type MemoryStoreOptions,
   memoryIdempotencyStore,
   withIdempotency,
 } from "./idempotency.ts"

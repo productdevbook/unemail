@@ -22,6 +22,10 @@ export interface SesOptions {
   fromArn?: string
   /** Override the endpoint — VPC endpoints, GovCloud, or a test stub. */
   endpoint?: string
+  /** Abort a request after this long, in milliseconds. Default: 30_000.
+   *  Lower it behind a user-facing handler so the retry middleware gets
+   *  control before the caller's own request times out. */
+  timeoutMs?: number
   /** Injected fetch. Defaults to the global. */
   fetch?: typeof fetch
   /** Injected clock, for deterministic SigV4 signatures in tests. */
@@ -100,6 +104,7 @@ const ses: DriverFactory<SesOptions> = defineDriver<SesOptions>((options) => {
         headers: signed.headers,
         body: signed.body,
         ...(ctx.signal ? { signal: ctx.signal } : {}),
+        ...(options.timeoutMs == null ? {} : { timeoutMs: options.timeoutMs }),
         classify(status, parsed) {
           // SES puts the real reason in `__type`; the status alone would
           // make an expired token look like an ordinary 400.

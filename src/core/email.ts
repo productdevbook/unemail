@@ -243,7 +243,7 @@ export function createEmail(options: CreateEmailOptions): Email {
           produced = group.msgs.map(() => failure)
         }
         for (const [slot, index] of group.indices.entries()) {
-          results[index] = produced[slot] ?? err(missingResult(driver.name))
+          results[index] = attachMeta(produced[slot] ?? err(missingResult(driver.name)), ctx.meta)
         }
       }),
     )
@@ -283,6 +283,22 @@ export function createEmail(options: CreateEmailOptions): Email {
   }
 
   return api
+}
+
+/** Copy the context's notes onto the outcome. This is the only point at
+ *  which the per-send context is still in scope and the result already
+ *  exists, so without it `SendContext.meta` would be write-only. */
+function attachMeta(
+  result: Result<EmailResult>,
+  meta: Record<string, unknown>,
+): Result<EmailResult> {
+  if (Object.keys(meta).length === 0) return result
+  const snapshot = Object.freeze({ ...meta })
+  if (result.error) {
+    result.error.meta = snapshot
+    return result
+  }
+  return { data: { ...result.data, meta: snapshot }, error: null }
 }
 
 function missingResult(driver: string) {

@@ -11,9 +11,9 @@ export interface IdempotencyStore {
 }
 
 export interface IdempotencyOptions {
-  /** Where results are remembered. Default: an in-process TTL map, which
-   *  only deduplicates within one process — pass a shared store if you
-   *  run more than one instance. */
+  /** Where results are remembered. Default: a bounded in-process TTL map,
+   *  which only deduplicates within one process — pass a shared store if
+   *  you run more than one instance. */
   store?: IdempotencyStore
   /** How long a result is remembered. Default: 86_400 (24h). */
   ttlSeconds?: number
@@ -77,10 +77,35 @@ export function withIdempotency(options: IdempotencyOptions = {}): Middleware {
   })
 }
 
-/** In-process TTL map. Fine for a single instance; not shared across
- *  processes, so it does not survive a restart or reach a sibling pod. */
-export function memoryIdempotencyStore(): IdempotencyStore {
+export interface MemoryStoreOptions {
+  /** Hard ceiling on entries held. When it is reached the oldest are
+   *  dropped first. Default: 100_000. */
+  maxEntries?: number
+  /** Writes between expiry sweeps. Default: 256. */
+  sweepEvery?: number
+}
+
+/**
+ * In-process TTL map. Fine for a single instance; not shared across
+ * processes, so it does not survive a restart or reach a sibling pod.
+ *
+ * Bounded in both directions. Expiry alone is not enough: an idempotency
+ * key is unique per message and is read at most once, so entries would
+ * never be looked up again and lazy eviction on `get` would never fire —
+ * the map would grow for the life of the process.
+ */
+export function memoryIdempotencyStore(options: MemoryStoreOptions = {}): IdempotencyStore {
+  const maxEntries = Math.max(1, options.maxEntries ?? 100_000)
+  const sweepEvery = Math.max(1, options.sweepEvery ?? 256)
   const entries = new Map<string, { value: EmailResult; expiresAt: number }>()
+  let writesSinceSweep = 0
+
+  function sweep(at: number) {
+    for (const [key, entry] of entries) {
+      if (entry.expiresAt <= at) entries.delete(key)
+    }
+  }
+
   return {
     get(key) {
       const entry = entries.get(key)
@@ -92,7 +117,22 @@ export function memoryIdempotencyStore(): IdempotencyStore {
       return entry.value
     },
     set(key, value, ttlSeconds = 86_400) {
-      entries.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 })
+      const at = Date.now()
+      entries.set(key, { value, expiresAt: at + ttlSeconds * 1000 })
+
+      if (++writesSinceSweep >= sweepEvery) {
+        writesSinceSweep = 0
+        sweep(at)
+      }
+      // Map iterates in insertion order, so the first keys are the oldest.
+      if (entries.size > maxEntries) {
+        const excess = entries.size - maxEntries
+        let dropped = 0
+        for (const oldest of entries.keys()) {
+          entries.delete(oldest)
+          if (++dropped >= excess) break
+        }
+      }
     },
   }
 }

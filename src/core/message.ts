@@ -1,4 +1,4 @@
-import type { EmailMessage, NormalizedMessage } from "./types.ts"
+import type { EmailAddress, EmailMessage, NormalizedMessage } from "./types.ts"
 import { dedupeAddresses, isValidEmail, toAddressList } from "./address.ts"
 import { createError } from "./error.ts"
 
@@ -31,8 +31,12 @@ export function normalizeMessage(
   const to = dedupeAddresses(toAddressList(input.to))
   if (to.length === 0) throw invalid("`to` must contain at least one recipient")
 
-  const cc = dedupeAddresses(toAddressList(input.cc))
-  const bcc = dedupeAddresses(toAddressList(input.bcc))
+  // Deduped across fields, not just within them: an address left in both
+  // `to` and `cc` is one copy on the SMTP/SES envelope but two entries for
+  // an API driver, so the same message would behave differently depending
+  // on which transport happened to be configured.
+  const cc = without(dedupeAddresses(toAddressList(input.cc)), to)
+  const bcc = without(dedupeAddresses(toAddressList(input.bcc)), [...to, ...cc])
   const replyTo = dedupeAddresses(toAddressList(input.replyTo ?? defaults.replyTo))
 
   for (const [field, list] of [
@@ -175,6 +179,15 @@ function parseDate(value: string | Date): Date {
   const date = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(date.getTime())) throw invalid(`\`scheduledAt\` is not a valid date: ${value}`)
   return date
+}
+
+/** Drop every address already present in `taken`. */
+function without(
+  addresses: readonly EmailAddress[],
+  taken: readonly EmailAddress[],
+): EmailAddress[] {
+  const seen = new Set(taken.map((address) => address.email.toLowerCase()))
+  return addresses.filter((address) => !seen.has(address.email.toLowerCase()))
 }
 
 function invalid(message: string) {

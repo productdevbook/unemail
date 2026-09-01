@@ -112,6 +112,16 @@ export function driverHandler(driver: EmailDriver): SendHandler {
   return async (msgs, ctx) => {
     if (msgs.length === 0) return []
 
+    // Before choosing a branch: the native-batch path never reaches the
+    // per-message check below, so an already-aborted send would otherwise
+    // go out anyway.
+    if (ctx.signal?.aborted) {
+      const cancelled = err<EmailResult>(
+        toEmailError(driver.name, ctx.signal.reason ?? new Error("aborted")),
+      )
+      return msgs.map(() => cancelled)
+    }
+
     if (msgs.length > 1 && driver.sendBatch) {
       let results: readonly Result<EmailResult>[]
       try {
