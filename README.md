@@ -146,13 +146,13 @@ const email = createEmail({
 })
 ```
 
-| Middleware           | What it does                                                                           |
-| -------------------- | -------------------------------------------------------------------------------------- |
-| `withRetry`          | Retries the failed indices with backoff. Honors the provider's `Retry-After`.          |
-| `withRateLimit`      | Token bucket. A 500-message batch takes 500 tokens, not one.                           |
-| `withCircuitBreaker` | Opens after N failures, probes once after the reset window. Ignores caller errors.     |
-| `withLogger`         | One structured entry per pipeline trip. Redacts recipients by default.                 |
-| `withIdempotency`    | Returns the previous result for a repeated `idempotencyKey`. Only remembers successes. |
+| Middleware           | What it does                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------- |
+| `withRetry`          | Retries the failed indices with backoff. Honors the provider's `Retry-After`.                        |
+| `withRateLimit`      | Token bucket, one per destination. A 500-message batch takes 500 tokens, not one.                    |
+| `withCircuitBreaker` | Opens after N failures, per destination, probing once after the reset window. Ignores caller errors. |
+| `withLogger`         | One structured entry per pipeline trip. Redacts recipients by default.                               |
+| `withIdempotency`    | Returns the previous result for a repeated `idempotencyKey`. Only remembers successes.               |
 
 ### Writing one
 
@@ -173,6 +173,28 @@ email.use(stamp)
 
 Return one result per message. If yours throws, or returns the wrong
 number, the core reports it per message instead of losing the batch.
+
+Anything a middleware leaves on `ctx.meta` comes back to the caller, on the
+`EmailResult` for a success and on the `EmailError` for a failure:
+
+```ts
+email.use(
+  defineMiddleware("timing", (next) => async (msgs, ctx) => {
+    const start = Date.now()
+    const results = await next(msgs, ctx)
+    ctx.meta.durationMs = Date.now() - start
+    return results
+  }),
+)
+
+const { data } = await email.send(msg)
+data?.meta?.durationMs
+```
+
+Middleware registered with `use()` wraps every mounted driver, so anything
+stateful — the token bucket, the breaker's failure count — is kept per
+destination. A failing Resend opens Resend's circuit and leaves a mounted
+SES free to send.
 
 ## Drivers
 

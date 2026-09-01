@@ -3,7 +3,7 @@
 ## Resend — `unemail/drivers/resend`
 
 ```ts
-resend({ apiKey: process.env.RESEND_API_KEY!, endpoint?, fetch? })
+resend({ apiKey: process.env.RESEND_API_KEY!, endpoint?, fetch?, timeoutMs? })
 ```
 
 Native batch (`/emails/batch`), scheduling, `cancel()`, `retrieve()`, and
@@ -18,7 +18,7 @@ The key is checked for its `re_` prefix at construction.
 ## Postmark — `unemail/drivers/postmark`
 
 ```ts
-postmark({ token, messageStream?, endpoint?, fetch? })
+postmark({ token, messageStream?, endpoint?, fetch?, timeoutMs? })
 ```
 
 Pass the per-server token, not the account token.
@@ -89,6 +89,11 @@ taken from the message's addresses.
 
 Needs `node:net` and `node:tls` — this is the one driver that does not run
 in a Worker.
+
+Every API driver takes `timeoutMs` (default 30_000) and forwards the
+instance's `AbortSignal`, so a cancelled request is cancelled in flight.
+Lower it behind a user-facing handler: the retry middleware needs control
+back before the caller's own request times out.
 
 ## Mock — `unemail/drivers/mock`
 
