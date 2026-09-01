@@ -158,6 +158,8 @@ export interface EmailResult {
   readonly at: Date
   /** The provider's own response, untouched. */
   readonly provider?: Readonly<Record<string, unknown>>
+  /** Whatever middleware left on `SendContext.meta` for this send. */
+  readonly meta?: Readonly<Record<string, unknown>>
 }
 
 /** Discriminated union — narrowing on `error` yields typed `data`. */
@@ -276,7 +278,9 @@ export type DriverFactory<TOpts, TInstance = unknown> = (options: TOpts) => Driv
 // ---------------------------------------------------------------------------
 
 /** Ambient state for one trip through the pipeline. `meta` is a shared
- *  mutable bag for middleware to leave notes in; everything else is
+ *  mutable bag for middleware to leave notes in — the core copies it onto
+ *  every `EmailResult` and `EmailError` the trip produces, so what a
+ *  middleware records there reaches the caller. Everything else is
  *  replaced, not mutated, when a middleware derives a new context. */
 export interface SendContext {
   readonly driver: string

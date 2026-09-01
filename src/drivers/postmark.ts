@@ -13,6 +13,10 @@ export interface PostmarkOptions {
   messageStream?: string
   /** Override the base URL — for a gateway or a test stub. */
   endpoint?: string
+  /** Abort a request after this long, in milliseconds. Default: 30_000.
+   *  Lower it behind a user-facing handler so the retry middleware gets
+   *  control before the caller's own request times out. */
+  timeoutMs?: number
   /** Injected fetch. Defaults to the global. */
   fetch?: typeof fetch
 }
@@ -36,13 +40,15 @@ const postmark: DriverFactory<PostmarkOptions> = defineDriver<PostmarkOptions>((
   const endpoint = (options.endpoint ?? "https://api.postmarkapp.com").replace(/\/$/, "")
   const fetchImpl = resolveFetch(DRIVER, options.fetch)
 
-  function request(path: string, body: unknown) {
+  function request(path: string, body: unknown, signal?: AbortSignal) {
     return httpJson({
       fetch: fetchImpl,
       driver: DRIVER,
       url: `${endpoint}${path}`,
       headers: { "x-postmark-server-token": options.token },
       body,
+      ...(signal ? { signal } : {}),
+      ...(options.timeoutMs == null ? {} : { timeoutMs: options.timeoutMs }),
       classify(status, parsed) {
         const code = (parsed as { ErrorCode?: number } | null)?.ErrorCode
         if (code != null && AUTH_ERROR_CODES.has(code)) return { code: "AUTH" }
@@ -67,14 +73,18 @@ const postmark: DriverFactory<PostmarkOptions> = defineDriver<PostmarkOptions>((
 
     isAvailable: () => Boolean(options.token),
 
-    async send(msg) {
+    async send(msg, ctx) {
       const payload = toPayload(msg, options.messageStream)
-      const response = await request(msg.template ? "/email/withTemplate" : "/email", payload)
+      const response = await request(
+        msg.template ? "/email/withTemplate" : "/email",
+        payload,
+        ctx.signal,
+      )
       if (response.error) return err(response.error)
       return toResult(response.data as PostmarkResponse, msg, options.messageStream)
     },
 
-    async sendBatch(msgs) {
+    async sendBatch(msgs, ctx) {
       const withTemplate = msgs.some((msg) => msg.template)
       // Postmark keeps templated and plain batches on separate endpoints,
       // and will not mix them in one request.
@@ -93,6 +103,7 @@ const postmark: DriverFactory<PostmarkOptions> = defineDriver<PostmarkOptions>((
       const response = await request(
         withTemplate ? "/email/batchWithTemplates" : "/email/batch",
         withTemplate ? { Messages: payload } : payload,
+        ctx.signal,
       )
       if (response.error) return msgs.map(() => err<EmailResult>(response.error))
 

@@ -10,6 +10,10 @@ export class EmailError extends Error {
   readonly status?: number
   readonly retryable: boolean
   override readonly cause?: unknown
+  /** Whatever middleware left on `SendContext.meta` for this send. Set by
+   *  the core after the pipeline returns, so it is absent on an error a
+   *  driver constructs and inspects itself. */
+  meta?: Readonly<Record<string, unknown>>
 
   constructor(init: {
     driver: string
