@@ -6,13 +6,11 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
@@ -22,22 +20,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - run: corepack enable
-      - uses: actions/setup-node@v6
+
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: latest
-          cache: pnpm
+          bun-version: latest
+
       - name: 📦 Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
+
       - name: 👀 Lint
-        run: pnpm lint
+        run: bun run lint
+
       - name: 🔍 Typecheck
-        run: pnpm typecheck
+        run: bun run typecheck
+
       - name: 🧪 Test
-        run: pnpm test
+        run: bun run test
+
+      - name: 🔢 Version consistency
+        run: bun run check:version
+
       - name: 🚀 Build
-        run: pnpm build
+        run: bun run build
+
       - name: 📐 Bundle size budget
-        run: pnpm bundle-budget
+        run: bun run bundle-budget
+
       - name: 🔍 Are The Types Wrong (ATTW)
-        run: pnpm attw
+        run: bun run attw

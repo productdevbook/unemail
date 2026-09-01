@@ -63,7 +63,7 @@
   <rect width="1200" height="628" fill="url(#bgGlow3)"/>
 
   <!-- ══════════════════════════════════════════════ -->
-  <!-- Terminal / code window — SMTP conversation    -->
+  <!-- Terminal / code window — the whole public API -->
   <!-- Positioned left-of-center, slightly back      -->
   <!-- ══════════════════════════════════════════════ -->
   <g transform="translate(82, 76)" filter="url(#winShadow)">
@@ -83,14 +83,15 @@
     <!-- Content: syntax-highlighted TypeScript -->
     <g font-family="'JetBrains Mono','SF Mono','Monaco',monospace" font-size="15" font-weight="500" xml:space="preserve">
       <text x="28" y="80"><tspan fill="#a78bfa">import</tspan><tspan fill="#9aa4b8"> { </tspan><tspan fill="#60efd4">createEmail</tspan><tspan fill="#9aa4b8"> } </tspan><tspan fill="#a78bfa">from</tspan><tspan fill="#fbbf77"> "unemail"</tspan></text>
-      <text x="28" y="108"><tspan fill="#a78bfa">import</tspan><tspan fill="#60efd4"> ses </tspan><tspan fill="#a78bfa">from</tspan><tspan fill="#fbbf77"> "unemail/driver/ses"</tspan></text>
-      <text x="28" y="152"><tspan fill="#a78bfa">const</tspan><tspan fill="#60efd4"> email </tspan><tspan fill="#f472b6">=</tspan><tspan fill="#e9e6ff"> createEmail</tspan><tspan fill="#9aa4b8">({</tspan></text>
-      <text x="68" y="176"><tspan fill="#9aa4b8">driver</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#e9e6ff"> ses</tspan><tspan fill="#9aa4b8">({ region: </tspan><tspan fill="#fbbf77">"us-east-1"</tspan><tspan fill="#9aa4b8"> }),</tspan></text>
-      <text x="28" y="200"><tspan fill="#9aa4b8">})</tspan></text>
+      <text x="28" y="108"><tspan fill="#a78bfa">import</tspan><tspan fill="#60efd4"> ses </tspan><tspan fill="#a78bfa">from</tspan><tspan fill="#fbbf77"> "unemail/drivers/ses"</tspan></text>
+      <text x="28" y="140"><tspan fill="#a78bfa">const</tspan><tspan fill="#60efd4"> email </tspan><tspan fill="#f472b6">=</tspan><tspan fill="#e9e6ff"> createEmail</tspan><tspan fill="#9aa4b8">({</tspan></text>
+      <text x="68" y="164"><tspan fill="#9aa4b8">driver</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#e9e6ff"> ses</tspan><tspan fill="#9aa4b8">({ region: </tspan><tspan fill="#fbbf77">"us-east-1"</tspan><tspan fill="#9aa4b8"> }),</tspan></text>
+      <text x="68" y="188"><tspan fill="#9aa4b8">defaults</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#9aa4b8"> { from: </tspan><tspan fill="#fbbf77">"hi@acme.com"</tspan><tspan fill="#9aa4b8"> },</tspan></text>
+      <text x="28" y="212"><tspan fill="#9aa4b8">})</tspan></text>
       <text x="28" y="244"><tspan fill="#a78bfa">await</tspan><tspan fill="#e9e6ff"> email</tspan><tspan fill="#9aa4b8">.</tspan><tspan fill="#60efd4">send</tspan><tspan fill="#9aa4b8">({</tspan></text>
       <text x="68" y="268"><tspan fill="#9aa4b8">to</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#fbbf77"> "ada@acme.com"</tspan><tspan fill="#9aa4b8">,</tspan></text>
       <text x="68" y="292"><tspan fill="#9aa4b8">subject</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#fbbf77"> "Welcome"</tspan><tspan fill="#9aa4b8">,</tspan></text>
-      <text x="68" y="316"><tspan fill="#9aa4b8">react</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#f472b6"> &lt;</tspan><tspan fill="#60efd4">Welcome</tspan><tspan fill="#9aa4b8"> name</tspan><tspan fill="#f472b6">=</tspan><tspan fill="#fbbf77">"Ada"</tspan><tspan fill="#f472b6"> /&gt;</tspan><tspan fill="#9aa4b8">,</tspan></text>
+      <text x="68" y="316"><tspan fill="#9aa4b8">html</tspan><tspan fill="#f472b6">:</tspan><tspan fill="#fbbf77"> "&lt;p&gt;Glad you are here.&lt;/p&gt;"</tspan><tspan fill="#9aa4b8">,</tspan></text>
       <text x="28" y="340"><tspan fill="#9aa4b8">})</tspan></text>
     </g>
   </g>
@@ -120,48 +121,49 @@
     <g transform="translate(704, 152)">
       <rect width="132" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#22d3ee"/>
-      <text x="80" y="28" fill="#e9e6ff">SendGrid</text>
+      <text x="80" y="28" fill="#e9e6ff">SMTP</text>
     </g>
     <g transform="translate(848, 152)">
       <rect width="124" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#a78bfa"/>
-      <text x="74" y="28" fill="#e9e6ff">Mailgun</text>
+      <text x="74" y="28" fill="#e9e6ff">Mock</text>
     </g>
     <g transform="translate(984, 152)">
       <rect width="140" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#60efd4"/>
-      <text x="80" y="28" fill="#e9e6ff">Brevo</text>
+      <text x="80" y="28" fill="#e9e6ff">Fallback</text>
     </g>
     <!-- Row 3 -->
     <g transform="translate(704, 208)">
       <rect width="132" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#f472b6"/>
-      <text x="80" y="28" fill="#e9e6ff">SMTP</text>
+      <text x="80" y="28" fill="#e9e6ff">Retry</text>
     </g>
     <g transform="translate(848, 208)">
       <rect width="124" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#fb923c"/>
-      <text x="76" y="28" fill="#e9e6ff">Loops</text>
+      <text x="76" y="28" fill="#e9e6ff">Rate limit</text>
     </g>
     <g transform="translate(984, 208)">
       <rect width="140" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#38bdf8"/>
-      <text x="80" y="28" fill="#e9e6ff">Cloudflare</text>
+      <text x="80" y="28" fill="#e9e6ff">Breaker</text>
     </g>
     <!-- Row 4 -->
     <g transform="translate(704, 264)">
       <rect width="132" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#facc15"/>
-      <text x="80" y="28" fill="#e9e6ff">MailerSend</text>
+      <text x="80" y="28" fill="#e9e6ff">Logger</text>
     </g>
     <g transform="translate(848, 264)">
       <rect width="124" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
       <circle cx="20" cy="22" r="5" fill="#c084fc"/>
-      <text x="78" y="28" fill="#e9e6ff">Zeptomail</text>
+      <text x="78" y="28" fill="#e9e6ff">Render</text>
     </g>
     <g transform="translate(984, 264)">
       <rect width="140" height="44" rx="12" fill="#14181f" stroke="#2a3142" stroke-width="1"/>
-      <text x="70" y="28" fill="#6b7280" font-size="12" font-weight="600">+ 4 more</text>
+      <circle cx="20" cy="22" r="5" fill="#818cf8"/>
+      <text x="80" y="28" fill="#e9e6ff">Round-robin</text>
     </g>
   </g>
 
@@ -196,7 +198,7 @@
   <text x="600" y="566" text-anchor="middle" fill="#9aa4b8"
         font-family="'Inter','SF Pro',sans-serif"
         font-size="18" font-weight="500" letter-spacing="0.2">
-    One API. 15+ providers. Zero dependencies. Every runtime.
+    One API. Batch-native pipeline. Zero dependencies. Every runtime.
   </text>
 
   <!-- Footer badges: typed / edge / rfc -->

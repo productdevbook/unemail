@@ -1,32 +1,32 @@
+/**
+ * Middleware shipped with `unemail`. Every one is built with
+ * `defineMiddleware` — there is nothing privileged about them, and yours
+ * composes exactly the same way.
+ *
+ * Order matters: the first registered is the outermost.
+ *
+ * ```ts
+ * email
+ *   .use(withLogger())          // measures everything below, retries included
+ *   .use(withCircuitBreaker())  // stops calling a provider that is down
+ *   .use(withRetry())           // re-sends only the failures
+ *   .use(withRateLimit(rateLimitPresets.resend))
+ * ```
+ *
+ * @module
+ */
+
 export {
-  withCircuitBreaker,
   type CircuitBreakerOptions,
   type CircuitState,
+  withCircuitBreaker,
 } from "./circuit-breaker.ts"
+export {
+  type IdempotencyOptions,
+  type IdempotencyStore,
+  memoryIdempotencyStore,
+  withIdempotency,
+} from "./idempotency.ts"
 export { type LogEntry, type LoggerOptions, withLogger } from "./logger.ts"
-export { type DedupeOptions, type DedupeStrategy, withDedupe } from "./dedupe.ts"
-export {
-  oauth2Gmail,
-  oauth2Microsoft,
-  type OAuth2Options,
-  type OAuth2TokenCache,
-  type OAuth2TokenResponse,
-  withOAuth2,
-} from "./oauth2.ts"
-export {
-  createMetricsRegistry,
-  type MetricsMiddlewareOptions,
-  type MetricsRegistry,
-  withMetrics,
-} from "./metrics.ts"
-export { type PiiScrubberOptions, type ScrubStrategy, scrubPii, withPiiLogging } from "./pii.ts"
-export { type PreferencesMiddlewareOptions, withPreferences } from "./preferences.ts"
-export { rateLimitPresets, withRateLimit, type RateLimitOptions } from "./rate-limit.ts"
-export { withRetry, type RetryOptions } from "./retry.ts"
-export { type SuppressionOptions, type SuppressionPolicy, withSuppression } from "./suppression.ts"
-export {
-  type OtelSpan,
-  type OtelTracer,
-  type TelemetryOptions,
-  withTelemetry,
-} from "./telemetry.ts"
+export { rateLimitPresets, type RateLimitOptions, withRateLimit } from "./rate-limit.ts"
+export { type RetryBackoff, type RetryOptions, withRetry } from "./retry.ts"

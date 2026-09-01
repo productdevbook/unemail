@@ -1,502 +1,385 @@
+<!-- prettier-ignore-start -->
 <p align="center">
-  <br>
-  <img src="https://raw.githubusercontent.com/productdevbook/unemail/main/.github/assets/cover.png" alt="unemail — One API for every email provider" width="100%">
-  <br><br>
-  <b style="font-size: 2em;">unemail</b>
-  <br><br>
-  Driver-based, zero-dependency TypeScript email library.
-  <br>
-  Send, batch, schedule, dedupe, render, parse, verify, and sign — one unified API across every runtime.
-  <br><br>
-  <a href="https://npmjs.com/package/unemail"><img src="https://img.shields.io/npm/v/unemail?style=flat&colorA=18181B&colorB=F0DB4F" alt="npm version"></a>
-  <a href="https://npmjs.com/package/unemail"><img src="https://img.shields.io/npm/dm/unemail?style=flat&colorA=18181B&colorB=F0DB4F" alt="npm downloads"></a>
-  <a href="https://bundlephobia.com/result?p=unemail"><img src="https://img.shields.io/bundlephobia/minzip/unemail?style=flat&colorA=18181B&colorB=F0DB4F" alt="bundle size"></a>
-  <a href="https://github.com/productdevbook/unemail/blob/main/LICENSE"><img src="https://img.shields.io/github/license/productdevbook/unemail?style=flat&colorA=18181B&colorB=F0DB4F" alt="license"></a>
-  <a href="https://github.com/sponsors/productdevbook"><img src="https://img.shields.io/github/sponsors/productdevbook?style=flat&colorA=18181B&colorB=F0DB4F&label=sponsors" alt="sponsors"></a>
+  <img src=".github/assets/cover.svg" alt="unemail" width="100%">
 </p>
+<!-- prettier-ignore-end -->
 
-## Design goals
+# unemail
 
-| Goal                         | How `unemail` delivers                                                                                                                                                              |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **One API, many transports** | `createEmail({ driver })` — 15+ built-in drivers (SMTP, Resend, SES, Postmark, SendGrid, Mailgun, Mailtrap, Brevo, MailerSend, Loops, Zeptomail, MailChannels, Cloudflare Email, …) |
-| **Cross-runtime**            | Node, Bun, Deno, Cloudflare Workers, browser — core is zero-dep and Web-API only. No `axios`, ever.                                                                                 |
-| **Compliance-ready**         | RFC 8058 one-click List-Unsubscribe, DKIM + ARC signing, suppression/preference stores, DMARC + TLS-RPT + ARF parsers                                                               |
-| **Resilient by default**     | Idempotency, retry w/ jitter, per-provider rate-limit, circuit breaker, dedupe, dead-letter, provider fallback                                                                      |
-| **Unified observability**    | Structured logging, OpenTelemetry, Prometheus metrics, normalized `EmailEvent` stream across send + webhook paths                                                                   |
-| **Modern DX**                | `{ data, error }` Result discriminated union, typed `Address` primitive, `react:`/`mjml:`/`handlebars:`/`liquid:` props                                                             |
-| **Testing-first**            | `createTestEmail()` with inbox + `waitFor` + 5 Vitest matchers + snapshot helper                                                                                                    |
-
-## Install
-
-```bash
-pnpm add unemail
-```
-
-Rendering, queue, and parser entries pull in optional peer deps only
-when you import them:
-
-```bash
-pnpm add @react-email/render   # unemail/render/react
-pnpm add mjml                  # unemail/render/mjml
-pnpm add handlebars            # unemail/render/handlebars
-pnpm add liquidjs              # unemail/render/liquid
-pnpm add juice                 # htmlPipeline(inlineCss())
-pnpm add postal-mime           # unemail/parse
-pnpm add @opentelemetry/api    # withTelemetry
-pnpm add unstorage             # unstorageQueue / unstorageSuppressionStore
-pnpm add bullmq                # unemail/queue/bullmq
-pnpm add pg-boss               # unemail/queue/pg-boss
-```
-
-## Hello world
+A driver-based email library for TypeScript. ESM-only, zero runtime
+dependencies, and the same code on Node, Bun, Deno, Cloudflare Workers and
+the browser.
 
 ```ts
 import { createEmail } from "unemail"
-import resend from "unemail/driver/resend"
-
-const email = createEmail({ driver: resend({ apiKey: process.env.RESEND_KEY! }) })
-
-const { data, error } = await email.send({
-  from: "Acme <hi@acme.com>",
-  to: "user@example.com",
-  subject: "Welcome",
-  text: "Thanks for signing up.",
-})
-
-if (error) throw error // error: EmailError — typed { code, status, retryable, ... }
-console.log(data.id) // data: EmailResult — TS narrows after the error check
-```
-
-Every driver implements the same contract, so swapping providers is a
-one-line change.
-
-### Mailtrap (Email API + Email Sandbox)
-
-```ts
-import mailtrap from "unemail/driver/mailtrap"
+import resend from "unemail/drivers/resend"
 
 const email = createEmail({
-  driver: mailtrap({
-    apiKey: process.env.MAILTRAP_API_KEY!,
-    inboxId: process.env.MAILTRAP_INBOX_ID,
-    sandbox: process.env.MAILTRAP_USE_SANDBOX === "true",
-  }),
+  driver: resend({ apiKey: process.env.RESEND_API_KEY! }),
+  defaults: { from: "Acme <hi@acme.com>" },
 })
 
-await email.send({ from: "a@b.com", to: "c@d.com", subject: "Test", text: "hi", sandbox: true })
-```
-
-See [docs/drivers.md](docs/drivers.md) for Email API vs sandbox routing.
-
-## Message streams (Postmark-style)
-
-```ts
-import postmark from "unemail/driver/postmark"
-import ses from "unemail/driver/ses"
-
-const email = createEmail({ driver: postmark({ token }) })
-email.mount("marketing", ses({ region: "us-east-1" }))
-
-await email.send({ stream: "transactional", to, subject, text })
-await email.send({ stream: "marketing", to, subject, html })
-```
-
-## Deliverability & compliance
-
-**Gmail + Yahoo 2024 bulk-sender compliance is one line:**
-
-```ts
-await email.send({
-  from,
-  to,
-  subject,
-  html,
-  unsubscribe: {
-    url: `https://app.com/u?t=${token}`, // RFC 8058 one-click
-    mailto: "unsubscribe@acme.com",
-  },
-})
-// → auto-injects List-Unsubscribe + List-Unsubscribe-Post headers.
-```
-
-**DKIM sign outbound SMTP** (RSA or Ed25519, pure Web-Crypto):
-
-```ts
-import smtp from "unemail/driver/smtp"
-const driver = smtp({
-  host: "smtp.acme.com",
-  dkim: { selector: "s1", domain: "acme.com", privateKey: pem },
-})
-```
-
-**Suppression + preferences** stop sends before they hit the provider:
-
-```ts
-import { withSuppression } from "unemail/middleware"
-import { memorySuppressionStore } from "unemail/suppression"
-
-const store = memorySuppressionStore()
-// webhook handler → store.add(recipient, "bounce")
-const email = createEmail({ driver: withSuppression(resend({ apiKey }), { store }) })
-```
-
-**Other deliverability utilities:**
-
-- `unemail/verify/arc` — ARC-Set signer (RFC 8617) for forwarders
-- `unemail/dmarc` — aggregate (RUA) XML + gzip parser
-- `unemail/mta-sts` — policy file generator + TLS-RPT JSON parser
-- `unemail/parse/arf` — RFC 5965 feedback-loop (FBL) reports
-
-## Provider-side templates
-
-Eight drivers map `msg.template` into native template APIs:
-
-```ts
-await email.send({
-  from,
-  to,
-  subject,
-  template: { id: "tpl_welcome", variables: { name: "Ada" } },
-})
-// → SendGrid dynamic_template_data, Postmark TemplateModel,
-//   Mailgun h:X-Mailgun-Variables, Brevo params, MailerSend
-//   personalization.data, Loops dataVariables, Zeptomail merge_info.
-```
-
-## Personalizations & batch
-
-SendGrid-style per-recipient fan-out — one batched API call when the
-driver supports it, or an automatic loop when it doesn't:
-
-```ts
-await email.send({
-  from,
+const { data, error } = await email.send({
+  to: "ada@example.com",
   subject: "Welcome",
-  personalizations: [
-    { to: "ada@x.com", variables: { name: "Ada" } },
-    { to: "bob@x.com", variables: { name: "Bob" }, subject: "Just for Bob" },
-  ],
-  template: { id: "tpl_welcome" },
+  html: "<p>Glad you are here.</p>",
 })
 
-// Or stream results for huge fan-outs:
-for await (const result of email.sendBatchStream(messages)) {
-  if (result.error) report(result.error)
+if (error) console.error(error.code, error.message)
+else console.log("sent", data.id)
+```
+
+## Install
+
+```sh
+bun add unemail
+# npm install unemail · pnpm add unemail · yarn add unemail
+```
+
+```sh
+bun add @react-email/render   # only for unemail/render/react
+```
+
+Requires Node 20.11+ (or any runtime with `fetch` and Web Crypto). There is
+no CommonJS build.
+
+## The idea
+
+Three pieces, and nothing else:
+
+```
+your code ──▶ normalize ──▶ middleware ──▶ driver ──▶ provider
+              (once)        (a list)       (a transport)
+```
+
+**Normalize once.** `email.send()` parses every address, validates the
+message, rejects a header containing a line break, and derives
+`List-Unsubscribe`. Drivers receive a frozen `NormalizedMessage` — which is
+why no driver in this repo parses an address, and why your message object
+is never written back into.
+
+**One kind of middleware.** Retry, logging, rate limiting, the circuit
+breaker and idempotency are all the same shape:
+
+```ts
+type SendHandler = (msgs, ctx) => Promise<Result<EmailResult>[]>
+type Middleware = { name: string; handle: (next: SendHandler) => SendHandler }
+```
+
+**The unit of work is a list.** `send()` is the one-element case. This is
+what lets retry re-send _only_ the messages that failed — even when the
+driver reached the provider in a single batched request. A partial batch
+failure costs one small retry instead of a full re-send with duplicate
+deliveries.
+
+## Sending
+
+### One message
+
+```ts
+const { data, error } = await email.send({
+  to: ["ada@example.com", { email: "bob@example.com", name: "Bob" }],
+  cc: "Cee <cee@example.com>",
+  subject: "Your invoice",
+  text: "Attached.",
+  html: "<p>Attached.</p>",
+  preheader: "Invoice #1042 · due in 14 days",
+  attachments: [{ filename: "invoice.pdf", content: bytes, contentType: "application/pdf" }],
+  tags: [{ name: "campaign", value: "billing" }],
+})
+```
+
+`error` is an `EmailError` with a stable `code` (`AUTH`, `RATE_LIMIT`,
+`NETWORK`, `TIMEOUT`, `PROVIDER`, `INVALID_OPTIONS`, `UNSUPPORTED`,
+`CANCELLED`) and a `retryable` flag that means the same thing whichever
+provider produced it.
+
+### Many messages
+
+`sendBatch` never short-circuits. `results[i]` always corresponds to
+`messages[i]`:
+
+```ts
+const batch = await email.sendBatch(users.map((u) => ({ to: u.email, subject, html })))
+
+batch.ok // false if any failed
+batch.sent // the EmailResults that got through
+batch.failed // [{ index, error }] for the rest
+```
+
+One invalid address in a batch of a thousand fails its own slot and nothing
+else.
+
+### Very many messages
+
+```ts
+for await (const result of email.sendStream(rowsFromDatabase(), { chunkSize: 100 })) {
+  if (result.error) await recordFailure(result.error)
 }
 ```
 
-## Rendering
+Accepts a sync or async iterable, so the source can be a cursor. Nothing
+larger than a chunk is held in memory.
 
-**React Email / jsx-email / MJML / Handlebars / Liquid** all plug in
-as renderers:
+## Middleware
 
-```ts
-import { createEmail, withRender } from "unemail"
-import reactRender from "unemail/render/react"
-import { handlebarsRenderer } from "unemail/render/handlebars"
-
-const email = createEmail({ driver }).use(withRender(reactRender(), handlebarsRenderer()))
-```
-
-**HTML post-processing pipeline** — preheader, dark-mode, CID
-auto-rewrite, juice inlining:
+Registered outermost-first:
 
 ```ts
 import {
-  htmlPipeline,
-  withPreheader,
-  cidRewrite,
-  darkModeHook,
-  inlineCss,
-} from "unemail/render/pipeline"
+  withCircuitBreaker,
+  withLogger,
+  withRateLimit,
+  withRetry,
+  rateLimitPresets,
+} from "unemail/middleware"
 
-email.use(
-  htmlPipeline(
-    withPreheader(), // reads msg.preheader
-    cidRewrite(), // <img src="logo.png"> → cid:logo
-    darkModeHook({ darkCss: "body{background:#000}" }),
-    inlineCss(), // peer: juice
-  ),
-)
-```
-
-**i18n** dispatches per-locale renderers:
-
-```ts
-import { i18nRenderer } from "unemail/render/i18n"
-
-email.use(
-  withRender(
-    i18nRenderer({
-      fallback: handlebarsRenderer({
-        /* defaults */
-      }),
-      byLocale: {
-        tr: handlebarsRenderer({
-          /* tr */
-        }),
-        en: handlebarsRenderer({
-          /* en */
-        }),
-      },
-    }),
-  ),
-)
-```
-
-**Calendar invites** (ICS) attach to any message:
-
-```ts
-import { icalEvent } from "unemail/ics"
-
-await email.send({
-  from,
-  to,
-  subject: "Design sync",
-  text: "...",
-  attachments: [
-    icalEvent({
-      uid: "evt-1@acme.com",
-      start: new Date("2026-05-01T10:00:00Z"),
-      end: new Date("2026-05-01T11:00:00Z"),
-      summary: "Design sync",
-      organizer: { email: "host@acme.com" },
-      attendees: [{ email: "ada@acme.com", rsvp: true }],
-    }),
+const email = createEmail({
+  driver: resend({ apiKey }),
+  defaults: { from },
+  use: [
+    withLogger(), // measures everything below, retries included
+    withCircuitBreaker({ threshold: 5 }), // stops calling a provider that is down
+    withRetry({ retries: 3 }), // re-sends only the failures
+    withRateLimit(rateLimitPresets.resend), // one token per message, batches included
   ],
 })
 ```
 
-## Resilience middleware
+| Middleware           | What it does                                                                           |
+| -------------------- | -------------------------------------------------------------------------------------- |
+| `withRetry`          | Retries the failed indices with backoff. Honors the provider's `Retry-After`.          |
+| `withRateLimit`      | Token bucket. A 500-message batch takes 500 tokens, not one.                           |
+| `withCircuitBreaker` | Opens after N failures, probes once after the reset window. Ignores caller errors.     |
+| `withLogger`         | One structured entry per pipeline trip. Redacts recipients by default.                 |
+| `withIdempotency`    | Returns the previous result for a repeated `idempotencyKey`. Only remembers successes. |
+
+### Writing one
 
 ```ts
-import {
-  withRetry,
-  withCircuitBreaker,
-  withRateLimit,
-  rateLimitPresets,
-  withDedupe,
-  withLogger,
-  withTelemetry,
-  withMetrics,
-  createMetricsRegistry,
-} from "unemail/middleware"
-import { trace } from "@opentelemetry/api"
+import { defineMiddleware } from "unemail"
 
-const metrics = createMetricsRegistry()
-
-email
-  .use(withDedupe({ strategy: "contentHash", ttlSeconds: 60 }))
-  .use(withRetry({ retries: 3, backoff: "full-jitter", deadLetter: dlqDriver }))
-  .use(withRateLimit(rateLimitPresets.sendgrid()))
-  .use(withCircuitBreaker({ threshold: 5, cooldownMs: 30_000 }))
-  .use(withLogger({ redactLocalPart: true }))
-  .use(withTelemetry({ tracer: trace.getTracer("unemail") }))
-  .use(withMetrics({ registry: metrics }))
-
-// Prometheus exposition:
-app.get("/metrics", () => new Response(metrics.expose()))
-```
-
-### OAuth2 (Gmail / Microsoft 365)
-
-```ts
-import { oauth2Gmail } from "unemail/middleware"
-
-email.use(
-  oauth2Gmail({
-    clientId: process.env.GOOGLE_CLIENT_ID!,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    refreshToken: process.env.GOOGLE_REFRESH_TOKEN!,
-  }),
+const stamp = defineMiddleware(
+  "stamp",
+  (next) => (msgs, ctx) =>
+    next(
+      msgs.map((m) => ({ ...m, headers: { ...m.headers, "X-Sent-By": "acme" } })),
+      ctx,
+    ),
 )
+
+email.use(stamp)
 ```
 
-## Provider fallback + composition
+Return one result per message. If yours throws, or returns the wrong
+number, the core reports it per message instead of losing the batch.
+
+## Drivers
+
+| Driver      | Import                        | Notes                                                     |
+| ----------- | ----------------------------- | --------------------------------------------------------- |
+| Resend      | `unemail/drivers/resend`      | Native batch, scheduling, cancel, retrieve                |
+| Postmark    | `unemail/drivers/postmark`    | Message streams, templates, per-message batch errors      |
+| Amazon SES  | `unemail/drivers/ses`         | SigV4 over Web Crypto — no `@aws-sdk/*`                   |
+| SMTP        | `unemail/drivers/smtp`        | Own protocol implementation, pooling, DKIM. Node/Bun only |
+| Mock        | `unemail/drivers/mock`        | Records instead of sending                                |
+| Fallback    | `unemail/drivers/fallback`    | Composite: try each provider in turn                      |
+| Round-robin | `unemail/drivers/round-robin` | Composite: spread across providers                        |
+
+A driver advertises what it can do, so you gate on capability rather than
+on a name:
 
 ```ts
-import fallback from "unemail/driver/fallback"
-import roundRobin from "unemail/driver/round-robin"
-import resend from "unemail/driver/resend"
-import ses from "unemail/driver/ses"
+if (email.driver.features?.scheduling) await email.send({ ...msg, scheduledAt })
+```
 
+### Failover
+
+```ts
+import { wrap } from "unemail"
+import { fallback } from "unemail/drivers/fallback"
+
+const driver = fallback([
+  wrap(resend({ apiKey }), withRetry()), // retries within the leg
+  ses({ region: "eu-central-1" }), // only sees what Resend could not send
+])
+```
+
+Failover is per message. If 3 of 500 fail at the primary, only those 3 go
+to the secondary — nobody receives the same mail twice.
+
+### Streams
+
+```ts
 const email = createEmail({
-  driver: fallback({
-    drivers: [resend({ apiKey: process.env.RESEND_KEY! }), ses({ region: "us-east-1" })],
-  }),
+  driver: postmark({ token, messageStream: "outbound" }),
+  mounts: { broadcast: postmark({ token: broadcastToken, messageStream: "broadcast" }) },
+  defaults: { from },
 })
+
+await email.send({ ...msg, stream: "broadcast" })
 ```
 
-## Queues
+A batch spanning several streams is split across their drivers and
+reassembled in order.
 
-In-memory / unstorage / BullMQ / pg-boss / AWS SQS all implement the
-same `EmailQueue` contract. `msg.scheduledAt` defers the send through
-every backend:
-
-```ts
-import memoryQueue from "unemail/queue/memory"
-import { startWorker } from "unemail/queue/worker"
-
-const queue = memoryQueue()
-startWorker(email, queue, { concurrency: 5, maxAttempts: 5 }).start()
-
-await queue.enqueue({
-  from,
-  to,
-  subject,
-  scheduledAt: new Date(Date.now() + 60 * 60 * 1000), // send in 1h
-})
-```
-
-Swap for `bullmqQueue({ bull })`, `pgBossQueue({ boss })`, or
-`sqsQueue({ sqs, queueUrl })` for durable multi-process sending.
-
-## Inbound + webhooks
-
-Pre-normalized handlers for Cloudflare Email, Postmark, SendGrid,
-Mailgun, and SES (via SNS):
+### Writing one
 
 ```ts
-import { defineInboundHandler } from "unemail/inbound"
-import sendgridInbound from "unemail/inbound/sendgrid"
-import { defineSesInboundHandler } from "unemail/inbound/ses"
+import { defineDriver, ok, err, createError } from "unemail"
 
-export default defineInboundHandler({
-  providers: [sendgridInbound()],
-  onEmail(mail) {
-    /* ParsedEmail */
+export default defineDriver<{ apiKey: string }>((options) => ({
+  name: "acme",
+  features: { html: true, text: true },
+  async send(msg) {
+    const response = await fetch("https://api.acme.com/send", {
+      method: "POST",
+      headers: { authorization: `Bearer ${options.apiKey}` },
+      body: JSON.stringify({
+        to: msg.to.map((a) => a.email),
+        subject: msg.subject,
+        html: msg.html,
+      }),
+    })
+    if (!response.ok) return err(createError("acme", "PROVIDER", `HTTP ${response.status}`))
+    const body = await response.json()
+    return ok({ id: body.id, driver: "acme", at: new Date() })
   },
+}))
+```
+
+`msg` arrives normalized. Add `sendBatch` only if the provider has a real
+batch endpoint — it must return one result per input, in order.
+
+## Rendering
+
+`message.content` is opaque to the core; a renderer claims it by `type`.
+Adding a template language is a package, not a core change.
+
+```ts
+import { withRender } from "unemail/render"
+import reactRenderer from "unemail/render/react"
+
+email.use(withRender(reactRenderer()))
+
+await email.send({
+  to,
+  subject: "Welcome",
+  content: { type: "react", element: <Welcome name="Ada" /> },
 })
 ```
 
-**Reply-only text extraction** (EN/TR/DE/FR/ES):
+The plain-text alternative is derived from the HTML unless you set `text`
+or the renderer produces one. Your message object is never mutated.
 
 ```ts
-import { stripReply } from "unemail/inbound/reply"
-import { threadKey } from "unemail/inbound/thread"
+import { defineTemplate } from "unemail/render"
 
-const { text, quoted } = stripReply(parsed.text ?? "")
-const thread = threadKey(parsed) // canonical root Message-ID
+const welcome = defineTemplate<{ name: string }>(({ name }) => ({
+  subject: `Welcome, ${name}`,
+  content: { type: "react", element: <Welcome name={name} /> },
+}))
+
+await email.send({ to, ...welcome({ name: "Ada" }) })
 ```
 
-**Webhook signature verification** — Resend, Postmark, Mailgun,
-SendGrid, SES, plus a zero-dep **Standard Webhooks**
-(`standardwebhooks.com`) verifier that's <5 kB (vs Svix's ~1 MB):
+Your own renderer:
 
 ```ts
-import { verifyStandardWebhook } from "unemail/webhook/standard"
+import type { Renderer } from "unemail/render"
 
-const body = await verifyStandardWebhook(request, {
-  secret: process.env.WHSEC!,
-})
-```
-
-## Unified event stream
-
-Send events + webhook events converge on one `EmailEvent` shape:
-
-```ts
-import { EventBus, withEvents, memoryEventStore } from "unemail/events"
-
-const bus = new EventBus()
-const store = memoryEventStore()
-bus.on((e) => store.append(e))
-
-const email = createEmail({ driver: withEvents(resend({ apiKey }), bus) })
-
-// later:
-const timeline = await store.list!(messageId)
-// [send.queued, send.attempt, send.success, delivered, opened, ...]
-```
-
-## Typed addresses
-
-Validate at system boundaries — rejects malformed input before it
-reaches a driver:
-
-```ts
-import { parseAddress } from "unemail/address"
-
-const { data, error } = parseAddress("Ada <ada@acme.com>")
-if (error) throw error
-data.local // "ada"
-data.domain // "acme.com"
+const markdown: Renderer = {
+  name: "markdown",
+  type: "markdown",
+  render: (content) => ({ html: toHtml(content.source as string) }),
+}
 ```
 
 ## Testing
 
 ```ts
-import { createTestEmail, emailMatchers, toEmailSnapshot } from "unemail/test"
-import { expect } from "vitest"
+import { createEmail } from "unemail"
+import mock from "unemail/drivers/mock"
 
-expect.extend(emailMatchers)
+const driver = mock()
+const email = createEmail({ driver, defaults: { from: "hi@acme.com" } })
 
-const email = createTestEmail()
-await onboardingFlow(email, user)
+await email.send({ to: "ada@example.com", subject: "hi", text: "hello" })
 
-expect(email).toHaveSentTo("ada@acme.com")
-expect(email).toHaveSentWithSubject(/welcome/i)
-expect(email).toHaveSentWithAttachment("invite.ics")
-expect(email).toHaveSentMatching((m) => m.metadata?.userId === user.id)
-expect(toEmailSnapshot(email.last!)).toMatchSnapshot()
+const inbox = driver.getInstance()
+inbox.last()?.subject // "hi"
+inbox.find("ada@example.com") // every message addressed to Ada
 ```
 
-## Authoring a driver
+Simulate failures without a network:
 
 ```ts
-import { defineDriver } from "unemail"
-
-export default defineDriver<{ apiKey: string }>((opts) => ({
-  name: "my-driver",
-  options: opts,
-  flags: { html: true, attachments: true, batch: true, cancelable: true },
-  async send(msg) {
-    const res = await fetch("https://api.example.com/send", {
-      method: "POST",
-      headers: { authorization: `Bearer ${opts!.apiKey}` },
-      body: JSON.stringify(msg),
-    })
-    if (!res.ok) return { data: null, error: new Error("send failed") as never }
-    const body = (await res.json()) as { id: string }
-    return { data: { id: body.id, driver: "my-driver", at: new Date() }, error: null }
-  },
-  async cancel(id) {
-    /* optional */
-  },
-  async retrieve(id) {
-    /* optional */
-  },
-}))
+mock({ fail: { code: "RATE_LIMIT" } }) // everything fails
+mock({ failWhen: (msg, i) => i === 1 }) // partial batch failure
+mock({ latencyMs: 50 }) // slow provider
 ```
 
-## Result helpers
+## API
 
-```ts
-import { isOk, isErr, unwrap, unwrapOr, mapOk, tryAsync } from "unemail/result"
+### `createEmail(options)`
 
-const res = await email.send({ ... })
-if (isOk(res)) console.log(res.data.id)
-const id = unwrapOr(res, { id: "offline", driver: "mock", at: new Date() }).id
-```
+| Option     | Type                                                 |                                    |
+| ---------- | ---------------------------------------------------- | ---------------------------------- |
+| `driver`   | `EmailDriver`                                        | Required                           |
+| `mounts`   | `Record<string, EmailDriver>`                        | Routed by `message.stream`         |
+| `use`      | `Middleware[]`                                       | Outermost first                    |
+| `defaults` | `{ from, replyTo, headers, tags, metadata, stream }` | Applied to messages that omit them |
+| `signal`   | `AbortSignal`                                        | Cancels in-flight sends            |
+
+Returns an `Email` with `send`, `sendBatch`, `sendStream`, `cancel`,
+`retrieve`, `use`, `mount`, `unmount`, `getMount`, `getMounts`,
+`isAvailable` and `dispose`.
+
+`cancel` and `retrieve` return `UNSUPPORTED` on a driver that lacks them,
+rather than throwing.
+
+### Message
+
+`from` `to` `cc` `bcc` `replyTo` `subject` `preheader` `text` `html`
+`content` `headers` `attachments` `tags` `metadata` `idempotencyKey`
+`scheduledAt` `unsubscribe` `template` `tracking` `sandbox` `raw` `stream`
+
+Addresses accept `"a@b.com"`, `"Ada <a@b.com>"`, `{ email, name }`, or a
+list of any of those.
+
+## Compatibility
+
+| Runtime            | Core | HTTP drivers | SMTP |
+| ------------------ | ---- | ------------ | ---- |
+| Node 20.11+        | ✅   | ✅           | ✅   |
+| Bun                | ✅   | ✅           | ✅   |
+| Deno               | ✅   | ✅           | —    |
+| Cloudflare Workers | ✅   | ✅           | —    |
+| Browser            | ✅   | ✅           | —    |
+
+SMTP needs `node:net` and `node:tls`. Everything else is `fetch` and Web
+Crypto.
 
 ## Docs
 
-- [docs/drivers.md](./docs/drivers.md) — driver matrix + authoring guide + error taxonomy
-- [docs/rendering.md](./docs/rendering.md) — React Email / jsx-email / MJML / Handlebars / Liquid / i18n / HTML pipeline
-- [docs/inbound.md](./docs/inbound.md) — `unemail/parse` + unified inbound handler + reply stripper + thread stitcher
-- [docs/webhooks.md](./docs/webhooks.md) — signature verification for 6 providers + Standard Webhooks
-- [docs/deliverability.md](./docs/deliverability.md) — DKIM + ARC + List-Unsubscribe + DMARC + MTA-STS + suppression + preferences
-- [docs/testing.md](./docs/testing.md) — `createTestEmail`, `waitFor`, 5 Vitest matchers + snapshots
-- [docs/observability.md](./docs/observability.md) — logging + OTel + Prometheus metrics + unified event stream
-- [docs/queue.md](./docs/queue.md) — memory / unstorage / BullMQ / pg-boss / SQS
-- [docs/rfcs/001-packaging.md](./docs/rfcs/001-packaging.md) — why single package with sub-paths
-- [MIGRATION.md](./MIGRATION.md) — upgrading from v0.x
+- [Architecture](./docs/architecture.md) — the pipeline, and why the unit of
+  work is a list
+- [Drivers](./docs/drivers.md) — every option, provider quirks, capability
+  matrix
+- [Migration](./MIGRATION.md) — upgrading from 0.x
+
+## Upgrading from 0.x
+
+v1 is a rewrite. See [MIGRATION.md](./MIGRATION.md).
+
+## Contributing
+
+```sh
+bun install
+bun run check     # lint, typecheck, tests, version consistency
+bun run build
+```
 
 ## License
 
-Published under the [MIT](./LICENSE) license. Made by
-[@productdevbook](https://github.com/productdevbook) and
-[community](https://github.com/productdevbook/unemail/graphs/contributors).
-
-Architecture inspired by [`unjs/unstorage`](https://github.com/unjs/unstorage).
+[MIT](./LICENSE) © [productdevbook](https://github.com/productdevbook)

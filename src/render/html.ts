@@ -1,10 +1,13 @@
-/** Lightweight HTML → plain-text fallback for the text alternative of an
- *  HTML email. Not a full DOM parser — handles the patterns email clients
- *  actually care about (line breaks, block tags, links, entities).
+/**
+ * HTML → plain text, for the `text/plain` alternative every HTML email
+ * should carry. Not a DOM parser: it handles the constructs that matter in
+ * a mail body and nothing else, which is what keeps it dependency-free and
+ * usable inside a Worker.
  *
- *  Intentionally zero-dep: text fallback is nice-to-have and keeps the
- *  render entries Workers-parseable. If you need perfect fidelity, set
- *  `text` explicitly on the message. */
+ * Set `text` yourself when the fidelity matters.
+ *
+ * @module
+ */
 
 const BLOCK_TAGS = new Set([
   "p",
@@ -33,46 +36,43 @@ const BLOCK_TAGS = new Set([
   "hr",
 ])
 
-/** Convert an HTML string into a reasonable plain-text equivalent. */
 export function htmlToText(html: string): string {
-  // Strip scripts + styles entirely (case-insensitive).
   let out = html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
-
-  // <br> → newline.
   out = out.replace(/<br\s*\/?>/gi, "\n")
 
-  // <a href="..."> inner </a> → "inner (href)" if link text ≠ href.
-  out = out.replace(/<a\s+[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi, (_, href, inner) => {
-    const stripped = stripTags(inner).trim()
-    return stripped && stripped !== href ? `${stripped} (${href})` : href
-  })
+  // Keep the destination of a link — a plain-text reader that cannot see
+  // the anchor still needs somewhere to go.
+  out = out.replace(
+    /<a\s+[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi,
+    (_, href: string, inner: string) => {
+      const label = inner.replace(/<[^>]+>/g, "").trim()
+      return label && label !== href ? `${label} (${href})` : href
+    },
+  )
 
-  // Block tags → wrap with newlines.
-  out = out.replace(/<\/?([a-z0-9]+)[^>]*>/gi, (match, tag: string) => {
-    const name = tag.toLowerCase()
-    if (BLOCK_TAGS.has(name)) return "\n"
-    return ""
-  })
+  out = out.replace(/<\/?([a-z0-9]+)[^>]*>/gi, (_, tag: string) =>
+    BLOCK_TAGS.has(tag.toLowerCase()) ? "\n" : "",
+  )
 
-  out = decodeEntities(out)
-  out = out.replace(/[ \t]+\n/g, "\n")
-  out = out.replace(/\n{3,}/g, "\n\n")
-  return out.trim()
-}
-
-function stripTags(value: string): string {
-  return value.replace(/<[^>]+>/g, "")
+  return decodeEntities(out)
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
 }
 
 function decodeEntities(value: string): string {
-  return value
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&(?:apos);/g, "'")
-    .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) => String.fromCodePoint(parseInt(hex, 16)))
+  return (
+    value
+      .replace(/&nbsp;/g, " ")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&(?:#39|apos);/g, "'")
+      .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (_, hex: string) =>
+        String.fromCodePoint(Number.parseInt(hex, 16)),
+      )
+      // Last, so an escaped `&amp;lt;` does not decode twice into `<`.
+      .replace(/&amp;/g, "&")
+  )
 }

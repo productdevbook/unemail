@@ -11,7 +11,9 @@
     "forceConsistentCasingInFileNames": true,
     "noImplicitOverride": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "isolatedDeclarations": true,
+    "declaration": true
   },
-  "include": ["src", "test"]
+  "include": ["src", "test", "types"]
 }

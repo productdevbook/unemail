@@ -1,59 +1,104 @@
 /**
- * Public entry point for `unemail` — a driver-based, cross-runtime
- * TypeScript email library inspired by `unjs/unstorage`.
+ * `unemail` — a driver-based email library for TypeScript.
  *
- * Transports (SMTP, Resend, SES, Postmark, …) live under
- * `unemail/driver/<name>`. Rendering and inbound adapters live under
- * their own sub-paths (shipped incrementally).
+ * The core is this module: a message normalizer, a middleware pipeline, and
+ * a driver contract. Transports live under `unemail/drivers/<name>`,
+ * middleware under `unemail/middleware`, rendering under `unemail/render`.
+ * Nothing here imports a Node built-in, so the core runs unchanged on Node,
+ * Bun, Deno, Cloudflare Workers, and in a browser.
+ *
+ * ```ts
+ * import { createEmail } from "unemail"
+ * import resend from "unemail/drivers/resend"
+ * import { withRetry } from "unemail/middleware"
+ *
+ * const email = createEmail({
+ *   driver: resend({ apiKey: process.env.RESEND_API_KEY! }),
+ *   defaults: { from: "Acme <hi@acme.com>" },
+ *   use: [withRetry()],
+ * })
+ *
+ * const { data, error } = await email.send({
+ *   to: "ada@example.com",
+ *   subject: "Welcome",
+ *   html: "<p>Glad you are here.</p>",
+ * })
+ * ```
  *
  * @module
  */
-export { createEmail, type CreateEmailOptions, type Email } from "./email.ts"
-export { defineDriver } from "./_define.ts"
-export { memoryIdempotencyStore } from "./_idempotency.ts"
-export { formatAddress, isValidEmail, normalizeAddresses, parseAddress } from "./_normalize.ts"
-export { createError, createRequiredError, EmailError, toEmailError } from "./errors.ts"
+
 export {
-  type CircuitBreakerOptions,
-  type CircuitState,
-  type LogEntry,
-  type LoggerOptions,
-  type OtelSpan,
-  type OtelTracer,
-  type RateLimitOptions,
-  type RetryOptions,
-  type TelemetryOptions,
-  withCircuitBreaker,
-  withLogger,
-  withRateLimit,
-  withRetry,
-  withTelemetry,
-} from "./middleware/index.ts"
+  createEmail,
+  type CreateEmailOptions,
+  type Email,
+  type SendStreamOptions,
+} from "./core/email.ts"
+
 export {
-  defineTemplate,
-  htmlToText,
-  type Renderer,
-  type TemplateFn,
-  withRender,
-  type WithRenderOptions,
-} from "./render/index.ts"
+  compose,
+  defineDriver,
+  defineMiddleware,
+  driverHandler,
+  perMessage,
+  wrap,
+} from "./core/define.ts"
+
+export {
+  createError,
+  createRequiredError,
+  createUnsupportedError,
+  EmailError,
+  toEmailError,
+} from "./core/error.ts"
+
+export { err, isOk, ok, toBatchResult, unwrap } from "./core/result.ts"
+
+export {
+  dedupeAddresses,
+  formatAddress,
+  formatAddressList,
+  isValidEmail,
+  parseAddress,
+  toAddressList,
+} from "./core/address.ts"
+
+export {
+  getHeader,
+  hasHeader,
+  type MessageDefaults,
+  normalizeMessage,
+  patchMessage,
+} from "./core/message.ts"
+
 export type {
+  AddressInput,
   Attachment,
+  BatchResult,
   DriverFactory,
-  DriverFlags,
+  DriverFeatures,
+  DriverOf,
+  DriverWithInstance,
   EmailAddress,
-  EmailAddressInput,
   EmailDriver,
   EmailErrorCode,
   EmailMessage,
   EmailResult,
   EmailTag,
-  IdempotencyStore,
   MaybePromise,
+  MessageContent,
   Middleware,
+  NormalizedMessage,
   Result,
   SendContext,
-} from "./types.ts"
+  SendHandler,
+  SendState,
+  SendStatus,
+  TemplateOptions,
+  TrackingOptions,
+  UnsubscribeOptions,
+} from "./core/types.ts"
 
-/** Library version string — bumped automatically on release. */
-export const version = "1.0.0-alpha.0"
+/** The package version. Checked against `package.json` and `jsr.json` by
+ *  `scripts/check-version.mjs`, which CI runs — the three cannot drift. */
+export const version = "1.0.0"

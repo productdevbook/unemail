@@ -1,171 +1,195 @@
-import { describe, expect, it } from "vitest"
-import { createEmail } from "../../src/index.ts"
-import { createError } from "../../src/errors.ts"
+import { describe, expect, it, vi } from "vitest"
+import type { EmailDriver } from "../../src/core/types.ts"
+import { createEmail } from "../../src/core/email.ts"
+import { createError } from "../../src/core/error.ts"
+import { err, ok } from "../../src/core/result.ts"
 import { withRetry } from "../../src/middleware/retry.ts"
-import type { EmailDriver, EmailResult, Result } from "../../src/types.ts"
 
-/** Builds a driver that fails N times, then succeeds. Records each attempt. */
-function flakyDriver(
-  failures: number,
-  errorFactory = () => createError("flaky", "NETWORK", "boom"),
-): EmailDriver & { attempts: number } {
-  let attempts = 0
-  return {
-    name: "flaky",
-    attempts: 0,
-    send() {
-      attempts++
-      ;(this as { attempts: number }).attempts = attempts
-      if (attempts <= failures) return { data: null, error: errorFactory() }
-      const result: EmailResult = { id: `ok_${attempts}`, driver: "flaky", at: new Date() }
-      return { data: result, error: null }
+const msg = { to: "ada@example.com", subject: "hi", text: "hello" } as const
+const defaults = { from: "hi@acme.com" }
+const noSleep = { sleep: async () => {}, random: () => 0.5 }
+
+/** A driver whose per-call outcome the test dictates. */
+function scripted(script: (msgs: readonly { subject: string }[], call: number) => boolean[]) {
+  let call = 0
+  const calls: string[][] = []
+  const driver: EmailDriver = {
+    name: "scripted",
+    async sendBatch(msgs) {
+      const outcomes = script(msgs, call++)
+      calls.push(msgs.map((m) => m.subject))
+      return msgs.map((m, index) =>
+        outcomes[index]
+          ? ok({ id: `id_${m.subject}`, driver: "scripted", at: new Date() })
+          : err(createError("scripted", "NETWORK", `failed ${m.subject}`)),
+      )
     },
-  } as EmailDriver & { attempts: number }
+    async send(m, ctx) {
+      return (await driver.sendBatch!([m], ctx))[0]!
+    },
+  }
+  return { driver, calls }
 }
 
 describe("withRetry", () => {
-  it("retries until the driver succeeds", async () => {
-    const driver = flakyDriver(2)
-    const email = createEmail({
-      driver: withRetry(driver, { retries: 3, initialDelay: 1, sleep: () => Promise.resolve() }),
-    })
-    const res = await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
-    expect(res.error).toBeNull()
-    expect(driver.attempts).toBe(3)
+  it("retries only the failures, not the whole batch", async () => {
+    const { driver, calls } = scripted((msgs, call) =>
+      call === 0 ? msgs.map((m) => m.subject !== "b") : msgs.map(() => true),
+    )
+    const email = createEmail({ driver, defaults, use: [withRetry(noSleep)] })
+    const batch = await email.sendBatch([
+      { ...msg, subject: "a" },
+      { ...msg, subject: "b" },
+      { ...msg, subject: "c" },
+    ])
+
+    expect(batch.ok).toBe(true)
+    expect(calls).toEqual([["a", "b", "c"], ["b"]])
   })
 
-  it("gives up after exhausting retries", async () => {
-    const driver = flakyDriver(10)
-    const email = createEmail({
-      driver: withRetry(driver, { retries: 2, initialDelay: 1, sleep: () => Promise.resolve() }),
-    })
-    const res = await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
-    expect(res.data).toBeNull()
-    expect(driver.attempts).toBe(3) // 1 initial + 2 retries
+  it("keeps results in the caller's order after a retry", async () => {
+    const { driver } = scripted((msgs, call) =>
+      call === 0 ? msgs.map((m) => m.subject !== "b") : msgs.map(() => true),
+    )
+    const batch = await createEmail({ driver, defaults, use: [withRetry(noSleep)] }).sendBatch([
+      { ...msg, subject: "a" },
+      { ...msg, subject: "b" },
+      { ...msg, subject: "c" },
+    ])
+    expect(batch.results.map((r) => r.data?.id)).toEqual(["id_a", "id_b", "id_c"])
   })
 
-  it("does not retry non-retryable errors", async () => {
-    const driver = flakyDriver(5, () => createError("flaky", "AUTH", "bad key"))
-    const email = createEmail({
-      driver: withRetry(driver, { retries: 3, initialDelay: 1, sleep: () => Promise.resolve() }),
-    })
-    const res = await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
-    expect(res.error?.code).toBe("AUTH")
-    expect(driver.attempts).toBe(1)
+  it("gives up after the configured number of retries", async () => {
+    const { driver, calls } = scripted((msgs) => msgs.map(() => false))
+    const { error } = await createEmail({
+      driver,
+      defaults,
+      use: [withRetry({ retries: 2, ...noSleep })],
+    }).send(msg)
+    expect(error?.code).toBe("NETWORK")
+    expect(calls).toHaveLength(3)
   })
 
-  it("uses exponential backoff by default", async () => {
-    const delays: number[] = []
-    const driver = flakyDriver(3)
-    const email = createEmail({
-      driver: withRetry(driver, {
-        retries: 3,
-        initialDelay: 10,
-        sleep: async (ms: number) => {
-          delays.push(ms)
-        },
-      }),
-    })
-    await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
-    // attempt 0 → 10, attempt 1 → 20, attempt 2 → 40
-    expect(delays).toEqual([10, 20, 40])
-  })
-
-  it("honors Retry-After on 429", async () => {
-    const delays: number[] = []
-    let attempts = 0
+  it("does not retry a failure the driver marked non-retryable", async () => {
     const driver: EmailDriver = {
-      name: "rl",
-      send(): Result<EmailResult> {
-        attempts++
-        if (attempts === 1) {
-          const cause = { headers: { get: (n: string) => (n === "retry-after" ? "3" : null) } }
-          return {
-            data: null,
-            error: createError("rl", "RATE_LIMIT", "slow down", {
+      name: "hard",
+      send: () => err(createError("hard", "AUTH", "bad key")),
+    }
+    const send = vi.spyOn(driver, "send")
+    const { error } = await createEmail({ driver, defaults, use: [withRetry(noSleep)] }).send(msg)
+    expect(error?.code).toBe("AUTH")
+    expect(send).toHaveBeenCalledOnce()
+  })
+
+  it("honors a custom shouldRetry", async () => {
+    const { driver, calls } = scripted((msgs, call) => msgs.map(() => call > 0))
+    await createEmail({
+      driver,
+      defaults,
+      use: [withRetry({ ...noSleep, shouldRetry: (error) => error.code === "NETWORK" })],
+    }).send(msg)
+    expect(calls).toHaveLength(2)
+  })
+
+  it("raises the attempt number on each retry", async () => {
+    const attempts: number[] = []
+    const driver: EmailDriver = {
+      name: "counting",
+      send(_msg, ctx) {
+        attempts.push(ctx.attempt)
+        return err(createError("counting", "NETWORK", "again"))
+      },
+    }
+    await createEmail({ driver, defaults, use: [withRetry({ retries: 2, ...noSleep })] }).send(msg)
+    expect(attempts).toEqual([1, 2, 3])
+  })
+
+  describe("backoff", () => {
+    const delaysFor = async (options: Parameters<typeof withRetry>[0]) => {
+      const delays: number[] = []
+      const driver: EmailDriver = {
+        name: "always-fails",
+        send: () => err(createError("always-fails", "NETWORK", "no")),
+      }
+      await createEmail({
+        driver,
+        defaults,
+        use: [
+          withRetry({
+            retries: 3,
+            initialDelay: 100,
+            random: () => 0.5,
+            sleep: async (ms) => {
+              delays.push(ms)
+            },
+            ...options,
+          }),
+        ],
+      }).send(msg)
+      return delays
+    }
+
+    it("grows exponentially", async () => {
+      expect(await delaysFor({ backoff: "exponential" })).toEqual([100, 200, 400])
+    })
+
+    it("stays flat when constant", async () => {
+      expect(await delaysFor({ backoff: "constant" })).toEqual([100, 100, 100])
+    })
+
+    it("respects maxDelay", async () => {
+      expect(await delaysFor({ backoff: "exponential", maxDelay: 150 })).toEqual([100, 150, 150])
+    })
+
+    it("jitters around the exponential value by default", async () => {
+      expect(await delaysFor({})).toEqual([100, 200, 400])
+    })
+
+    it("prefers the provider's Retry-After over the computed backoff", async () => {
+      const delays: number[] = []
+      const driver: EmailDriver = {
+        name: "throttled",
+        send: () =>
+          err(
+            createError("throttled", "RATE_LIMIT", "slow down", {
               status: 429,
-              cause,
-              retryable: true,
+              cause: { headers: new Headers({ "retry-after": "7" }) },
             }),
-          }
-        }
-        return { data: { id: "ok", driver: "rl", at: new Date() }, error: null }
+          ),
+      }
+      await createEmail({
+        driver,
+        defaults,
+        use: [
+          withRetry({
+            retries: 1,
+            initialDelay: 100,
+            sleep: async (ms) => {
+              delays.push(ms)
+            },
+          }),
+        ],
+      }).send(msg)
+      expect(delays).toEqual([7000])
+    })
+  })
+
+  it("stops when the instance signal aborts", async () => {
+    const controller = new AbortController()
+    const driver: EmailDriver = {
+      name: "aborting",
+      send() {
+        controller.abort()
+        return err(createError("aborting", "NETWORK", "no"))
       },
     }
-    const email = createEmail({
-      driver: withRetry(driver, {
-        retries: 2,
-        initialDelay: 1,
-        sleep: async (ms: number) => {
-          delays.push(ms)
-        },
-      }),
-    })
-    const res = await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
-    expect(res.error).toBeNull()
-    expect(delays).toEqual([3000])
-  })
-
-  it("full-jitter clamps random delay into [0, exponential]", async () => {
-    const delays: number[] = []
-    const driver = flakyDriver(3)
-    const email = createEmail({
-      driver: withRetry(driver, {
-        retries: 3,
-        initialDelay: 100,
-        maxDelay: 10_000,
-        backoff: "full-jitter",
-        random: () => 0.5,
-        sleep: async (ms: number) => {
-          delays.push(ms)
-        },
-      }),
-    })
-    await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
-    expect(delays).toEqual([50, 100, 200])
-  })
-
-  it("exponential-jitter varies with random()", async () => {
-    const delays: number[] = []
-    const driver = flakyDriver(1)
-    const email = createEmail({
-      driver: withRetry(driver, {
-        retries: 3,
-        initialDelay: 100,
-        maxDelay: 10_000,
-        backoff: "exponential-jitter",
-        random: () => 0,
-        sleep: async (ms: number) => {
-          delays.push(ms)
-        },
-      }),
-    })
-    await email.send({ from: "a@b.com", to: "c@d.com", subject: "x", text: "x" })
-    expect(delays).toEqual([50])
-  })
-
-  it("routes to dead-letter after exhausting retries", async () => {
-    const driver = flakyDriver(10)
-    const letters: { msg: string; reason: unknown }[] = []
-    const dlq: EmailDriver = {
-      name: "dlq",
-      send(msg, ctx) {
-        letters.push({ msg: msg.subject, reason: ctx.meta.deadLetterReason })
-        return { data: { id: "dlq-1", driver: "dlq", at: new Date() }, error: null }
-      },
-    }
-    const email = createEmail({
-      driver: withRetry(driver, {
-        retries: 1,
-        initialDelay: 1,
-        deadLetter: dlq,
-        sleep: () => Promise.resolve(),
-      }),
-    })
-    const res = await email.send({ from: "a@b.com", to: "c@d.com", subject: "dead", text: "x" })
-    expect(res.data?.driver).toBe("dlq")
-    expect(letters).toHaveLength(1)
-    expect(letters[0]!.msg).toBe("dead")
-    expect(String(letters[0]!.reason)).toContain("boom")
+    const send = vi.spyOn(driver, "send")
+    await createEmail({
+      driver,
+      defaults,
+      signal: controller.signal,
+      use: [withRetry(noSleep)],
+    }).send(msg)
+    expect(send).toHaveBeenCalledOnce()
   })
 })
