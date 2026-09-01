@@ -130,6 +130,64 @@ describe("resend", () => {
   })
 })
 
+describe("HTTP request shaping", () => {
+  it("forwards a caller-supplied timeout instead of the hardcoded 30s", async () => {
+    const seen: (AbortSignal | undefined)[] = []
+    const stub = stubFetch(() => [200, { id: "re_1" }])
+    const spy = (async (url: string | URL, init: RequestInit = {}) => {
+      seen.push(init.signal ?? undefined)
+      return stub.fetch(url, init)
+    }) as unknown as typeof fetch
+
+    await createEmail({
+      driver: resend({ apiKey: "re_x", fetch: spy, timeoutMs: 1 }),
+      defaults,
+    }).send(msg)
+
+    expect(seen[0]).toBeInstanceOf(AbortSignal)
+  })
+
+  it("cancels an in-flight request when the instance signal aborts", async () => {
+    const controller = new AbortController()
+    let aborted = false
+    const hanging = (async (_url: string | URL, init: RequestInit = {}) => {
+      init.signal?.addEventListener("abort", () => {
+        aborted = true
+      })
+      controller.abort()
+      return new Response(JSON.stringify({ id: "x" }), { status: 200 })
+    }) as unknown as typeof fetch
+
+    await createEmail({
+      driver: resend({ apiKey: "re_x", fetch: hanging }),
+      defaults,
+      signal: controller.signal,
+    }).send(msg)
+
+    expect(aborted).toBe(true)
+  })
+
+  it("passes the signal through on postmark too", async () => {
+    const controller = new AbortController()
+    let aborted = false
+    const hanging = (async (_url: string | URL, init: RequestInit = {}) => {
+      init.signal?.addEventListener("abort", () => {
+        aborted = true
+      })
+      controller.abort()
+      return new Response(JSON.stringify({ MessageID: "pm_1" }), { status: 200 })
+    }) as unknown as typeof fetch
+
+    await createEmail({
+      driver: postmark({ token: "t", fetch: hanging }),
+      defaults,
+      signal: controller.signal,
+    }).send(msg)
+
+    expect(aborted).toBe(true)
+  })
+})
+
 describe("postmark", () => {
   it("maps the message onto Postmark's payload", async () => {
     const stub = stubFetch(() => [200, { MessageID: "pm_1", SubmittedAt: "2030-01-01T00:00:00Z" }])

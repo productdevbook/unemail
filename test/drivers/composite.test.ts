@@ -51,6 +51,22 @@ describe("mock", () => {
     expect(error?.retryable).toBe(true)
   })
 
+  it("counts failWhen's index across sends, not just within a batch", async () => {
+    const seen: number[] = []
+    const driver = mock({
+      failWhen: (_m, index) => {
+        seen.push(index)
+        return index === 1
+      },
+    })
+    const email = createEmail({ driver, defaults })
+    const first = await email.send({ ...msg, subject: "0" })
+    const second = await email.send({ ...msg, subject: "1" })
+    expect(seen).toEqual([0, 1])
+    expect(first.error).toBeNull()
+    expect(second.error).not.toBeNull()
+  })
+
   it("fails only the messages the predicate selects", async () => {
     const batch = await createEmail({
       driver: mock({ failWhen: (m) => m.subject === "bad" }),

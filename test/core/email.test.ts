@@ -328,6 +328,73 @@ describe("isAvailable", () => {
   })
 })
 
+describe("abort", () => {
+  it("cancels a batch on a driver that batches natively", async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const driver = mock()
+    const email = createEmail({ driver, defaults, signal: controller.signal })
+
+    const batch = await email.sendBatch([msg, msg])
+
+    expect(batch.ok).toBe(false)
+    expect(batch.results.every((r) => r.error?.code === "CANCELLED")).toBe(true)
+    expect(driver.getInstance().messages).toHaveLength(0)
+  })
+
+  it("cancels a single send the same way", async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const driver = mock()
+    const { error } = await createEmail({ driver, defaults, signal: controller.signal }).send(msg)
+    expect(error?.code).toBe("CANCELLED")
+    expect(driver.getInstance().messages).toHaveLength(0)
+  })
+})
+
+describe("the mounts option", () => {
+  it("routes exactly like mount()", async () => {
+    const a = mock()
+    const b = mock()
+    const email = createEmail({ driver: a, mounts: { b }, defaults })
+    await email.send({ ...msg, stream: "b" })
+    await email.send(msg)
+    expect(a.getInstance().messages).toHaveLength(1)
+    expect(b.getInstance().messages).toHaveLength(1)
+    expect(email.getMounts().map((m) => m.stream)).toEqual(["b"])
+  })
+})
+
+describe("context meta", () => {
+  it("reaches the caller on a success", async () => {
+    const email = createEmail({ driver: mock(), defaults }).use(
+      defineMiddleware("timing", (next) => async (msgs, ctx) => {
+        const results = await next(msgs, ctx)
+        ctx.meta.durationMs = 42
+        return results
+      }),
+    )
+    const { data } = await email.send(msg)
+    expect(data?.meta).toEqual({ durationMs: 42 })
+  })
+
+  it("reaches the caller on a failure too", async () => {
+    const email = createEmail({ driver: mock({ fail: true }), defaults }).use(
+      defineMiddleware("trace", (next) => async (msgs, ctx) => {
+        ctx.meta.traceId = "abc"
+        return next(msgs, ctx)
+      }),
+    )
+    const { error } = await email.send(msg)
+    expect(error?.meta).toEqual({ traceId: "abc" })
+  })
+
+  it("is absent when no middleware wrote anything", async () => {
+    const { data } = await createEmail({ driver: mock(), defaults }).send(msg)
+    expect(data?.meta).toBeUndefined()
+  })
+})
+
 describe("dispose", () => {
   it("disposes the default driver and every mount, once", async () => {
     const disposeA = vi.fn()
