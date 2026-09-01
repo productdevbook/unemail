@@ -8,6 +8,7 @@
     "batch-email",
     "brevo",
     "cloudflare-email",
+    "cloudflare-email-service",
     "cloudflare-workers",
     "dkim",
     "dmarc",
@@ -116,6 +117,10 @@
     "./driver/cloudflare-email": {
       "types": "./dist/driver/cloudflare-email.d.mts",
       "default": "./dist/driver/cloudflare-email.mjs"
+    },
+    "./driver/cloudflare-email-service": {
+      "types": "./dist/driver/cloudflare-email-service.d.mts",
+      "default": "./dist/driver/cloudflare-email-service.mjs"
     },
     "./driver/mailcrab": {
       "types": "./dist/driver/mailcrab.d.mts",

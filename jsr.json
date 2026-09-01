@@ -17,6 +17,7 @@
     "./driver/loops": "./src/driver/loops.ts",
     "./driver/mailchannels": "./src/driver/mailchannels.ts",
     "./driver/cloudflare-email": "./src/driver/cloudflare-email.ts",
+    "./driver/cloudflare-email-service": "./src/driver/cloudflare-email-service.ts",
     "./driver/mailcrab": "./src/driver/mailcrab.ts",
     "./driver/resend": "./src/driver/resend.ts",
     "./driver/fallback": "./src/driver/fallback.ts",
