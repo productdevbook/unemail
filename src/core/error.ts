@@ -72,6 +72,10 @@ export function createUnsupportedError(driver: string, what: string): EmailError
  *  untouched so its `retryable` and `status` survive re-wrapping. */
 export function toEmailError(driver: string, error: unknown): EmailError {
   if (error instanceof EmailError) return error
+  // A deadline and a cancellation are different events. `AbortSignal.timeout`
+  // throws `TimeoutError`, which is transient and worth retrying; a caller
+  // aborting throws `AbortError`, which is a decision and is not.
+  if (isTimeout(error)) return createError(driver, "TIMEOUT", "timed out", { cause: error })
   if (isAbort(error)) return createError(driver, "CANCELLED", "aborted", { cause: error })
   if (error instanceof Error) {
     return createError(driver, "PROVIDER", error.message, { cause: error })
@@ -79,6 +83,10 @@ export function toEmailError(driver: string, error: unknown): EmailError {
   return createError(driver, "PROVIDER", String(error), { cause: error })
 }
 
+function isTimeout(error: unknown): boolean {
+  return error instanceof Error && error.name === "TimeoutError"
+}
+
 function isAbort(error: unknown): boolean {
-  return error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError")
+  return error instanceof Error && error.name === "AbortError"
 }

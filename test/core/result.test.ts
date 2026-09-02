@@ -118,10 +118,20 @@ describe("toEmailError", () => {
     expect(toEmailError("d", abort).code).toBe("CANCELLED")
   })
 
-  it("classifies a timeout as CANCELLED", () => {
+  it("classifies a deadline as a retryable TIMEOUT, not a cancellation", () => {
+    // `AbortSignal.timeout` throws this. Calling it CANCELLED would make
+    // retry skip a request that only ran out of time.
     const timeout = new Error("timed out")
     timeout.name = "TimeoutError"
-    expect(toEmailError("d", timeout).code).toBe("CANCELLED")
+    const error = toEmailError("d", timeout)
+    expect(error.code).toBe("TIMEOUT")
+    expect(error.retryable).toBe(true)
+  })
+
+  it("keeps a caller's abort non-retryable", () => {
+    const abort = new Error("aborted")
+    abort.name = "AbortError"
+    expect(toEmailError("d", abort).retryable).toBe(false)
   })
 
   it("wraps an ordinary Error as PROVIDER and keeps the cause", () => {

@@ -110,6 +110,7 @@
     "typecheck": "tsgo --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "bench": "vitest bench --run",
     "check": "bun run lint && bun run typecheck && bun run test:coverage && bun run check:version",
     "check:version": "node scripts/check-version.mjs",
     "bundle-budget": "node scripts/bundle-budget.mjs",

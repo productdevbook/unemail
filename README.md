@@ -394,6 +394,7 @@ Crypto.
   work is a list
 - [Drivers](./docs/drivers.md) — every option, provider quirks, capability
   matrix
+- [Benchmarks](./docs/benchmarks.md) — what the pipeline costs, measured
 - [Migration](./MIGRATION.md) — upgrading from 0.x
 
 ## Upgrading from 0.x
@@ -404,8 +405,9 @@ v1 is a rewrite. See [MIGRATION.md](./MIGRATION.md).
 
 ```sh
 bun install
-bun run check     # lint, typecheck, tests, version consistency
+bun run check     # lint, typecheck, tests + coverage, version consistency
 bun run build
+bun run bench     # see docs/benchmarks.md
 ```
 
 ## License
