@@ -12,6 +12,12 @@ export interface PoolOptions {
   connection: ConnectionOptions
 }
 
+/** A queued `acquire()`, with both ways it can end. */
+interface Waiter {
+  deliver: (entry: Entry) => void
+  fail: (error: unknown) => void
+}
+
 /** Entry wraps a `SmtpConnection` with pool bookkeeping. */
 interface Entry {
   conn: SmtpConnection
@@ -32,7 +38,11 @@ export interface ConnectionPool {
 export function createPool(options: PoolOptions): ConnectionPool {
   const idle = new Set<Entry>()
   const inFlight = new Map<SmtpConnection, Entry>()
-  const waiters: Array<(entry: Entry) => void> = []
+  // A waiter carries both outcomes. It used to be a bare resolve function,
+  // which meant a handoff that could not produce a connection had no way to
+  // tell the caller — it was shifted off the queue and simply forgotten, so
+  // the `acquire()` promise behind it never settled and the send hung.
+  const waiters: Waiter[] = []
   let disposed = false
   let disposePromise: Promise<void> | null = null
 
@@ -74,15 +84,17 @@ export function createPool(options: PoolOptions): ConnectionPool {
       }
       // 3. Otherwise wait for a release.
       return new Promise<SmtpConnection>((resolve, reject) => {
-        const waiter = (entry: Entry) => {
-          if (disposed) {
-            reject(cancelledError("pool disposed while waiting"))
-            return
-          }
-          inFlight.set(entry.conn, entry)
-          resolve(entry.conn)
-        }
-        waiters.push(waiter)
+        waiters.push({
+          deliver(entry) {
+            if (disposed) {
+              reject(cancelledError("pool disposed while waiting"))
+              return
+            }
+            inFlight.set(entry.conn, entry)
+            resolve(entry.conn)
+          },
+          fail: reject,
+        })
       })
     },
 
@@ -109,14 +121,20 @@ export function createPool(options: PoolOptions): ConnectionPool {
         // Try to hand a fresh connection to the next waiter.
         if (waiters.length > 0 && !disposed) {
           const next = waiters.shift()!
-          const fresh = await create()
-          next(fresh)
+          try {
+            next.deliver(await create())
+          } catch (error) {
+            // The provider stopped accepting connections. Fail this waiter
+            // rather than drop it; capacity is free again, so the next
+            // acquire creates directly and the queue keeps moving.
+            next.fail(error)
+          }
         }
         return
       }
       // Hand off to a waiter if present; otherwise park in idle.
       if (waiters.length > 0) {
-        waiters.shift()!(entry)
+        waiters.shift()!.deliver(entry)
         return
       }
       idle.add(entry)
@@ -129,7 +147,7 @@ export function createPool(options: PoolOptions): ConnectionPool {
       disposePromise = (async () => {
         // 1. Reject waiters.
         while (waiters.length > 0) {
-          waiters.shift()!({ conn: rejectedConn(), uses: 0 })
+          waiters.shift()!.fail(cancelledError("pool disposed"))
         }
         // 2. Wait a grace period for in-flight sends to finish naturally.
         const deadline = Date.now() + options.disposeGraceMs
@@ -159,19 +177,5 @@ export function createPool(options: PoolOptions): ConnectionPool {
     size() {
       return { idle: idle.size, inFlight: inFlight.size, waiters: waiters.length }
     },
-  }
-}
-
-function rejectedConn(): SmtpConnection {
-  // Placeholder returned to waiters during dispose — callers are already
-  // rejected via the waiter promise; this value is never used.
-  return {
-    id: -1,
-    capabilities: { authMethods: new Set(), starttls: false, size: 0, smtputf8: false },
-    sendMessage: () => Promise.reject(cancelledError("pool disposed")),
-    reset: () => Promise.reject(cancelledError("pool disposed")),
-    quit: () => Promise.resolve(),
-    destroy: () => {},
-    isOpen: () => false,
   }
 }

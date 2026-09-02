@@ -9,7 +9,8 @@ import type {
   SendHandler,
 } from "./types.ts"
 import { err, ok } from "./result.ts"
-import { toEmailError } from "./error.ts"
+import type { EmailError } from "./error.ts"
+import { createUnsupportedError, toEmailError } from "./error.ts"
 
 /**
  * Declare a driver. Purely a typing helper — it makes `TOpts` required
@@ -109,19 +110,10 @@ export function wrap<TInstance>(
  * returns exactly one result per input.
  */
 export function driverHandler(driver: EmailDriver): SendHandler {
-  return async (msgs, ctx) => {
-    if (msgs.length === 0) return []
-
-    // Before choosing a branch: the native-batch path never reaches the
-    // per-message check below, so an already-aborted send would otherwise
-    // go out anyway.
-    if (ctx.signal?.aborted) {
-      const cancelled = err<EmailResult>(
-        toEmailError(driver.name, ctx.signal.reason ?? new Error("aborted")),
-      )
-      return msgs.map(() => cancelled)
-    }
-
+  async function deliver(
+    msgs: readonly NormalizedMessage[],
+    ctx: SendContext,
+  ): Promise<readonly Result<EmailResult>[]> {
     if (msgs.length > 1 && driver.sendBatch) {
       let results: readonly Result<EmailResult>[]
       try {
@@ -158,6 +150,57 @@ export function driverHandler(driver: EmailDriver): SendHandler {
     }
     return out
   }
+
+  return async (msgs, ctx) => {
+    if (msgs.length === 0) return []
+
+    // Before choosing a branch: the native-batch path never reaches the
+    // per-message check below, so an already-aborted send would otherwise
+    // go out anyway.
+    if (ctx.signal?.aborted) {
+      const cancelled = err<EmailResult>(
+        toEmailError(driver.name, ctx.signal.reason ?? new Error("aborted")),
+      )
+      return msgs.map(() => cancelled)
+    }
+
+    // A message asking for something the driver has said it cannot do is
+    // refused rather than quietly sent wrong: a template-only message on a
+    // driver without templates has no body at all, and `scheduledAt` on one
+    // without scheduling goes out immediately. Only that message fails —
+    // the rest of the batch is unaffected, as with any other failure.
+    const unsupported = msgs.map((msg) => unsupportedFor(driver, msg))
+    if (!unsupported.some(Boolean)) return deliver(msgs, ctx)
+
+    const sendable = msgs.filter((_, index) => !unsupported[index])
+    const produced = sendable.length > 0 ? await deliver(sendable, ctx) : []
+    let slot = 0
+    return msgs.map((_, index) => {
+      const refusal = unsupported[index]
+      return refusal ? err<EmailResult>(refusal) : produced[slot++]!
+    })
+  }
+}
+
+/** What this driver cannot do with this message, if anything. Only
+ *  features whose absence changes what the recipient receives are checked;
+ *  a driver that ignores `tags` still sends the right mail. */
+function unsupportedFor(driver: EmailDriver, msg: NormalizedMessage): EmailError | null {
+  const features = driver.features
+  if (!features) return null
+  if (msg.template && !features.templates) {
+    return createUnsupportedError(driver.name, "`template`")
+  }
+  if (msg.scheduledAt && !features.scheduling) {
+    return createUnsupportedError(driver.name, "`scheduledAt`")
+  }
+  if (msg.sandbox && !features.sandbox) {
+    return createUnsupportedError(driver.name, "`sandbox`")
+  }
+  if (msg.attachments.length > 0 && features.attachments === false) {
+    return createUnsupportedError(driver.name, "`attachments`")
+  }
+  return null
 }
 
 /** A middleware that throws must not take the batch down with it — its

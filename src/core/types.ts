@@ -29,11 +29,18 @@ export type AddressInput = string | EmailAddress | readonly (string | EmailAddre
 // Message
 // ---------------------------------------------------------------------------
 
-/** A file part. `content` is either raw bytes or a base64 string; set
- *  `cid` to reference it from HTML as `<img src="cid:...">`. */
+/** A file part. Set `cid` to reference it from HTML as
+ *  `<img src="cid:...">`. */
 export interface Attachment {
   readonly filename: string
+  /** Raw bytes, or a string. A string is treated as text unless
+   *  `encoding` says otherwise. */
   readonly content: string | Uint8Array
+  /** How to read a string `content`. Default: `utf8`. Say `base64` when
+   *  you already encoded it — the library will not guess, because `"test"`
+   *  is both valid text and valid base64 and guessing wrong corrupts the
+   *  file silently. Ignored when `content` is bytes. */
+  readonly encoding?: "utf8" | "base64"
   readonly contentType?: string
   readonly disposition?: "attachment" | "inline"
   readonly cid?: string

@@ -85,6 +85,8 @@ const { data, error } = await email.send({
   html: "<p>Attached.</p>",
   preheader: "Invoice #1042 · due in 14 days",
   attachments: [{ filename: "invoice.pdf", content: bytes, contentType: "application/pdf" }],
+  // A string attachment is text unless you say `encoding: "base64"` —
+  // the library will not guess, because "test" is valid as both.
   tags: [{ name: "campaign", value: "billing" }],
 })
 ```
@@ -214,6 +216,10 @@ on a name:
 ```ts
 if (email.driver.features?.scheduling) await email.send({ ...msg, scheduledAt })
 ```
+
+The core reads the same declaration. Asking a driver for something it has
+said it cannot do returns `UNSUPPORTED` instead of sending a message with
+the important part missing.
 
 ### Failover
 

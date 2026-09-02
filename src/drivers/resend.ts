@@ -2,6 +2,8 @@ import type {
   DriverFactory,
   EmailResult,
   NormalizedMessage,
+  Result,
+  SendContext,
   SendState,
   SendStatus,
 } from "../core/types.ts"
@@ -10,6 +12,7 @@ import { defineDriver } from "../core/define.ts"
 import { createError, createRequiredError } from "../core/error.ts"
 import { err, ok } from "../core/result.ts"
 import { attachmentToBase64 } from "./_base64.ts"
+import { batchIdempotencyKey, chunk } from "./_chunk.ts"
 import { httpJson, resolveFetch } from "./_fetch.ts"
 
 export interface ResendOptions {
@@ -26,6 +29,8 @@ export interface ResendOptions {
 }
 
 const DRIVER = "resend"
+/** Resend caps `/emails/batch` at 100 messages per request. */
+const BATCH_LIMIT = 100
 
 /**
  * Resend, over its REST API.
@@ -63,6 +68,17 @@ const resend: DriverFactory<ResendOptions> = defineDriver<ResendOptions>((option
     })
   }
 
+  async function sendOne(msg: NormalizedMessage, ctx: SendContext): Promise<Result<EmailResult>> {
+    const response = await request("/emails", "POST", toPayload(msg), {
+      ...(msg.idempotencyKey ? { idempotencyKey: msg.idempotencyKey } : {}),
+      ...(ctx.signal ? { signal: ctx.signal } : {}),
+    })
+    if (response.error) return err(response.error)
+    const body = (response.data ?? {}) as { id?: string }
+    if (!body.id) return err(missingId(response.data))
+    return ok(toResult(body.id, msg, body))
+  }
+
   return {
     name: DRIVER,
     features: {
@@ -81,31 +97,43 @@ const resend: DriverFactory<ResendOptions> = defineDriver<ResendOptions>((option
 
     isAvailable: () => Boolean(options.apiKey),
 
-    async send(msg, ctx) {
-      const response = await request("/emails", "POST", toPayload(msg), {
-        ...(msg.idempotencyKey ? { idempotencyKey: msg.idempotencyKey } : {}),
-        ...(ctx.signal ? { signal: ctx.signal } : {}),
-      })
-      if (response.error) return err(response.error)
-      const body = (response.data ?? {}) as { id?: string }
-      if (!body.id) return err(missingId(response.data))
-      return ok(toResult(body.id, msg, body))
-    },
+    send: sendOne,
 
     async sendBatch(msgs, ctx) {
-      const response = await request("/emails/batch", "POST", msgs.map(toPayload), {
-        ...(ctx.signal ? { signal: ctx.signal } : {}),
-      })
-      if (response.error) return msgs.map(() => err<EmailResult>(response.error))
-      const body = (response.data ?? {}) as { data?: { id: string }[] }
-      const entries = body.data ?? []
-      // Resend answers positionally; if it ever does not, the core's
-      // length check turns that into a loud failure rather than a
-      // silently mismatched set of ids.
-      return msgs.map((msg, index) => {
-        const entry = entries[index]
-        return entry?.id ? ok(toResult(entry.id, msg, entry)) : err<EmailResult>(missingId(body))
-      })
+      // The batch endpoint has no attachment support — "The attachments
+      // field is not supported yet" — so a batch carrying one goes down the
+      // single-send path, which does. Otherwise `sendBatch([a])` would
+      // attach the file and `sendBatch([a, b])` would quietly not.
+      if (msgs.some((msg) => msg.attachments.length > 0)) {
+        const out: Result<EmailResult>[] = []
+        for (const msg of msgs) out.push(await sendOne(msg, ctx))
+        return out
+      }
+
+      const results: Result<EmailResult>[] = []
+      for (const group of chunk(msgs, BATCH_LIMIT)) {
+        const idempotencyKey = await batchIdempotencyKey(group.map((msg) => msg.idempotencyKey))
+        const response = await request("/emails/batch", "POST", group.map(toPayload), {
+          ...(idempotencyKey ? { idempotencyKey } : {}),
+          ...(ctx.signal ? { signal: ctx.signal } : {}),
+        })
+        if (response.error) {
+          for (const _ of group) results.push(err<EmailResult>(response.error))
+          continue
+        }
+        const body = (response.data ?? {}) as { data?: { id: string }[] }
+        const entries = body.data ?? []
+        // Resend answers positionally; if it ever does not, the core's
+        // length check turns that into a loud failure rather than a
+        // silently mismatched set of ids.
+        for (const [index, msg] of group.entries()) {
+          const entry = entries[index]
+          results.push(
+            entry?.id ? ok(toResult(entry.id, msg, entry)) : err<EmailResult>(missingId(body)),
+          )
+        }
+      }
+      return results
     },
 
     async cancel(id) {
@@ -157,7 +185,7 @@ function toPayload(msg: NormalizedMessage): Record<string, unknown> {
   if (msg.attachments.length > 0) {
     payload.attachments = msg.attachments.map((attachment) => ({
       filename: attachment.filename,
-      content: attachmentToBase64(attachment.content),
+      content: attachmentToBase64(attachment),
       ...(attachment.contentType ? { content_type: attachment.contentType } : {}),
       ...(attachment.cid ? { content_id: attachment.cid } : {}),
     }))
