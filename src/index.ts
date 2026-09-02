@@ -101,4 +101,4 @@ export type {
 
 /** The package version. Checked against `package.json` and `jsr.json` by
  *  `scripts/check-version.mjs`, which CI runs — the three cannot drift. */
-export const version = "1.0.0"
+export const version = "0.6.0"

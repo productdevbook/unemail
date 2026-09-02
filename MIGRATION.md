@@ -1,14 +1,14 @@
-# Migrating from 0.x to 1.0
+# Migrating from 0.5 to 0.6
 
-v1 is a rewrite. The driver idea survives; almost every signature around it
+0.6 is a rewrite. The driver idea survives; almost every signature around it
 changed. Read the two sections that apply to you and skip the rest.
 
 ## Why
 
-0.x had two composition models side by side — hook-based `Middleware`
+0.5 had two composition models side by side — hook-based `Middleware`
 (`beforeSend` / `afterSend` / `onError`) and driver decorators
 (`withRetry(driver)`). The second existed because retry cannot be written
-with the first. v1 has one model, and it operates on a list, which is what
+with the first. 0.6 has one model, and it operates on a list, which is what
 lets retry re-send only the messages that failed.
 
 Four defects came out with the old design:
@@ -25,12 +25,12 @@ Four defects came out with the old design:
 
 ## Scope
 
-**Every 0.x driver is present.** They were dropped in the first v1 commit
+**Every 0.5 driver is present.** They were dropped in the first rewrite commit
 and restored immediately after, each one rewritten against the new contract
 and checked against the provider's current documentation — which turned up
 defects the old versions had been shipping. See `docs/drivers.md`.
 
-These 0.x entry points are **not** in 1.0.0 and are being reintroduced
+These 0.5 entry points are **not** in 0.6.0 and are being reintroduced
 against the new core:
 
 `unemail/inbound/*` · `unemail/webhook/*` · `unemail/queue/*` ·
@@ -39,7 +39,7 @@ against the new core:
 `unemail/compliance` · `unemail/preferences` · `unemail/events` ·
 `unemail/test`.
 
-Pin `unemail@^0.5.0` if you depend on one of those today.
+Pin `unemail@0.5.x` if you depend on one of those today.
 
 ## Import paths
 
