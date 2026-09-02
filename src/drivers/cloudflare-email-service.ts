@@ -153,7 +153,7 @@ const cloudflareEmailService: DriverFactory<CloudflareEmailServiceOptions> =
           result = await options.binding.send({
             from: msg.from,
             to: [...msg.to],
-            subject: msg.subject,
+            subject: msg.subject ?? "",
             ...(msg.text == null ? {} : { text: msg.text }),
             ...(msg.html == null ? {} : { html: msg.html }),
             ...(msg.cc.length > 0 ? { cc: [...msg.cc] } : {}),

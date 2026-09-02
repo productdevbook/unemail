@@ -44,6 +44,15 @@ export function stringToBase64(value: string): string {
  * pass content through already encoded.
  */
 export function attachmentToBase64(attachment: Attachment): string {
-  if (typeof attachment.content !== "string") return bytesToBase64(attachment.content)
-  return attachment.encoding === "base64" ? attachment.content : stringToBase64(attachment.content)
+  const { content } = attachment
+  if (content == null) {
+    // A driver reaching here for a `url` attachment has not checked
+    // `features.remoteAttachments`; sending an empty part would be worse.
+    throw new Error(
+      `[unemail] attachment ${JSON.stringify(attachment.filename)} has a url, not content — ` +
+        "this driver cannot fetch it",
+    )
+  }
+  if (typeof content !== "string") return bytesToBase64(content)
+  return attachment.encoding === "base64" ? content : stringToBase64(content)
 }

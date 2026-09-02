@@ -46,7 +46,7 @@ export function toMimeInput(
     cc: msg.cc,
     bcc: msg.bcc,
     replyTo: msg.replyTo,
-    subject: msg.subject,
+    subject: msg.subject ?? "",
     ...(msg.text == null ? {} : { text: msg.text }),
     ...(msg.html == null ? {} : { html: msg.html }),
     headers: msg.headers,

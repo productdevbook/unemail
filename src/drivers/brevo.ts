@@ -262,7 +262,7 @@ function sharedEnvelope(msg: NormalizedMessage): string {
     msg.stream ?? null,
     // Attachments are per request, not per version — differing ones would
     // reach every recipient in the batch.
-    msg.attachments.map((a) => a.filename + ":" + a.content.length),
+    msg.attachments.map((a) => `${a.filename}:${a.url ?? a.content?.length}`),
   ])
 }
 

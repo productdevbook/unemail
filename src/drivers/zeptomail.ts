@@ -280,11 +280,11 @@ function validate(msg: NormalizedMessage) {
       `${msg.attachments.length} attachments; ZeptoMail accepts at most ${ATTACHMENT_LIMIT}`,
     )
   }
-  if (msg.subject.length > SUBJECT_LIMIT) {
+  if ((msg.subject?.length ?? 0) > SUBJECT_LIMIT) {
     return createError(
       DRIVER,
       "INVALID_OPTIONS",
-      `\`subject\` is ${msg.subject.length} characters; ZeptoMail accepts at most ${SUBJECT_LIMIT}`,
+      `\`subject\` is ${msg.subject?.length} characters; ZeptoMail accepts at most ${SUBJECT_LIMIT}`,
     )
   }
   return null

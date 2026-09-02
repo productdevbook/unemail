@@ -14,7 +14,7 @@ export interface LogEntry {
   /** Present when at least one message failed. */
   readonly errors?: readonly { readonly code: string; readonly message: string }[]
   /** Omitted unless `redact` is set to `"none"`. */
-  readonly messages?: readonly { readonly to: string; readonly subject: string }[]
+  readonly messages?: readonly { readonly to: string; readonly subject?: string }[]
 }
 
 export interface LoggerOptions {
@@ -63,7 +63,10 @@ export function withLogger(options: LoggerOptions = {}): Middleware {
 }
 
 function describe(msg: NormalizedMessage) {
-  return { to: msg.to.map((address) => address.email).join(", "), subject: msg.subject }
+  return {
+    to: msg.to.map((address) => address.email).join(", "),
+    ...(msg.subject == null ? {} : { subject: msg.subject }),
+  }
 }
 
 function defaultLog(entry: LogEntry) {

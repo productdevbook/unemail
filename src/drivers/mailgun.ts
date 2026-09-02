@@ -249,7 +249,7 @@ function toFields(
 
   const fields: [string, string][] = [
     ["from", formatAddress(msg.from)],
-    ["subject", msg.subject],
+    ["subject", msg.subject ?? ""],
   ]
   if (msg.text != null) fields.push(["text", msg.text])
   if (msg.html != null) fields.push(["html", msg.html])
@@ -311,14 +311,19 @@ function appendAttachment(form: FormData, attachment: Attachment): void {
 
 function toBlob(attachment: Attachment): Blob {
   const type = attachment.contentType ?? "application/octet-stream"
-  if (typeof attachment.content !== "string")
-    return new Blob([copyBytes(attachment.content)], { type })
+  const content = attachment.content
+  if (content == null) {
+    // The core refuses a url attachment before a driver without
+    // `features.remoteAttachments` is reached.
+    throw new Error(`[unemail] [mailgun] attachment ${attachment.filename} has no content`)
+  }
+  if (typeof content !== "string") return new Blob([copyBytes(content)], { type })
   // A string is text unless the caller declared it encoded; decoding it
   // here is what keeps the bytes on the wire identical to what every other
   // driver sends for the same attachment.
   return attachment.encoding === "base64"
-    ? new Blob([base64ToBytes(attachment.content)], { type })
-    : new Blob([attachment.content], { type })
+    ? new Blob([base64ToBytes(content)], { type })
+    : new Blob([content], { type })
 }
 
 /** Blob will not take a view that might sit over a `SharedArrayBuffer`. */

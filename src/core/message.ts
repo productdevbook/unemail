@@ -53,7 +53,14 @@ export function normalizeMessage(
     }
   }
 
-  if (typeof input.subject !== "string") throw invalid("`subject` is required")
+  // A template carries its own subject, and a subject sent alongside one
+  // overrides it — which is almost never what the caller meant.
+  if (input.subject == null && input.template == null) {
+    throw invalid("`subject` is required unless `template` is set")
+  }
+  if (input.subject != null && typeof input.subject !== "string") {
+    throw invalid("`subject` must be a string")
+  }
 
   const hasBody =
     input.text != null ||
@@ -63,6 +70,17 @@ export function normalizeMessage(
     input.template != null
   if (!hasBody) {
     throw invalid("message has no body — set one of `text`, `html`, `content`, `template`, `raw`")
+  }
+
+  for (const [index, attachment] of (input.attachments ?? []).entries()) {
+    const hasContent = attachment.content != null
+    const hasUrl = attachment.url != null
+    if (hasContent === hasUrl) {
+      throw invalid(
+        `attachments[${index}] must set exactly one of \`content\` and \`url\`` +
+          (hasContent ? ", not both" : ""),
+      )
+    }
   }
 
   const headers = buildHeaders(input, defaults)
@@ -76,7 +94,7 @@ export function normalizeMessage(
     cc,
     bcc,
     replyTo,
-    subject: input.subject,
+    ...(input.subject == null ? {} : { subject: input.subject }),
     ...(input.text == null ? {} : { text: input.text }),
     ...(html == null ? {} : { html }),
     ...(input.content == null ? {} : { content: input.content }),
