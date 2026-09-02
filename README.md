@@ -409,11 +409,11 @@ Crypto.
 - [Drivers](./docs/drivers.md) — every option, provider quirks, capability
   matrix
 - [Benchmarks](./docs/benchmarks.md) — what the pipeline costs, measured
-- [Migration](./MIGRATION.md) — upgrading from 0.x
+- [Migration](./MIGRATION.md) — upgrading from 0.5
 
-## Upgrading from 0.x
+## Upgrading from 0.5
 
-v1 is a rewrite. See [MIGRATION.md](./MIGRATION.md).
+0.6 is a rewrite. See [MIGRATION.md](./MIGRATION.md).
 
 ## Contributing
 

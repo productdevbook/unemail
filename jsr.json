@@ -1,6 +1,6 @@
 {
   "name": "@productdevbook/unemail",
-  "version": "1.0.0",
+  "version": "0.6.0",
   "exports": {
     ".": "./src/index.ts",
     "./drivers/brevo": "./src/drivers/brevo.ts",
