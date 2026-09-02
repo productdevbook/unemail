@@ -8,7 +8,13 @@ resend({ apiKey: process.env.RESEND_API_KEY!, endpoint?, fetch?, timeoutMs? })
 
 Native batch (`/emails/batch`), scheduling, `cancel()`, `retrieve()`, and
 provider-side idempotency via the `Idempotency-Key` header when the message
-carries an `idempotencyKey`.
+carries an `idempotencyKey`. A batch presents one key derived from its
+messages' keys — stable for the same batch, so a retry is recognised as a
+repeat rather than duplicating every message in it.
+
+Batches are chunked at Resend's cap of 100 messages per request. Resend's
+batch endpoint does not accept attachments, so a batch carrying one is sent
+message by message instead; the caller sees no difference.
 
 Resend has no metadata field, so `message.metadata` is sent as
 `X-Metadata-*` headers — which is what comes back on its webhook events.
@@ -24,8 +30,11 @@ postmark({ token, messageStream?, endpoint?, fetch?, timeoutMs? })
 Pass the per-server token, not the account token.
 
 Postmark reports per-message failures inside a `200` batch response; those
-become individual failed results rather than a failed batch. It accepts one
-`Tag` per message, so extra tags carry as metadata instead of being dropped.
+become individual failed results rather than a failed batch. Batches are
+chunked at its cap of 500.
+
+Its `Tag` is a single string with no value, so the first tag's name goes
+there and every tag — the first included — is also carried as `Metadata`.
 
 Templated and plain messages use different endpoints and cannot be mixed in
 one batch — a mixed batch fails with `INVALID_OPTIONS` before any request
@@ -77,8 +86,13 @@ dependencies. `port` defaults to 465 when `secure`, 587 otherwise.
 With `pool: true` connections are reused; one that fails mid-transaction is
 discarded rather than returned in an unknown protocol state.
 
-DKIM signs the assembled document. Pass a function to select a key per
-message for multi-tenant sending:
+`EHLO` announces the machine's hostname when it is fully qualified, and
+`localhost.localdomain` otherwise. Override it with `localName`.
+
+DKIM signs the assembled document, and accepts an RSA key in either PKCS8
+(`BEGIN PRIVATE KEY`) or PKCS1 (`BEGIN RSA PRIVATE KEY`, what
+`openssl genrsa` writes); Ed25519 must be PKCS8. Pass a function to select a
+key per message for multi-tenant sending:
 
 ```ts
 smtp({ host, dkim: (msg) => keyFor(msg.from.email.split("@")[1]!) })
@@ -145,3 +159,9 @@ Read it at runtime rather than hard-coding it:
 ```ts
 if (email.driver.features?.scheduling) await email.send({ ...msg, scheduledAt })
 ```
+
+The core reads it too. A message asking for something the driver has said it
+cannot do — a `template` on a driver without templates, a `scheduledAt` on
+one without scheduling — comes back `UNSUPPORTED` rather than being sent
+without the part that mattered. Only that message fails; the rest of a batch
+goes out. A driver that declares no `features` at all is not second-guessed.

@@ -7,6 +7,7 @@ import type {
   SendContext,
 } from "../core/types.ts"
 import { driverHandler } from "../core/define.ts"
+import { createInitializer } from "./_lazy-init.ts"
 import { createError } from "../core/error.ts"
 import { err } from "../core/result.ts"
 
@@ -42,6 +43,7 @@ export function fallback(
   const name = options.name ?? "fallback"
   const shouldFailover = options.shouldFailover ?? defaultShouldFailover
   const handlers = drivers.map((driver) => ({ driver, handle: driverHandler(driver) }))
+  const initialize = createInitializer()
 
   async function run(
     msgs: readonly NormalizedMessage[],
@@ -53,7 +55,7 @@ export function fallback(
     for (const [leg, { driver, handle }] of handlers.entries()) {
       if (pending.length === 0) break
       const legCtx: SendContext = { ...ctx, driver: driver.name }
-      await driver.initialize?.()
+      await initialize(driver)
       const produced = await handle(
         pending.map((index) => msgs[index]!),
         legCtx,

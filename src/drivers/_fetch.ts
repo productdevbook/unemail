@@ -66,7 +66,22 @@ export async function httpJson(request: HttpRequest): Promise<Result<unknown>> {
     return err(toEmailError(request.driver, error))
   }
 
-  const text = await response.text()
+  // fetch() resolves once the headers arrive, so the body is still a live
+  // stream. A proxy timing out or a socket reset here used to throw past
+  // the driver boundary and be reported as a non-retryable PROVIDER error —
+  // exactly backwards for a transient failure.
+  let text: string
+  try {
+    text = await response.text()
+  } catch (error) {
+    return err(
+      createError(request.driver, "NETWORK", "connection closed while reading the response", {
+        status: response.status,
+        retryable: true,
+        cause: error,
+      }),
+    )
+  }
   const parsed = text ? safeJson(text) : null
 
   if (!response.ok) {

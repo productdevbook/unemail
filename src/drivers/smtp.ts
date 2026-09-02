@@ -77,7 +77,7 @@ const smtp: (options: SmtpOptions) => DriverWithInstance<ConnectionPool> = defin
     getAccessToken: options.getAccessToken,
     rejectUnauthorized: options.rejectUnauthorized ?? true,
     tls: options.tls,
-    localName: options.localName ?? resolveLocalName(),
+    localName: options.localName ?? "localhost.localdomain",
     connectionTimeoutMs: options.connectionTimeoutMs ?? 30_000,
     commandTimeoutMs: options.commandTimeoutMs ?? 10_000,
   }
@@ -104,6 +104,12 @@ const smtp: (options: SmtpOptions) => DriverWithInstance<ConnectionPool> = defin
     },
 
     getInstance: getPool,
+
+    async initialize() {
+      // Resolved once per driver: the core memoizes `initialize`, so the
+      // lookup does not repeat per send.
+      if (!options.localName) connection.localName = await resolveLocalName()
+    },
 
     async dispose() {
       if (!pool) return
@@ -164,17 +170,23 @@ const smtp: (options: SmtpOptions) => DriverWithInstance<ConnectionPool> = defin
 
 export default smtp
 
-/** EHLO wants a name the server can look up. `require` is reached
- *  indirectly so bundlers targeting a Worker do not try to resolve
- *  `node:os` at build time. */
-function resolveLocalName(): string {
+/**
+ * EHLO wants a name the server can look up. `node:os` is imported for it —
+ * `connection.ts` already imports `node:net` and `node:tls` dynamically, so
+ * this driver is Node-only either way. The previous implementation reached
+ * for `globalThis.require`, which does not exist in an ESM module, so the
+ * hostname was unreachable and every connection announced itself as
+ * `localhost.localdomain`.
+ */
+async function resolveLocalName(): Promise<string> {
   const proc = (globalThis as { process?: { versions?: { node?: string } } }).process
   if (!proc?.versions?.node) return "localhost"
   try {
-    const req = (globalThis as { require?: (id: string) => unknown }).require
-    const os = req?.("node:os") as { hostname?: () => string } | undefined
-    const hostname = os?.hostname?.()
-    return hostname && /^[\w.-]+$/.test(hostname) ? hostname : "localhost.localdomain"
+    const os = await import("node:os")
+    const name = os.hostname()
+    // A bare label is not a name a receiver can resolve; RFC 5321 §4.1.1.1
+    // asks for a fully-qualified domain, and a dotless one reads as forged.
+    return /^[\w-]+(\.[\w-]+)+$/.test(name) ? name : "localhost.localdomain"
   } catch {
     return "localhost.localdomain"
   }

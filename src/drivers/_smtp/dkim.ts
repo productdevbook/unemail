@@ -14,8 +14,9 @@ export interface DkimSignerOptions {
   selector: string
   /** Signing domain. */
   domain: string
-  /** Private key as PEM (RSA: PKCS8 or PKCS1; Ed25519: PKCS8). Also
-   *  accepts a pre-imported CryptoKey. */
+  /** Private key as PEM, or a pre-imported `CryptoKey`. RSA accepts both
+   *  PKCS8 (`BEGIN PRIVATE KEY`) and PKCS1 (`BEGIN RSA PRIVATE KEY`, what
+   *  `openssl genrsa` writes); Ed25519 must be PKCS8. */
   privateKey: string | CryptoKey
   /** Signing algorithm. Default: `rsa-sha256`. */
   algorithm?: "rsa-sha256" | "ed25519-sha256"
@@ -27,6 +28,34 @@ export interface DkimSignerOptions {
 /** Per-message signer. Takes a built RFC 5322 message (headers + CRLF +
  *  body) and returns a new message with a leading `DKIM-Signature:`
  *  header. */
+/** DER: a definite-length header for `tag` around `length` content bytes. */
+function derHeader(tag: number, length: number): number[] {
+  if (length < 0x80) return [tag, length]
+  const bytes: number[] = []
+  for (let n = length; n > 0; n >>= 8) bytes.unshift(n & 0xff)
+  return [tag, 0x80 | bytes.length, ...bytes]
+}
+
+/**
+ * Wrap a PKCS1 RSA key in the PKCS8 envelope Web Crypto requires.
+ *
+ * `openssl genrsa` writes PKCS1 (`BEGIN RSA PRIVATE KEY`), which is what
+ * most DKIM key recipes produce, and Web Crypto has no PKCS1 import format
+ * at all — it fails with an unhelpful `Invalid keyData`. The envelope is
+ * PrivateKeyInfo from RFC 5208: version 0, the rsaEncryption algorithm
+ * identifier, then the PKCS1 key as an OCTET STRING.
+ */
+function pkcs1ToPkcs8(pkcs1: Uint8Array): Uint8Array {
+  const version = [0x02, 0x01, 0x00]
+  // AlgorithmIdentifier { OID 1.2.840.113549.1.1.1, NULL }
+  const algorithm = [
+    0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
+  ]
+  const key = [...derHeader(0x04, pkcs1.length), ...pkcs1]
+  const body = [...version, ...algorithm, ...key]
+  return new Uint8Array([...derHeader(0x30, body.length), ...body])
+}
+
 export async function signDkim(message: string, options: DkimSignerOptions): Promise<string> {
   const algorithm = options.algorithm ?? "rsa-sha256"
   const headerNames = normalizeHeaderList(
@@ -169,8 +198,12 @@ async function importKey(
     .replace(/-----BEGIN [A-Z ]+-----/g, "")
     .replace(/-----END [A-Z ]+-----/g, "")
     .replace(/\s+/g, "")
-  const der = base64ToBytes(b64)
+  const isPkcs1 = /-----BEGIN RSA PRIVATE KEY-----/.test(pem)
+  const der = isPkcs1 ? pkcs1ToPkcs8(base64ToBytes(b64)) : base64ToBytes(b64)
   if (algorithm === "ed25519-sha256") {
+    if (isPkcs1) {
+      throw new Error("[unemail/dkim] ed25519 keys must be PKCS8, not PKCS1")
+    }
     return crypto.subtle.importKey(
       "pkcs8",
       der as BufferSource,

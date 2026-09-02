@@ -1,7 +1,7 @@
 import type { Attachment, EmailAddress, NormalizedMessage } from "../core/types.ts"
 import { formatAddress } from "../core/address.ts"
 import { getHeader } from "../core/message.ts"
-import { attachmentToBase64, stringToBase64 } from "./_base64.ts"
+import { attachmentToBase64, bytesToBase64 } from "./_base64.ts"
 
 /**
  * RFC 5322 / 2045 message builder, shared by SMTP (which transmits it) and
@@ -182,15 +182,17 @@ function part(bound: string, contentType: string, content: string): string {
 function renderAttachment(bound: string, attachment: Attachment): string {
   const contentType = attachment.contentType ?? "application/octet-stream"
   const disposition = attachment.disposition ?? (attachment.cid ? "inline" : "attachment")
-  const name = encodeHeaderValue(attachment.filename)
+  const name = quoteParameter(attachment.filename)
+  // RFC 2231 values are assigned with `*=`, quoted ones with `=`.
+  const assign = name.startsWith("UTF-8''") ? "*=" : "="
   const lines = [
     `--${bound}`,
-    `Content-Type: ${contentType}; name="${name}"`,
+    `Content-Type: ${contentType}; name${assign}${name}`,
     "Content-Transfer-Encoding: base64",
-    `Content-Disposition: ${disposition}; filename="${name}"`,
+    `Content-Disposition: ${disposition}; filename${assign}${name}`,
   ]
   if (attachment.cid) lines.push(`Content-ID: <${attachment.cid}>`)
-  lines.push("", foldBase64(attachmentToBase64(attachment.content)))
+  lines.push("", foldBase64(attachmentToBase64(attachment)))
   return lines.join("\r\n")
 }
 
@@ -221,11 +223,64 @@ function foldHeader(value: string, max = 76): string {
   return lines.join("\r\n")
 }
 
-/** RFC 2047 encoded-word, so a non-ASCII subject survives the 7-bit
- *  header channel. */
+/**
+ * RFC 2047 encoded-words, so a non-ASCII header value survives the 7-bit
+ * header channel.
+ *
+ * Split into several words rather than one: RFC 2047 §2 caps an
+ * encoded-word at 75 characters, and `foldHeader` cannot break a single
+ * long one because base64 contains no spaces — a long subject would go out
+ * as one line past RFC 5322's 998-octet limit. Words are joined with CRLF
+ * and a space, which is how a decoder is told to concatenate them.
+ */
 function encodeHeaderValue(value: string): string {
   if (/^[\x20-\x7E]*$/.test(value)) return value
-  return `=?utf-8?B?${stringToBase64(value)}?=`
+
+  // 75 total, minus `=?utf-8?B?` and `?=`; then down to the largest
+  // multiple of 4, since base64 grows in quads.
+  const maxBase64 = Math.floor((75 - "=?utf-8?B?".length - "?=".length) / 4) * 4
+  const maxBytes = (maxBase64 / 4) * 3
+
+  const bytes = new TextEncoder().encode(value)
+  const words: string[] = []
+  let start = 0
+  while (start < bytes.length) {
+    // Never split a multi-byte character across two words: a decoder
+    // concatenates the decoded bytes, but each word must be valid on its own.
+    let end = Math.min(start + maxBytes, bytes.length)
+    while (end > start && end < bytes.length && (bytes[end]! & 0xc0) === 0x80) end--
+    words.push(`=?utf-8?B?${bytesToBase64(bytes.subarray(start, end))}?=`)
+    start = end
+  }
+  return words.join("\r\n ")
+}
+
+/**
+ * A MIME parameter value, quoted.
+ *
+ * Escaping matters: an unescaped quote in a filename closes the string and
+ * lets the rest of the name append parameters of its own, so
+ * `report.txt"; filename="payload.exe` would have arrived as two filenames.
+ * Non-ASCII goes through RFC 2231, which is what receivers expect for
+ * parameters — RFC 2047 encoded-words are not valid here.
+ */
+function quoteParameter(value: string): string {
+  if (/^[\x20-\x7E]*$/.test(value)) {
+    return `"${value.replace(/["\\]/g, "\\$&")}"`
+  }
+  const encoded = [...new TextEncoder().encode(value)]
+    .map((byte) =>
+      (byte >= 0x30 && byte <= 0x39) ||
+      (byte >= 0x41 && byte <= 0x5a) ||
+      (byte >= 0x61 && byte <= 0x7a) ||
+      byte === 0x2d ||
+      byte === 0x2e ||
+      byte === 0x5f
+        ? String.fromCharCode(byte)
+        : `%${byte.toString(16).toUpperCase().padStart(2, "0")}`,
+    )
+    .join("")
+  return `UTF-8''${encoded}`
 }
 
 function encodeQuotedPrintable(input: string): string {

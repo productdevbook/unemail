@@ -4,6 +4,7 @@ import { defineDriver } from "../core/define.ts"
 import { createError, createRequiredError } from "../core/error.ts"
 import { err, ok } from "../core/result.ts"
 import { attachmentToBase64 } from "./_base64.ts"
+import { chunk } from "./_chunk.ts"
 import { classifyStatus, httpJson, resolveFetch } from "./_fetch.ts"
 
 export interface PostmarkOptions {
@@ -24,6 +25,8 @@ export interface PostmarkOptions {
 const DRIVER = "postmark"
 /** Postmark's "sender signature not confirmed" / bad-token family. */
 const AUTH_ERROR_CODES = new Set([10, 400, 401])
+/** Postmark answers `ErrorCode 410, Too many batch messages` past this. */
+const BATCH_LIMIT = 500
 
 /**
  * Postmark, over its REST API. The one mainstream provider with real
@@ -99,23 +102,31 @@ const postmark: DriverFactory<PostmarkOptions> = defineDriver<PostmarkOptions>((
         return msgs.map(() => conflict)
       }
 
-      const payload = msgs.map((msg) => toPayload(msg, options.messageStream))
-      const response = await request(
-        withTemplate ? "/email/batchWithTemplates" : "/email/batch",
-        withTemplate ? { Messages: payload } : payload,
-        ctx.signal,
-      )
-      if (response.error) return msgs.map(() => err<EmailResult>(response.error))
-
-      const entries = (response.data ?? []) as PostmarkResponse[]
-      // Postmark reports per-message failures inside a 200 response, which
-      // is exactly the case an all-or-nothing batch used to lose.
-      return msgs.map((msg, index) => {
-        const entry = entries[index]
-        if (!entry)
-          return err<EmailResult>(createError(DRIVER, "PROVIDER", "no result for message"))
-        return toResult(entry, msg, options.messageStream)
-      })
+      const results: Result<EmailResult>[] = []
+      for (const group of chunk(msgs, BATCH_LIMIT)) {
+        const payload = group.map((msg) => toPayload(msg, options.messageStream))
+        const response = await request(
+          withTemplate ? "/email/batchWithTemplates" : "/email/batch",
+          withTemplate ? { Messages: payload } : payload,
+          ctx.signal,
+        )
+        if (response.error) {
+          for (const _ of group) results.push(err<EmailResult>(response.error))
+          continue
+        }
+        const entries = (response.data ?? []) as PostmarkResponse[]
+        // Postmark reports per-message failures inside a 200 response, which
+        // is exactly the case an all-or-nothing batch used to lose.
+        for (const [index, msg] of group.entries()) {
+          const entry = entries[index]
+          results.push(
+            entry
+              ? toResult(entry, msg, options.messageStream)
+              : err<EmailResult>(createError(DRIVER, "PROVIDER", "no result for message")),
+          )
+        }
+      }
+      return results
     },
   }
 })
@@ -175,15 +186,15 @@ function toPayload(msg: NormalizedMessage, defaultStream?: string): Record<strin
   const headers = Object.entries(msg.headers)
   if (headers.length > 0) payload.Headers = headers.map(([Name, Value]) => ({ Name, Value }))
   if (Object.keys(msg.metadata).length > 0) payload.Metadata = { ...msg.metadata }
-  // Postmark takes exactly one tag; the rest carry as metadata so nothing
-  // the caller set is silently dropped.
+  // Postmark's Tag is a single string with no value of its own, so the
+  // first tag's name goes there and every tag — the first one included —
+  // is also carried as metadata. Otherwise tag[0].value would be the one
+  // thing the caller set that reached nobody.
   if (msg.tags.length > 0) {
     payload.Tag = msg.tags[0]!.name
-    if (msg.tags.length > 1) {
-      payload.Metadata = {
-        ...(payload.Metadata as Record<string, string> | undefined),
-        ...Object.fromEntries(msg.tags.slice(1).map((tag) => [tag.name, tag.value])),
-      }
+    payload.Metadata = {
+      ...(payload.Metadata as Record<string, string> | undefined),
+      ...Object.fromEntries(msg.tags.map((tag) => [tag.name, tag.value])),
     }
   }
   if (msg.tracking?.opens != null) payload.TrackOpens = msg.tracking.opens
@@ -192,7 +203,7 @@ function toPayload(msg: NormalizedMessage, defaultStream?: string): Record<strin
   if (msg.attachments.length > 0) {
     payload.Attachments = msg.attachments.map((attachment) => ({
       Name: attachment.filename,
-      Content: attachmentToBase64(attachment.content),
+      Content: attachmentToBase64(attachment),
       ContentType: attachment.contentType ?? "application/octet-stream",
       ...(attachment.cid ? { ContentID: `cid:${attachment.cid}` } : {}),
     }))

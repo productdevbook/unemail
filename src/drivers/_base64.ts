@@ -7,6 +7,8 @@
  * @module
  */
 
+import type { Attachment } from "../core/types.ts"
+
 interface BufferGlobal {
   Buffer?: {
     from: (
@@ -32,15 +34,16 @@ export function stringToBase64(value: string): string {
   return bytesToBase64(new TextEncoder().encode(value))
 }
 
-/** Whether a string is already base64, so an attachment handed to us
- *  pre-encoded is not encoded twice. */
-export function isBase64(value: string): boolean {
-  const compact = value.replace(/[\r\n]/g, "")
-  return compact.length > 0 && compact.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(compact)
-}
-
-/** Encode attachment content for a provider that wants base64. */
-export function attachmentToBase64(content: string | Uint8Array): string {
-  if (typeof content !== "string") return bytesToBase64(content)
-  return isBase64(content) ? content : stringToBase64(content)
+/**
+ * Encode attachment content for a provider that wants base64.
+ *
+ * A string is treated as text unless the caller says otherwise. Guessing
+ * is not an option here: `"test"` is both valid text and valid base64, and
+ * a wrong guess is silent — the recipient's client decodes the text into
+ * three bytes of noise with no error anywhere. Set `encoding: "base64"` to
+ * pass content through already encoded.
+ */
+export function attachmentToBase64(attachment: Attachment): string {
+  if (typeof attachment.content !== "string") return bytesToBase64(attachment.content)
+  return attachment.encoding === "base64" ? attachment.content : stringToBase64(attachment.content)
 }

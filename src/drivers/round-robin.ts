@@ -1,5 +1,6 @@
 import type { EmailDriver, EmailResult, SendContext } from "../core/types.ts"
 import { driverHandler } from "../core/define.ts"
+import { createInitializer } from "./_lazy-init.ts"
 import { createError } from "../core/error.ts"
 import { err } from "../core/result.ts"
 
@@ -30,6 +31,7 @@ export function roundRobin(
   if (drivers.length === 0) throw createError("round-robin", "INVALID_OPTIONS", "no drivers given")
   const name = options.name ?? "round-robin"
   const handlers = drivers.map((driver) => ({ driver, handle: driverHandler(driver) }))
+  const initialize = createInitializer()
   // The weights are expanded into a fixed schedule once, so picking the
   // next driver is an array index rather than a weighted draw per send.
   const schedule = buildSchedule(drivers.length, options.weights)
@@ -63,7 +65,7 @@ export function roundRobin(
 
     async send(msg, ctx) {
       const { driver, handle } = handlers[nextIndex()]!
-      await driver.initialize?.()
+      await initialize(driver)
       const produced = await handle([msg], { ...ctx, driver: driver.name })
       return produced[0] ?? err<EmailResult>(noResult(driver.name))
     },
@@ -82,7 +84,7 @@ export function roundRobin(
         [...partitions].map(async ([target, indices]) => {
           const { driver, handle } = handlers[target]!
           const ctxForLeg: SendContext = { ...ctx, driver: driver.name }
-          await driver.initialize?.()
+          await initialize(driver)
           const produced = await handle(
             indices.map((index) => msgs[index]!),
             ctxForLeg,
