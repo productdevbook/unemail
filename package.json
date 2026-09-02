@@ -43,6 +43,14 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
+    "./drivers/ahasend": {
+      "types": "./dist/drivers/ahasend.d.mts",
+      "default": "./dist/drivers/ahasend.mjs"
+    },
+    "./drivers/azure-communication": {
+      "types": "./dist/drivers/azure-communication.d.mts",
+      "default": "./dist/drivers/azure-communication.mjs"
+    },
     "./drivers/brevo": {
       "types": "./dist/drivers/brevo.d.mts",
       "default": "./dist/drivers/brevo.mjs"
@@ -71,6 +79,10 @@
       "types": "./dist/drivers/loops.d.mts",
       "default": "./dist/drivers/loops.mjs"
     },
+    "./drivers/mailbreeze": {
+      "types": "./dist/drivers/mailbreeze.d.mts",
+      "default": "./dist/drivers/mailbreeze.mjs"
+    },
     "./drivers/mailchannels": {
       "types": "./dist/drivers/mailchannels.d.mts",
       "default": "./dist/drivers/mailchannels.mjs"
@@ -86,6 +98,14 @@
     "./drivers/mailgun": {
       "types": "./dist/drivers/mailgun.d.mts",
       "default": "./dist/drivers/mailgun.mjs"
+    },
+    "./drivers/mailjet": {
+      "types": "./dist/drivers/mailjet.d.mts",
+      "default": "./dist/drivers/mailjet.mjs"
+    },
+    "./drivers/mailpit": {
+      "types": "./dist/drivers/mailpit.d.mts",
+      "default": "./dist/drivers/mailpit.mjs"
     },
     "./drivers/mailtrap": {
       "types": "./dist/drivers/mailtrap.d.mts",
@@ -107,6 +127,10 @@
       "types": "./dist/drivers/round-robin.d.mts",
       "default": "./dist/drivers/round-robin.mjs"
     },
+    "./drivers/scaleway": {
+      "types": "./dist/drivers/scaleway.d.mts",
+      "default": "./dist/drivers/scaleway.mjs"
+    },
     "./drivers/sendgrid": {
       "types": "./dist/drivers/sendgrid.d.mts",
       "default": "./dist/drivers/sendgrid.mjs"
@@ -118,6 +142,10 @@
     "./drivers/smtp": {
       "types": "./dist/drivers/smtp.d.mts",
       "default": "./dist/drivers/smtp.mjs"
+    },
+    "./drivers/smtp2go": {
+      "types": "./dist/drivers/smtp2go.d.mts",
+      "default": "./dist/drivers/smtp2go.mjs"
     },
     "./drivers/tee": {
       "types": "./dist/drivers/tee.d.mts",

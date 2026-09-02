@@ -164,7 +164,7 @@ export function createEmail(options: CreateEmailOptions): Email {
       if (!driver.cancel) return err(createUnsupportedError(driver.name, "cancel()"))
       try {
         await ensureInitialized(driver)
-        return await driver.cancel(id)
+        return await driver.cancel(id, { ...(options.signal ? { signal: options.signal } : {}) })
       } catch (error) {
         return err(toEmailError(driver.name, error))
       }
@@ -175,7 +175,7 @@ export function createEmail(options: CreateEmailOptions): Email {
       if (!driver.retrieve) return err(createUnsupportedError(driver.name, "retrieve()"))
       try {
         await ensureInitialized(driver)
-        return await driver.retrieve(id)
+        return await driver.retrieve(id, { ...(options.signal ? { signal: options.signal } : {}) })
       } catch (error) {
         return err(toEmailError(driver.name, error))
       }

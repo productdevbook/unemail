@@ -469,6 +469,176 @@ response, and because the meta snapshot is taken the moment the pipeline
 returns. The cost is that a send takes the slowest leg's time — bound it with
 that leg's own `timeoutMs`.
 
+## Mailjet — `unemail/drivers/mailjet`
+
+```ts
+mailjet({ apiKeyPublic, apiKeyPrivate, endpoint?, fetch?, timeoutMs? })
+```
+
+Its `Messages` array **is** the batch — batching is the shape of the API
+rather than a separate endpoint — and the response carries a status per
+message and per recipient, which is exactly what the positional `sendBatch`
+contract wants. Nothing has to be inferred.
+
+`SandboxMode` maps to `message.sandbox`, and a per-message failure arriving
+inside a `200` becomes that message's failure rather than the batch's.
+
+## Scaleway Transactional Email — `unemail/drivers/scaleway`
+
+```ts
+scaleway({ secretKey, projectId, region?, endpoint?, fetch?, timeoutMs? })
+```
+
+European residency without a marketing suite attached. `region` is in the
+path — `fr-par` by default — and `project_id` is required by the API, so it
+is a driver option. The API is `v1alpha1`, which is worth knowing: an alpha
+API can move.
+
+One limit is enforced and the rest deliberately are not. The **2 MB** cap on
+the whole email is the only TEM quota whose maximum equals its default and
+cannot be raised, so it is checked before the request. The 10-attachment and
+10-recipient caps _are_ upgradable per account, and refusing locally would
+block a customer whose quota was raised. The MIME whitelist is Scaleway's to
+change, and a false rejection is unrecoverable.
+
+Two provider-shape error rules: `quotas_exceeded` arrives as a 403, which
+would read as `AUTH`, and is reclassified `RATE_LIMIT` **non-retryable** —
+a monthly quota does not clear by waiting. And `invalid_arguments` has its
+`details[]` folded into the message, which otherwise says only "invalid
+argument(s)".
+
+Scaleway bills one email object per recipient, so a three-recipient send
+answers with three: `EmailResult.id` is the first and `provider` carries
+them all.
+
+`scheduling` is **not** claimed. Scaleway's `send_before` is a delivery
+_deadline_, not a send time — mapping `scheduledAt` onto it would send
+immediately and mean something else entirely.
+
+## Mailbreeze — `unemail/drivers/mailbreeze`
+
+```ts
+mailbreeze({ apiKey, endpoint?, fetch?, timeoutMs? })
+```
+
+The key must be `sk_live_…` or `sk_test_…`, checked at construction,
+because the sandbox is a property of the **key** rather than the request.
+So `message.sandbox` on a live key is refused with a reason rather than
+ignored — believing a live send was a test is the failure worth preventing —
+and the response's `sandbox` flag is normalized to a boolean on
+`EmailResult.provider`, so a live send reads `false` rather than
+`undefined`.
+
+`attachments` is **not** claimed. Mailbreeze takes `attachmentIds` from a
+three-step presigned-upload flow, not inline content; there is no wire
+format for an attachment this library could produce, so the core refuses one
+with `UNSUPPORTED` instead of dropping it.
+
+Its documentation contradicts itself on the base path and the auth header —
+`/v1/emails` with `x-api-key` in the quickstart, `/api/v1/emails` with a
+bearer token in the reference samples. The driver follows the former, which
+two pages agree on; `endpoint` covers the other if it turns out to be live.
+
+## Azure Communication Services — `unemail/drivers/azure-communication`
+
+```ts
+azureCommunication({ connectionString })
+azureCommunication({ endpoint, accessKey })
+```
+
+Takes the connection string the portal gives you, or the two halves
+separately.
+
+Authentication is an HMAC-SHA256 signature over
+`{VERB}\n{path+query}\n{x-ms-date};{host};{x-ms-content-sha256}`, signed
+with Web Crypto — no `@azure/*` package, so it runs in a Worker. The access
+key is base64 and **must be decoded** before it is used as the HMAC key;
+using it raw signs every request wrong and Azure answers with a bare 401.
+
+**This is the only driver where `retrieve()` costs nothing.** A send is a
+long-running operation: it answers `202` with an operation id, and
+`retrieve(id)` polls it. Everywhere else, per-message status is a paid
+add-on. `retrieve` receives the instance's `AbortSignal`, because a poll a
+caller has given up on should stop.
+
+`Operation-Id` is a caller-supplied idempotency handle, so
+`message.idempotencyKey` maps onto it — hashed into a UUID when it is not
+already one, since Azure insists.
+
+Two things to know. `Succeeded` means _accepted for delivery_, not
+delivered, so it maps to `sent` rather than `delivered`; real delivery
+arrives over Event Grid, which this library has no channel for. And
+`senderAddress` is a bare string in the current schema, so `from.name` has
+nowhere to go — the sender display name is configured on the sender in the
+portal.
+
+The 10 MB request cap is checked on the serialized body before signing, so
+an oversized request costs no HMAC and no round trip.
+
+## SMTP2GO — `unemail/drivers/smtp2go`
+
+```ts
+smtp2go({ apiKey, region?, endpoint?, fetch?, timeoutMs?, fastAccept? })
+```
+
+`region` picks `{region}-api.smtp2go.com` (`us`, `eu`, `au`); leaving it
+unset uses the global host, which routes by the DNS resolver's location
+rather than by where the account's data lives.
+
+**It answers 200 even when the send failed**, with the reason in `failures`
+and a count in `failed`. A driver reading the status alone reports every
+send as a success. Handled the way Postmark's per-message errors are.
+`fastAccept` trades that report for speed: `succeeded`, `failed` and
+`failures` are absent entirely, so nothing can be checked.
+
+**The first driver to accept an attachment by URL.** `features.remoteAttachments`
+is declared, and `{ filename, mimetype, url }` goes on the wire instead of
+base64 — so a large file never passes through this process.
+
+Inline images are keyed by the **cid, not the filename**: SMTP2GO addresses
+them as `cid:<filename>`, so the content id the caller wrote into the HTML
+has to be the filename the provider sees, or the reference resolves to
+nothing.
+
+`features.batch` is **not** declared. `/email/send` takes one message per
+request — its own counters class "an email with multiple recipients" as one
+email — so claiming a batch would promise a request the provider cannot do.
+The core's sequential path already gives positional results.
+
+A message with more than 100 recipients in a field is **refused, not split**:
+splitting one message across requests changes what each recipient sees in
+the header, and leaves one message with several provider ids and no honest
+way to pick one.
+
+`cancel()` and `retrieve()` work on scheduled sends, reported by
+`schedule_id` — the only handle `cancel` accepts. A scheduled send you
+cannot cancel is a footgun.
+
+Rejected keys arrive as a **400**, not a 401, so the classification reads
+`data.error_code` rather than the status.
+
+## Mailpit — `unemail/drivers/mailpit`
+
+```ts
+mailpit({ host?, port?, httpPort?, httpEndpoint?, ... })
+```
+
+The catcher Laravel Sail and DDEV ship, and the maintained successor to
+MailHog — which has been abandoned since 2020 and carries a known stored XSS
+in its web UI, so this is the one to point people at.
+
+```sh
+docker run --rm -p 8025:8025 -p 1025:1025 axllent/mailpit
+```
+
+Same shape as `mailcrab`: the `smtp` driver with the right defaults
+(`localhost:1025`, plain, no auth), plus an inbox over the HTTP API on 8025,
+returned by `getInstance()`. Every method returns a `Result`; none throws.
+
+Beyond what Mailcrab offers, Mailpit has full-text **search** rather than
+only listing, **tags**, and the raw message and attachment bytes — reachable
+now that the shared HTTP layer carries text and binary responses.
+
 ## Mock — `unemail/drivers/mock`
 
 ```ts

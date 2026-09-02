@@ -268,8 +268,15 @@ export interface EmailDriver<TInstance = unknown> {
     msgs: readonly NormalizedMessage[],
     ctx: SendContext,
   ) => MaybePromise<readonly Result<EmailResult>[]>
-  readonly cancel?: (id: string) => MaybePromise<Result<void>>
-  readonly retrieve?: (id: string) => MaybePromise<Result<SendStatus>>
+  readonly cancel?: (id: string, ctx: OperationContext) => MaybePromise<Result<void>>
+  readonly retrieve?: (id: string, ctx: OperationContext) => MaybePromise<Result<SendStatus>>
+}
+
+/** What `cancel` and `retrieve` get. Narrower than `SendContext` — there is
+ *  no message and no attempt — but a poll still has to be cancellable, and
+ *  Azure's `retrieve` is a poll. */
+export interface OperationContext {
+  readonly signal?: AbortSignal
 }
 
 /** A driver that is guaranteed to expose its underlying client, so callers

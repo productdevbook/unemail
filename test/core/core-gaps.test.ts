@@ -251,3 +251,46 @@ describe("mock still records what it is given", () => {
     expect(driver.getInstance().last()).toMatchObject({ template: { id: "42" } })
   })
 })
+
+describe("cancel and retrieve carry the instance signal", () => {
+  it("hands it to the driver", async () => {
+    const seen: (AbortSignal | undefined)[] = []
+    const controller = new AbortController()
+    const driver = {
+      ...mock(),
+      cancel: async (_id: string, ctx: { signal?: AbortSignal }) => {
+        seen.push(ctx?.signal)
+        return { data: undefined, error: null } as const
+      },
+      retrieve: async (id: string, ctx: { signal?: AbortSignal }) => {
+        seen.push(ctx?.signal)
+        return {
+          data: { id, driver: "mock", state: "sent" as const },
+          error: null,
+        } as const
+      },
+    }
+
+    const email = createEmail({ driver, defaults, signal: controller.signal })
+    await email.cancel("x")
+    await email.retrieve("x")
+
+    expect(seen).toEqual([controller.signal, controller.signal])
+  })
+
+  it("passes nothing when the instance has no signal", async () => {
+    const seen: unknown[] = []
+    const driver = {
+      ...mock(),
+      retrieve: async (id: string, ctx: { signal?: AbortSignal }) => {
+        seen.push(ctx?.signal)
+        return {
+          data: { id, driver: "mock", state: "sent" as const },
+          error: null,
+        } as const
+      },
+    }
+    await createEmail({ driver, defaults }).retrieve("x")
+    expect(seen).toEqual([undefined])
+  })
+})

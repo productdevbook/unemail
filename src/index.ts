@@ -88,6 +88,7 @@ export type {
   MaybePromise,
   MessageContent,
   Middleware,
+  OperationContext,
   NormalizedMessage,
   Result,
   SendContext,
