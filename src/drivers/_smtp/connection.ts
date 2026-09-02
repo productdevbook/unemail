@@ -71,17 +71,21 @@ export async function createConnection(opts: ConnectionOptions): Promise<SmtpCon
     }
   })
 
-  socket.setEncoding("utf8")
-  socket.on("data", (chunk: string | Buffer) =>
-    parser.push(typeof chunk === "string" ? chunk : chunk.toString("utf8")),
-  )
-
   const onCloseReason = { value: undefined as Error | undefined }
-  socket.on("error", (err: Error) => failAll(pending, wrapNetworkError(err)))
-  socket.on("close", () => {
-    const err = onCloseReason.value ?? wrapNetworkError(new Error("connection closed"))
-    failAll(pending, err)
-  })
+
+  /** Point the reply parser and the failure handlers at a socket. */
+  const listen = (target: Socket | TLSSocket) => {
+    target.setEncoding("utf8")
+    target.on("data", (chunk: string | Buffer) =>
+      parser.push(typeof chunk === "string" ? chunk : chunk.toString("utf8")),
+    )
+    target.on("error", (err: Error) => failAll(pending, wrapNetworkError(err)))
+    target.on("close", () => {
+      failAll(pending, onCloseReason.value ?? wrapNetworkError(new Error("connection closed")))
+    })
+  }
+
+  listen(socket)
 
   const setup = async () => {
     await waitForConnect(socket, opts.connectionTimeoutMs, opts.secure)
@@ -103,16 +107,18 @@ export async function createConnection(opts: ConnectionOptions): Promise<SmtpCon
       await sendInternal(socket, "STARTTLS")
       const reply = await recvInternal(pending, opts.commandTimeoutMs, "STARTTLS")
       if (reply.code !== 220) throw replyError(reply.code, reply.raw, "STARTTLS")
-      socket = await upgradeTls(socket as Socket, tls, opts)
-      socket.setEncoding("utf8")
-      socket.on("data", (chunk: string | Buffer) =>
-        parser.push(typeof chunk === "string" ? chunk : chunk.toString("utf8")),
-      )
-      socket.on("error", (err: Error) => failAll(pending, wrapNetworkError(err)))
-      socket.on("close", () => {
-        const err = onCloseReason.value ?? wrapNetworkError(new Error("connection closed"))
-        failAll(pending, err)
-      })
+      const plaintext = socket as Socket
+      socket = await upgradeTls(plaintext, tls, opts)
+      // `tls.connect({ socket })` leaves our listeners on the socket
+      // underneath — measured: the `data` handler is still attached and the
+      // socket is still flowing. Anything it delivers from here on is TLS
+      // records, which would go into the reply parser as noise, and its
+      // close handler would report the failure a second time. Detach them
+      // and listen to the encrypted socket instead.
+      plaintext.removeAllListeners("data")
+      plaintext.removeAllListeners("error")
+      plaintext.removeAllListeners("close")
+      listen(socket)
       caps = await ehlo(pending, socket, opts.localName, opts.commandTimeoutMs)
     } else if (opts.requireTLS && !opts.secure) {
       throw new Error(`[unemail] [smtp] STARTTLS required but not offered by ${opts.host}`)
@@ -207,9 +213,28 @@ function failAll(pending: PendingReply[], err: Error): void {
 
 async function sendInternal(socket: Socket | TLSSocket, line: string): Promise<void> {
   const payload = `${line}\r\n`
-  if (!socket.write(payload)) {
-    await new Promise<void>((resolve) => socket.once("drain", () => resolve()))
-  }
+  if (socket.write(payload)) return
+
+  // The write buffer is full. Waiting for `drain` alone would never settle
+  // if the peer vanishes first: this promise is not a reply waiter, so
+  // `failAll` does not reach it and `commandTimeoutMs` does not cover it —
+  // the send would hang forever and the pooled connection never come back.
+  await new Promise<void>((resolve, reject) => {
+    const done = (settle: () => void) => () => {
+      socket.removeListener("drain", onDrain)
+      socket.removeListener("error", onError)
+      socket.removeListener("close", onClose)
+      settle()
+    }
+    const onDrain = done(resolve)
+    const onError = (error: Error) => done(() => reject(wrapNetworkError(error)))()
+    const onClose = done(() =>
+      reject(wrapNetworkError(new Error("connection closed while sending"))),
+    )
+    socket.once("drain", onDrain)
+    socket.once("error", onError)
+    socket.once("close", onClose)
+  })
 }
 
 function recvInternal(
