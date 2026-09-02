@@ -109,6 +109,100 @@ instance's `AbortSignal`, so a cancelled request is cancelled in flight.
 Lower it behind a user-facing handler: the retry middleware needs control
 back before the caller's own request times out.
 
+## Mailtrap — `unemail/drivers/mailtrap`
+
+```ts
+mailtrap({ apiKey, endpoint?, fetch?, timeoutMs?, defaultCategory?, userAgent?,
+           sandbox?, inboxId?, sandboxEndpoint?, bulk?, bulkEndpoint? })
+```
+
+Three hosts, one driver. The Email API delivers transactional mail; `bulk`
+routes to `bulk.api.mailtrap.io`, which Mailtrap keeps separate so a
+newsletter cannot damage the reputation carrying your password resets; and
+the Email Sandbox captures into an inbox and needs `inboxId` in the request
+path. So
+`message.sandbox` — or the driver-level `sandbox` — chooses the whole
+endpoint rather than setting a field, and a sandbox send with no `inboxId`
+is refused before a request is made. This is not the same thing as
+SendGrid's or Mailgun's test flags, which stay on the production API.
+
+A batch cannot mix sandbox and live messages; that is refused rather than
+half-sent. Batches chunk at Mailtrap's cap of 500 per request, and a
+recipient list past its 1000-address limit is refused before the call.
+
+Mailtrap groups by category and rejects a message without one, so a tag
+named `category` supplies it and `defaultCategory` (default `general`)
+covers the rest. Other tags travel as `custom_variables` alongside
+`message.metadata`.
+
+It also reports failures inside a `200` response as `success: false` with an
+`errors` array; those become failed results, not silent successes.
+
+## Cloudflare Email Routing — `unemail/drivers/cloudflare-email`
+
+```ts
+cloudflareEmail({ binding, EmailMessage? })
+```
+
+The `send_email` binding from your `wrangler.toml`. It takes a raw RFC 5322
+document, which the shared MIME builder produces — so attachments and inline
+images work as they do over SMTP, with no network call of our own.
+
+The legacy `EmailMessage(from, to, raw)` constructor takes a single envelope
+recipient, so a message with more than one `to`, or any `cc`/`bcc`, is
+refused — sending only to the first would look like a delivery that worked.
+For several recipients, or for anything new, use the Email Service driver
+below; Cloudflare keeps this API for compatibility only.
+
+`EmailMessage` lives in the `cloudflare:email` virtual module, which this
+package cannot import and still run on Node, so pass it in:
+
+```ts
+import { EmailMessage } from "cloudflare:email"
+cloudflareEmail({ binding: env.SEND_EMAIL, EmailMessage })
+```
+
+## Cloudflare Email Service — `unemail/drivers/cloudflare-email-service`
+
+```ts
+cloudflareEmailService({ binding })
+```
+
+The newer Email Sending API on the same `send_email` binding, taking
+structured fields rather than raw MIME — so this driver needs no ambient
+global, no virtual module and no MIME builder. Both Cloudflare drivers ship;
+pick the one matching the API your binding speaks.
+
+Needs a sender domain onboarded with `wrangler email sending enable
+<domain>`.
+
+Limits enforced before the call: 50 recipients across to/cc/bcc, and 32
+attachments. The binding also caps a message at 5 MiB, which only it can
+measure.
+
+The binding throws errors carrying an `E_*` code, and each is mapped onto
+the shared taxonomy — `E_RATE_LIMIT_EXCEEDED` becomes a retryable
+`RATE_LIMIT`, `E_SENDER_NOT_VERIFIED` a permanent `AUTH`. Without that,
+retry would keep re-sending messages that only a configuration fix cures.
+
+## Cloudflare Email Service over HTTP — `unemail/drivers/cloudflare-email-rest`
+
+```ts
+cloudflareEmailRest({ accountId, apiToken, endpoint?, fetch?, timeoutMs? })
+```
+
+The same service as the binding above, reached over the REST API with an
+account token — so it runs on Node, Deno, Bun or anywhere else with
+`fetch`, not only inside a Worker. Inside a Worker, prefer the binding: one
+less hop and no token to manage.
+
+Two differences worth knowing. Cloudflare uses numeric error codes here
+rather than the binding's `E_*` strings, and they are mapped to the same
+taxonomy. And the response reports the outcome **per recipient** rather than
+returning a message id, so a send that was permanently bounced for some
+addresses and delivered to others is reported as a failure naming them —
+calling that a success would hide addresses that will never receive it.
+
 ## Mock — `unemail/drivers/mock`
 
 ```ts

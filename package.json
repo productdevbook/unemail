@@ -63,6 +63,22 @@
       "types": "./dist/drivers/ses.d.mts",
       "default": "./dist/drivers/ses.mjs"
     },
+    "./drivers/cloudflare-email": {
+      "types": "./dist/drivers/cloudflare-email.d.mts",
+      "default": "./dist/drivers/cloudflare-email.mjs"
+    },
+    "./drivers/cloudflare-email-service": {
+      "types": "./dist/drivers/cloudflare-email-service.d.mts",
+      "default": "./dist/drivers/cloudflare-email-service.mjs"
+    },
+    "./drivers/cloudflare-email-rest": {
+      "types": "./dist/drivers/cloudflare-email-rest.d.mts",
+      "default": "./dist/drivers/cloudflare-email-rest.mjs"
+    },
+    "./drivers/mailtrap": {
+      "types": "./dist/drivers/mailtrap.d.mts",
+      "default": "./dist/drivers/mailtrap.mjs"
+    },
     "./drivers/fallback": {
       "types": "./dist/drivers/fallback.d.mts",
       "default": "./dist/drivers/fallback.mjs"
