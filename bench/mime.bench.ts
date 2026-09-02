@@ -3,7 +3,7 @@ import { normalizeMessage } from "../src/core/message.ts"
 import { buildMime, dotStuff, toMimeInput } from "../src/drivers/_mime.ts"
 import { attachmentToBase64, bytesToBase64 } from "../src/drivers/_base64.ts"
 import { signDkim } from "../src/drivers/_smtp/dkim.ts"
-import { htmlToText } from "../src/render/html.ts"
+import { htmlToText } from "../src/render/_html.ts"
 
 /**
  * The SMTP and SES hot path: assembling the RFC 5322 document, and signing

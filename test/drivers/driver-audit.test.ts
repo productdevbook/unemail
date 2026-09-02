@@ -325,3 +325,96 @@ describe("a response body that dies mid-stream", () => {
     ).resolves.toMatchObject({ error: expect.objectContaining({ code: "NETWORK" }) })
   })
 })
+
+describe("the shared fetch layer", () => {
+  it("sends a verbatim body and lets fetch write its own content-type", async () => {
+    const seen: { headers: Record<string, string>; body: unknown }[] = []
+    const spy = (async (_url: string | URL, init: RequestInit = {}) => {
+      seen.push({ headers: init.headers as Record<string, string>, body: init.body })
+      return new Response("{}", { status: 200 })
+    }) as unknown as typeof fetch
+
+    const form = new FormData()
+    form.append("to", "a@x.com")
+    const { httpJson } = await import("../../src/drivers/_fetch.ts")
+    await httpJson({
+      fetch: spy,
+      driver: "d",
+      url: "https://x.test",
+      headers: { "content-type": "application/json" },
+      bodyInit: form,
+    })
+
+    expect(seen[0]!.body).toBe(form)
+    // A multipart boundary is only known to fetch, so any content-type we
+    // set would be wrong.
+    expect(seen[0]!.headers["content-type"]).toBeUndefined()
+  })
+
+  it("keeps JSON encoding when only `body` is given", async () => {
+    const seen: RequestInit[] = []
+    const spy = (async (_url: string | URL, init: RequestInit = {}) => {
+      seen.push(init)
+      return new Response("{}", { status: 200 })
+    }) as unknown as typeof fetch
+
+    const { httpJson } = await import("../../src/drivers/_fetch.ts")
+    await httpJson({ fetch: spy, driver: "d", url: "https://x.test", body: { a: 1 } })
+
+    expect(seen[0]!.body).toBe('{"a":1}')
+    expect((seen[0]!.headers as Record<string, string>)["content-type"]).toBe("application/json")
+  })
+
+  it("hands the response to onResponse before the body is read", async () => {
+    const spy = (async () =>
+      new Response("", {
+        status: 202,
+        headers: { "x-message-id": "abc" },
+      })) as unknown as typeof fetch
+
+    let captured: string | null = null
+    const { httpJson } = await import("../../src/drivers/_fetch.ts")
+    const result = await httpJson({
+      fetch: spy,
+      driver: "d",
+      url: "https://x.test",
+      onResponse: (response) => {
+        captured = response.headers.get("x-message-id")
+      },
+    })
+
+    expect(captured).toBe("abc")
+    expect(result.error).toBeNull()
+  })
+
+  it("runs onResponse for a failure too, so rate-limit headers stay reachable", async () => {
+    const spy = (async () =>
+      new Response("{}", {
+        status: 429,
+        headers: { "x-ratelimit-reset": "1700000000" },
+      })) as unknown as typeof fetch
+
+    let reset: string | null = null
+    const { httpJson } = await import("../../src/drivers/_fetch.ts")
+    const result = await httpJson({
+      fetch: spy,
+      driver: "d",
+      url: "https://x.test",
+      onResponse: (response) => {
+        reset = response.headers.get("x-ratelimit-reset")
+      },
+    })
+
+    expect(reset).toBe("1700000000")
+    expect(result.error?.code).toBe("RATE_LIMIT")
+  })
+})
+
+describe("chunk", () => {
+  it("returns no chunks for an empty list, not one empty chunk", async () => {
+    const { chunk } = await import("../../src/drivers/_chunk.ts")
+    expect(chunk([], 10)).toEqual([])
+    expect(chunk([1, 2], 10)).toEqual([[1, 2]])
+    expect(chunk([1, 2, 3], 2)).toEqual([[1, 2], [3]])
+  })
+})

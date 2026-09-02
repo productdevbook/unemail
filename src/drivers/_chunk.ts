@@ -6,6 +6,9 @@
  * @module
  */
 export function chunk<T>(items: readonly T[], size: number): T[][] {
+  // An empty input is no chunks, not one empty chunk — otherwise a caller
+  // that loops over the result sends a request carrying nothing.
+  if (items.length === 0) return []
   if (items.length <= size) return [[...items]]
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))

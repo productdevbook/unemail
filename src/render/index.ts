@@ -2,9 +2,9 @@ import type { EmailMessage, MessageContent, Middleware, NormalizedMessage } from
 import { defineMiddleware } from "../core/define.ts"
 import { createError } from "../core/error.ts"
 import { patchMessage } from "../core/message.ts"
-import { htmlToText } from "./html.ts"
+import { htmlToText } from "./_html.ts"
 
-export { htmlToText } from "./html.ts"
+export { htmlToText } from "./_html.ts"
 
 /** What a renderer produces. Returning only `html` is normal; `text` is
  *  derived for you unless you supply a better one. */
