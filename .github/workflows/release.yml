@@ -43,6 +43,9 @@ jobs:
       - name: 🔢 Version consistency
         run: bun run check:version
 
+      - name: 🗺️ Export maps
+        run: bun run check:exports
+
       - name: 🚀 Build
         run: bun run build
 

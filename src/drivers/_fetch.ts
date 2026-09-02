@@ -21,12 +21,23 @@ export interface HttpRequest {
   headers?: Record<string, string>
   /** Serialized as JSON unless it is already a string. */
   body?: unknown
+  /** A body to send verbatim — `FormData`, a `Blob`, a stream. Wins over
+   *  `body`, and suppresses the default `content-type` so `fetch` can write
+   *  its own (a multipart boundary cannot be guessed). Mailgun's Messages
+   *  API is multipart, not JSON. */
+  bodyInit?: BodyInit
   signal?: AbortSignal
   /** Milliseconds before the request is aborted. Default: 30_000. */
   timeoutMs?: number
   /** Refine the classification when the provider says more than the
    *  status code does — Postmark's `ErrorCode`, SES's `__type`. */
   classify?: (status: number, body: unknown) => Classification | null
+  /** See the response before its body is read. For a provider that puts
+   *  something a driver needs in a header: SendGrid and MailerSend both
+   *  return the message id only in one, on a 202 with an empty body. Runs
+   *  for failures too, so a rate-limit header is reachable either way.
+   *  Must not throw. */
+  onResponse?: (response: Response) => void
 }
 
 export interface Classification {
@@ -42,8 +53,12 @@ export async function httpJson(request: HttpRequest): Promise<Result<unknown>> {
     accept: "application/json",
     ...request.headers,
   }
-  const hasBody = request.body != null
-  if (hasBody && !hasHeader(headers, "content-type")) {
+  const raw = request.bodyInit
+  const hasBody = raw != null || request.body != null
+  // A verbatim body carries its own encoding — for multipart that includes
+  // a boundary only `fetch` knows, so anything we set here would be wrong.
+  if (raw != null) delete headers["content-type"]
+  else if (hasBody && !hasHeader(headers, "content-type")) {
     headers["content-type"] = "application/json"
   }
 
@@ -55,16 +70,20 @@ export async function httpJson(request: HttpRequest): Promise<Result<unknown>> {
     response = await request.fetch(request.url, {
       method: request.method ?? "POST",
       headers,
-      body: hasBody
-        ? typeof request.body === "string"
-          ? request.body
-          : JSON.stringify(request.body)
-        : undefined,
+      body:
+        raw ??
+        (request.body == null
+          ? undefined
+          : typeof request.body === "string"
+            ? request.body
+            : JSON.stringify(request.body)),
       signal,
     })
   } catch (error) {
     return err(toEmailError(request.driver, error))
   }
+
+  request.onResponse?.(response)
 
   // fetch() resolves once the headers arrive, so the body is still a live
   // stream. A proxy timing out or a socket reset here used to throw past

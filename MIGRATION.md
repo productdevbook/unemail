@@ -25,15 +25,19 @@ Four defects came out with the old design:
 
 ## Scope
 
-v1 ships the core, five drivers and the render layer. These 0.x entry
-points are **not** in 1.0.0 and are being reintroduced against the new core:
+**Every 0.x driver is present.** They were dropped in the first v1 commit
+and restored immediately after, each one rewritten against the new contract
+and checked against the provider's current documentation — which turned up
+defects the old versions had been shipping. See `docs/drivers.md`.
+
+These 0.x entry points are **not** in 1.0.0 and are being reintroduced
+against the new core:
 
 `unemail/inbound/*` · `unemail/webhook/*` · `unemail/queue/*` ·
 `unemail/verify/*` · `unemail/parse/*` · `unemail/dmarc` ·
 `unemail/mta-sts` · `unemail/ics` · `unemail/suppression` ·
 `unemail/compliance` · `unemail/preferences` · `unemail/events` ·
-`unemail/test`, and the SendGrid, Mailgun, Brevo, MailerSend, Loops,
-Mailtrap, Zeptomail, MailChannels, Mailcrab, Cloudflare and Tee drivers.
+`unemail/test`.
 
 Pin `unemail@^0.5.0` if you depend on one of those today.
 
@@ -45,6 +49,19 @@ Pin `unemail@^0.5.0` if you depend on one of those today.
 -import resend from "unemail/driver/resend"
 +import resend from "unemail/drivers/resend"
 ```
+
+Three drivers changed name or gained a sibling:
+
+```diff
+-import cloudflareEmail from "unemail/driver/cloudflare-email"
++import cloudflareEmail from "unemail/drivers/cloudflare-email"          // Email Routing, raw MIME
++import cloudflareEmailService from "unemail/drivers/cloudflare-email-service"  // the structured binding
++import cloudflareEmailRest from "unemail/drivers/cloudflare-email-rest"  // the same service over HTTP
+```
+
+`mailchannels` now **requires** `apiKey`. The free unauthenticated Workers
+integration was terminated in June 2024, so the 0.5 driver could not send at
+all.
 
 `unemail/test` is gone; the mock driver carries the inbox now.
 
@@ -68,6 +85,16 @@ Same for `jsx`, `mjml`, `handlebars` + `handlebarsVars`, and
 +const email = createEmail({ driver, defaults: { from: "Acme <hi@acme.com>" } })
 +await email.send({ to, subject, text })
 ```
+
+Attachments no longer guess. A string is text unless you say otherwise:
+
+```diff
+-attachments: [{ filename: "a.pdf", content: alreadyBase64 }]
++attachments: [{ filename: "a.pdf", content: alreadyBase64, encoding: "base64" }]
+```
+
+`"test"` is valid text and valid base64, so the old heuristic corrupted short
+text attachments silently. Raw bytes are unaffected.
 
 Removed: `personalizations` (use `sendBatch`), `amp`, `dsn`, and
 `template.locale`.

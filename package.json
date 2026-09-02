@@ -43,33 +43,89 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
-    "./drivers/mock": {
-      "types": "./dist/drivers/mock.d.mts",
-      "default": "./dist/drivers/mock.mjs"
+    "./drivers/brevo": {
+      "types": "./dist/drivers/brevo.d.mts",
+      "default": "./dist/drivers/brevo.mjs"
     },
-    "./drivers/smtp": {
-      "types": "./dist/drivers/smtp.d.mts",
-      "default": "./dist/drivers/smtp.mjs"
+    "./drivers/cloudflare-email": {
+      "types": "./dist/drivers/cloudflare-email.d.mts",
+      "default": "./dist/drivers/cloudflare-email.mjs"
     },
-    "./drivers/resend": {
-      "types": "./dist/drivers/resend.d.mts",
-      "default": "./dist/drivers/resend.mjs"
+    "./drivers/cloudflare-email-rest": {
+      "types": "./dist/drivers/cloudflare-email-rest.d.mts",
+      "default": "./dist/drivers/cloudflare-email-rest.mjs"
     },
-    "./drivers/postmark": {
-      "types": "./dist/drivers/postmark.d.mts",
-      "default": "./dist/drivers/postmark.mjs"
-    },
-    "./drivers/ses": {
-      "types": "./dist/drivers/ses.d.mts",
-      "default": "./dist/drivers/ses.mjs"
+    "./drivers/cloudflare-email-service": {
+      "types": "./dist/drivers/cloudflare-email-service.d.mts",
+      "default": "./dist/drivers/cloudflare-email-service.mjs"
     },
     "./drivers/fallback": {
       "types": "./dist/drivers/fallback.d.mts",
       "default": "./dist/drivers/fallback.mjs"
     },
+    "./drivers/http": {
+      "types": "./dist/drivers/http.d.mts",
+      "default": "./dist/drivers/http.mjs"
+    },
+    "./drivers/loops": {
+      "types": "./dist/drivers/loops.d.mts",
+      "default": "./dist/drivers/loops.mjs"
+    },
+    "./drivers/mailchannels": {
+      "types": "./dist/drivers/mailchannels.d.mts",
+      "default": "./dist/drivers/mailchannels.mjs"
+    },
+    "./drivers/mailcrab": {
+      "types": "./dist/drivers/mailcrab.d.mts",
+      "default": "./dist/drivers/mailcrab.mjs"
+    },
+    "./drivers/mailersend": {
+      "types": "./dist/drivers/mailersend.d.mts",
+      "default": "./dist/drivers/mailersend.mjs"
+    },
+    "./drivers/mailgun": {
+      "types": "./dist/drivers/mailgun.d.mts",
+      "default": "./dist/drivers/mailgun.mjs"
+    },
+    "./drivers/mailtrap": {
+      "types": "./dist/drivers/mailtrap.d.mts",
+      "default": "./dist/drivers/mailtrap.mjs"
+    },
+    "./drivers/mock": {
+      "types": "./dist/drivers/mock.d.mts",
+      "default": "./dist/drivers/mock.mjs"
+    },
+    "./drivers/postmark": {
+      "types": "./dist/drivers/postmark.d.mts",
+      "default": "./dist/drivers/postmark.mjs"
+    },
+    "./drivers/resend": {
+      "types": "./dist/drivers/resend.d.mts",
+      "default": "./dist/drivers/resend.mjs"
+    },
     "./drivers/round-robin": {
       "types": "./dist/drivers/round-robin.d.mts",
       "default": "./dist/drivers/round-robin.mjs"
+    },
+    "./drivers/sendgrid": {
+      "types": "./dist/drivers/sendgrid.d.mts",
+      "default": "./dist/drivers/sendgrid.mjs"
+    },
+    "./drivers/ses": {
+      "types": "./dist/drivers/ses.d.mts",
+      "default": "./dist/drivers/ses.mjs"
+    },
+    "./drivers/smtp": {
+      "types": "./dist/drivers/smtp.d.mts",
+      "default": "./dist/drivers/smtp.mjs"
+    },
+    "./drivers/tee": {
+      "types": "./dist/drivers/tee.d.mts",
+      "default": "./dist/drivers/tee.mjs"
+    },
+    "./drivers/zeptomail": {
+      "types": "./dist/drivers/zeptomail.d.mts",
+      "default": "./dist/drivers/zeptomail.mjs"
     },
     "./middleware": {
       "types": "./dist/middleware/index.d.mts",
@@ -94,8 +150,10 @@
     "typecheck": "tsgo --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "check": "bun run lint && bun run typecheck && bun run test:coverage && bun run check:version",
+    "bench": "vitest bench --run",
+    "check": "bun run lint && bun run typecheck && bun run test:coverage && bun run check:version && bun run check:exports",
     "check:version": "node scripts/check-version.mjs",
+    "check:exports": "node scripts/check-exports.mjs",
     "bundle-budget": "node scripts/bundle-budget.mjs",
     "attw": "bunx --bun @arethetypeswrong/cli --pack . --profile esm-only",
     "jsr:check": "bunx jsr publish --dry-run --allow-dirty",
