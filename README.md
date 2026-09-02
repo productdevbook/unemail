@@ -200,15 +200,29 @@ SES free to send.
 
 ## Drivers
 
-| Driver      | Import                        | Notes                                                     |
-| ----------- | ----------------------------- | --------------------------------------------------------- |
-| Resend      | `unemail/drivers/resend`      | Native batch, scheduling, cancel, retrieve                |
-| Postmark    | `unemail/drivers/postmark`    | Message streams, templates, per-message batch errors      |
-| Amazon SES  | `unemail/drivers/ses`         | SigV4 over Web Crypto — no `@aws-sdk/*`                   |
-| SMTP        | `unemail/drivers/smtp`        | Own protocol implementation, pooling, DKIM. Node/Bun only |
-| Mock        | `unemail/drivers/mock`        | Records instead of sending                                |
-| Fallback    | `unemail/drivers/fallback`    | Composite: try each provider in turn                      |
-| Round-robin | `unemail/drivers/round-robin` | Composite: spread across providers                        |
+| Driver             | Import                                     | Notes                                                     |
+| ------------------ | ------------------------------------------ | --------------------------------------------------------- |
+| Resend             | `unemail/drivers/resend`                   | Native batch, scheduling, cancel, retrieve                |
+| Postmark           | `unemail/drivers/postmark`                 | Message streams, templates, per-message batch errors      |
+| Amazon SES         | `unemail/drivers/ses`                      | SigV4 over Web Crypto — no `@aws-sdk/*`                   |
+| SendGrid           | `unemail/drivers/sendgrid`                 | Personalization batching, cancellable schedules           |
+| Mailgun            | `unemail/drivers/mailgun`                  | Multipart, recipient-variables batching, EU region        |
+| Brevo              | `unemail/drivers/brevo`                    | `messageVersions` batching, cancel, retrieve              |
+| MailerSend         | `unemail/drivers/mailersend`               | Bulk endpoint, per-recipient personalization              |
+| Mailtrap           | `unemail/drivers/mailtrap`                 | Email API, Sandbox and bulk streams                       |
+| ZeptoMail          | `unemail/drivers/zeptomail`                | Batch by address count, rich error codes                  |
+| MailChannels       | `unemail/drivers/mailchannels`             | One-request batching, per-tenant DKIM                     |
+| Loops              | `unemail/drivers/loops`                    | Transactional-only; no free-form body                     |
+| Cloudflare Routing | `unemail/drivers/cloudflare-email`         | The legacy raw-MIME binding                               |
+| Cloudflare Service | `unemail/drivers/cloudflare-email-service` | The structured binding                                    |
+| Cloudflare REST    | `unemail/drivers/cloudflare-email-rest`    | Same service, outside a Worker                            |
+| SMTP               | `unemail/drivers/smtp`                     | Own protocol implementation, pooling, DKIM. Node/Bun only |
+| Mailcrab           | `unemail/drivers/mailcrab`                 | Local catcher, with an inbox you can assert against       |
+| HTTP               | `unemail/drivers/http`                     | Any endpoint, in ten lines                                |
+| Mock               | `unemail/drivers/mock`                     | Records instead of sending                                |
+| Fallback           | `unemail/drivers/fallback`                 | Composite: try each provider in turn                      |
+| Round-robin        | `unemail/drivers/round-robin`              | Composite: spread across providers                        |
+| Tee                | `unemail/drivers/tee`                      | Composite: mirror the same send to several                |
 
 A driver advertises what it can do, so you gate on capability rather than
 on a name:
