@@ -635,9 +635,55 @@ Same shape as `mailcrab`: the `smtp` driver with the right defaults
 (`localhost:1025`, plain, no auth), plus an inbox over the HTTP API on 8025,
 returned by `getInstance()`. Every method returns a `Result`; none throws.
 
-Beyond what Mailcrab offers, Mailpit has full-text **search** rather than
-only listing, **tags**, and the raw message and attachment bytes — reachable
-now that the shared HTTP layer carries text and binary responses.
+Beyond what Mailcrab offers: full-text **search** with Mailpit's own
+`to: from: subject: tag: is: has: before: after:` prefixes; **tags**, which
+the driver makes assertable end to end by writing `X-Tags` onto the message
+before the SMTP hop, because that is the header Mailpit reads them from; the
+raw message and attachment bytes, reachable now that the shared HTTP layer
+carries text and binary; and **`htmlCheck(id)`**, which scores a message's
+HTML against real mail clients. A test that asserts a template renders in
+Outlook is something no other driver here can offer.
+
+Two behaviours taken from Mailpit's source rather than its docs. It stores
+the `Message-ID` with the angle brackets stripped and matches it with SQL
+`LIKE`, so `byMessageId()` strips them too and then compares exactly,
+because search returns a superset. And `DELETE /api/v1/messages` treats an
+absent _or empty_ id list as "delete everything" — so `delete([])` sends no
+request at all.
+
+## AhaSend — `unemail/drivers/ahasend`
+
+```ts
+ahasend({ apiKey, accountId, endpoint?, fetch?, timeoutMs? })
+```
+
+Every route is account-scoped — `POST /v2/accounts/{account_id}/messages` —
+so `accountId` is required. Its own Authentication page's examples call
+`/v2/messages` with no account segment; the OpenAPI has no such route, and
+the driver follows the OpenAPI.
+
+**Idempotency is genuinely first-class here**, which is rare enough to be
+the reason to pick it. `Idempotency-Key` replays the stored status _and_
+body for 24 hours with an `Idempotent-Replayed` header, which the driver
+surfaces on `result.meta.idempotentReplayed`. An in-flight key answers 409
+with `Retry-After` — retryable — and the same key with a different payload
+answers 422, which is not. A 5xx releases the key.
+
+**Two send endpoints, and which one you get depends on the message.**
+`/messages` has no `cc` or `bcc` at all and fans a recipient list out into
+one message each; `/messages/conversation` is the only one that puts several
+addresses into a real To/Cc/Bcc header. The driver routes to `conversation`
+when the message needs it — any cc, any bcc, or more than one recipient —
+and to `/messages` otherwise, where the two behave identically.
+
+`features.batch` is **not** claimed: the `recipients` array is not a batch,
+it is a fan-out, and there is no batch route. A send answers 202 with one
+verdict per recipient, so a partial failure is possible even for a single
+message; one accepted recipient counts as success and every verdict is left
+on `result.provider`.
+
+`content_id` keeps its angle brackets, or the file arrives as a download
+instead of rendering inline.
 
 ## Mock — `unemail/drivers/mock`
 
@@ -680,34 +726,44 @@ if (email.driver.features?.scheduling) await email.send({ ...msg, scheduledAt })
 
 The core reads it too. A message asking for something the driver has said it
 cannot do — a `template` on a driver without templates, a `scheduledAt` on
-one without scheduling — comes back `UNSUPPORTED` rather than being sent
-without the part that mattered. Only that message fails; the rest of a batch
-goes out. A driver that declares no `features` at all is not second-guessed.
+one without scheduling, an `attachments[].url` on one that cannot fetch it —
+comes back `UNSUPPORTED` rather than being sent without the part that
+mattered. Only that message fails; the rest of a batch goes out. A driver
+that declares no `features` at all is not second-guessed.
 
-|                          |     batch      | scheduling | templates | tracking | tagging | sandbox | idempotency | cancel | retrieve | Worker |
-| ------------------------ | :------------: | :--------: | :-------: | :------: | :-----: | :-----: | :---------: | :----: | :------: | :----: |
-| resend                   |       ✅       |     ✅     |     —     |    —     |   ✅    |    —    |     ✅      |   ✅   |    ✅    |   ✅   |
-| postmark                 |       ✅       |     —      |    ✅     |    ✅    |   ✅    |    —    |      —      |   —    |    —     |   ✅   |
-| ses                      |       —        |     —      |     —     |    —     |   ✅    |    —    |      —      |   —    |    —     |   ✅   |
-| smtp                     |       —        |     —      |     —     |    —     |    —    |    —    |      —      |   —    |    —     |   —    |
-| sendgrid                 |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |   ✅    |      —      |   ✅   |    ✅    |   ✅   |
-| mailgun                  |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |   ✅    |      —      |   —    |    —     |   ✅   |
-| brevo                    |       ✅       |     ✅     |    ✅     |    —     |   ✅    |   ✅    |     ✅      |   ✅   |    ✅    |   ✅   |
-| mailersend               |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |    —    |      —      |   ✅   |    ✅    |   ✅   |
-| mailtrap                 |       ✅       |     —      |    ✅     |    —     |   ✅    |   ✅    |      —      |   —    |    —     |   ✅   |
-| zeptomail                |       ✅       |     —      |    ✅     |    ✅    |    —    |    —    |      —      |   —    |    —     |   ✅   |
-| mailchannels             |       ✅       |     —      |    ✅     |    ✅    |   ✅    |   ✅    |      —      |   —    |    —     |   ✅   |
-| loops                    |       —        |     —      |    ✅     |    —     |    —    |    —    |     ✅      |   —    |    —     |   ✅   |
-| cloudflare-email         |       —        |     —      |     —     |    —     |    —    |    —    |      —      |   —    |    —     |   ✅   |
-| cloudflare-email-service |       —        |     —      |     —     |    —     |    —    |    —    |      —      |   —    |    —     |   ✅   |
-| cloudflare-email-rest    |       —        |     —      |     —     |    —     |    —    |    —    |      —      |   —    |    —     |   ✅   |
-| mailcrab                 |       —        |     —      |     —     |    —     |    —    |    —    |      —      |   —    |    ✅    |   —    |
-| http                     | you declare it |            |           |          |         |         |             |        |          |   ✅   |
-| mock                     |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |   ✅    |     ✅      |   —    |    —     |   ✅   |
+|                          |     batch      | scheduling | templates | tracking | tagging | sandbox | idempotency | url attach | cancel | retrieve | Worker |
+| ------------------------ | :------------: | :--------: | :-------: | :------: | :-----: | :-----: | :---------: | :--------: | :----: | :------: | :----: |
+| resend                   |       ✅       |     ✅     |     —     |    —     |   ✅    |    —    |     ✅      |     —      |   ✅   |    ✅    |   ✅   |
+| postmark                 |       ✅       |     —      |    ✅     |    ✅    |   ✅    |    —    |      —      |     —      |   —    |    —     |   ✅   |
+| ses                      |       —        |     —      |     —     |    —     |   ✅    |    —    |      —      |     —      |   —    |    —     |   ✅   |
+| smtp                     |       —        |     —      |     —     |    —     |    —    |    —    |      —      |     —      |   —    |    —     |   —    |
+| sendgrid                 |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |   ✅    |      —      |     —      |   ✅   |    ✅    |   ✅   |
+| mailgun                  |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |   ✅    |      —      |     —      |   —    |    —     |   ✅   |
+| mailjet                  |       ✅       |     —      |    ✅     |    ✅    |   ✅    |   ✅    |      —      |     —      |   —    |    —     |   ✅   |
+| brevo                    |       ✅       |     ✅     |    ✅     |    —     |   ✅    |   ✅    |     ✅      |     —      |   ✅   |    ✅    |   ✅   |
+| mailersend               |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |    —    |      —      |     —      |   ✅   |    ✅    |   ✅   |
+| smtp2go                  |       —        |     ✅     |    ✅     |    —     |    —    |    —    |      —      |     ✅     |   ✅   |    ✅    |   ✅   |
+| mailtrap                 |       ✅       |     —      |    ✅     |    —     |   ✅    |   ✅    |      —      |     —      |   —    |    —     |   ✅   |
+| zeptomail                |       ✅       |     —      |    ✅     |    ✅    |    —    |    —    |      —      |     —      |   —    |    —     |   ✅   |
+| mailchannels             |       ✅       |     —      |    ✅     |    ✅    |   ✅    |   ✅    |      —      |     —      |   —    |    —     |   ✅   |
+| scaleway                 |       —        |     —      |     —     |    —     |    —    |    —    |      —      |     —      |   ✅   |    ✅    |   ✅   |
+| azure-communication      |       —        |     —      |     —     |    ✅    |   ✅    |    —    |     ✅      |     —      |   —    |    ✅    |   ✅   |
+| ahasend                  |       —        |     ✅     |     —     |    ✅    |   ✅    |   ✅    |     ✅      |     —      |   ✅   |    ✅    |   ✅   |
+| mailbreeze               |       —        |     —      |    ✅     |    —     |    —    |   ✅    |     ✅      |     —      |   —    |    —     |   ✅   |
+| loops                    |       —        |     —      |    ✅     |    —     |    —    |    —    |     ✅      |     —      |   —    |    —     |   ✅   |
+| cloudflare-email         |       —        |     —      |     —     |    —     |    —    |    —    |      —      |     —      |   —    |    —     |   ✅   |
+| cloudflare-email-service |       —        |     —      |     —     |    —     |    —    |    —    |      —      |     —      |   —    |    —     |   ✅   |
+| cloudflare-email-rest    |       —        |     —      |     —     |    —     |    —    |    —    |      —      |     —      |   —    |    —     |   ✅   |
+| mailcrab                 |       —        |     —      |     —     |    —     |    —    |    —    |      —      |     —      |   —    |    ✅    |   —    |
+| mailpit                  |       —        |     —      |     —     |    —     |   ✅    |    —    |      —      |     —      |   —    |    ✅    |   —    |
+| http                     | you declare it |            |           |          |         |         |             |            |        |          |   ✅   |
+| mock                     |       ✅       |     ✅     |    ✅     |    ✅    |   ✅    |   ✅    |     ✅      |     —      |   —    |    —     |   ✅   |
 
-Every driver supports attachments, html, text, reply-to and custom headers,
-except where the provider genuinely has no such field — `loops` has no
-free-form body at all, and `mailchannels` has no stored templates.
+Most drivers support attachments, html, text, reply-to and custom headers.
+The exceptions are where the provider genuinely has no such field: `loops`
+has no free-form body, `mailchannels` has no stored templates, and
+`mailbreeze` takes attachments only through a presigned upload this library
+cannot express.
 
-"Worker" means it needs nothing beyond `fetch` and Web Crypto. `smtp` and
-`mailcrab` need `node:net` and `node:tls`.
+"Worker" means it needs nothing beyond `fetch` and Web Crypto. `smtp`,
+`mailcrab` and `mailpit` need `node:net` and `node:tls`.

@@ -1,6 +1,6 @@
 {
   "name": "@productdevbook/unemail",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "exports": {
     ".": "./src/index.ts",
     "./drivers/ahasend": "./src/drivers/ahasend.ts",
@@ -36,11 +36,6 @@
     "./render/react": "./src/render/react.ts"
   },
   "publish": {
-    "include": [
-      "src",
-      "README.md",
-      "LICENSE",
-      "jsr.json"
-    ]
+    "include": ["src", "README.md", "LICENSE", "jsr.json"]
   }
 }

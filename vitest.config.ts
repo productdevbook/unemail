@@ -15,7 +15,7 @@ export default defineConfig({
       reporter: ["text"],
       // Set at what the suite measures today, rounded down. A floor, not an
       // aspiration: raised whenever coverage rises, never lowered to fit.
-      thresholds: { statements: 88, branches: 81, functions: 88, lines: 90 },
+      thresholds: { statements: 91, branches: 84, functions: 90, lines: 93 },
     },
   },
 })

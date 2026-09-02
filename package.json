@@ -1,6 +1,6 @@
 {
   "name": "unemail",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": false,
   "description": "Driver-based TypeScript email library. Batch-native middleware pipeline, zero dependencies, ESM-only — runs on Node, Bun, Deno, Cloudflare Workers and the browser.",
   "keywords": [

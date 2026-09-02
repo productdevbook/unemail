@@ -256,19 +256,14 @@ describe("mailpit", () => {
 
     it("sends --ui-auth credentials as basic auth", async () => {
       const s = stubFetch(() => [200, listing([])])
-      await mailpit({ fetch: s.fetch, apiUser: "me", apiPassword: "secret" })
-        .getInstance()
-        .list()
+      await mailpit({ fetch: s.fetch, apiUser: "me", apiPassword: "secret" }).getInstance().list()
       expect(s.calls[0]!.headers.authorization).toBe(
         `Basic ${Buffer.from("me:secret").toString("base64")}`,
       )
     })
 
     it("unwraps the listing envelope and keeps Mailpit's own order", async () => {
-      const s = stubFetch(() => [
-        200,
-        listing([summary({ ID: "new" }), summary({ ID: "old" })]),
-      ])
+      const s = stubFetch(() => [200, listing([summary({ ID: "new" }), summary({ ID: "old" })])])
       const { data } = await mailpit({ fetch: s.fetch }).getInstance().list({ start: 10, limit: 5 })
       expect(s.calls[0]!.url).toBe("http://localhost:8025/api/v1/messages?start=10&limit=5")
       expect(data?.map((m) => m.ID)).toEqual(["new", "old"])
@@ -356,9 +351,7 @@ describe("mailpit", () => {
             ]
           : [200, full({ ID: "exact" })],
       )
-      const { data } = await mailpit({ fetch: s.fetch })
-        .getInstance()
-        .byMessageId("<abc@acme.com>")
+      const { data } = await mailpit({ fetch: s.fetch }).getInstance().byMessageId("<abc@acme.com>")
 
       expect(new URL(s.calls[0]!.url).searchParams.get("query")).toBe("message-id:abc@acme.com")
       expect(s.calls[1]!.url).toBe("http://localhost:8025/api/v1/message/exact")
@@ -516,9 +509,7 @@ describe("mailpit", () => {
       }).retrieve("4oRBnPtCXgAqZniRhzLNmS")
 
       expect(s.calls).toHaveLength(1)
-      expect(s.calls[0]!.url).toBe(
-        "http://localhost:8025/api/v1/message/4oRBnPtCXgAqZniRhzLNmS",
-      )
+      expect(s.calls[0]!.url).toBe("http://localhost:8025/api/v1/message/4oRBnPtCXgAqZniRhzLNmS")
       expect(data?.state).toBe("delivered")
       expect(data?.at?.toISOString()).toBe("2023-11-14T22:13:20.000Z")
     })
