@@ -34,8 +34,12 @@ export type AddressInput = string | EmailAddress | readonly (string | EmailAddre
 export interface Attachment {
   readonly filename: string
   /** Raw bytes, or a string. A string is treated as text unless
-   *  `encoding` says otherwise. */
-  readonly content: string | Uint8Array
+   *  `encoding` says otherwise. Exactly one of `content` and `url`. */
+  readonly content?: string | Uint8Array
+  /** A URL the provider fetches itself, so a large file never passes
+   *  through this process. Only some providers accept one; the rest
+   *  refuse the message rather than send it without the attachment. */
+  readonly url?: string
   /** How to read a string `content`. Default: `utf8`. Say `base64` when
    *  you already encoded it — the library will not guess, because `"test"`
    *  is both valid text and valid base64 and guessing wrong corrupts the
@@ -96,7 +100,10 @@ export interface EmailMessage {
   readonly bcc?: AddressInput
   readonly replyTo?: AddressInput
 
-  readonly subject: string
+  /** Required unless `template` is set, in which case the provider's
+   *  template supplies it — passing one anyway overrides the template's,
+   *  which is rarely what a caller means. */
+  readonly subject?: string
   /** Preview line most clients show next to the subject. */
   readonly preheader?: string
   readonly text?: string
@@ -133,7 +140,8 @@ export interface NormalizedMessage {
   readonly bcc: readonly EmailAddress[]
   readonly replyTo: readonly EmailAddress[]
 
-  readonly subject: string
+  /** Absent only for a templated send, where the template supplies it. */
+  readonly subject?: string
   readonly text?: string
   readonly html?: string
   readonly content?: MessageContent
@@ -236,6 +244,8 @@ export interface DriverFeatures {
   readonly replyTo?: boolean
   readonly customHeaders?: boolean
   readonly sandbox?: boolean
+  /** The provider fetches `Attachment.url` itself. */
+  readonly remoteAttachments?: boolean
   readonly cancelable?: boolean
   readonly retrievable?: boolean
 }
@@ -258,8 +268,15 @@ export interface EmailDriver<TInstance = unknown> {
     msgs: readonly NormalizedMessage[],
     ctx: SendContext,
   ) => MaybePromise<readonly Result<EmailResult>[]>
-  readonly cancel?: (id: string) => MaybePromise<Result<void>>
-  readonly retrieve?: (id: string) => MaybePromise<Result<SendStatus>>
+  readonly cancel?: (id: string, ctx: OperationContext) => MaybePromise<Result<void>>
+  readonly retrieve?: (id: string, ctx: OperationContext) => MaybePromise<Result<SendStatus>>
+}
+
+/** What `cancel` and `retrieve` get. Narrower than `SendContext` — there is
+ *  no message and no attempt — but a poll still has to be cancellable, and
+ *  Azure's `retrieve` is a poll. */
+export interface OperationContext {
+  readonly signal?: AbortSignal
 }
 
 /** A driver that is guaranteed to expose its underlying client, so callers

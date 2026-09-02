@@ -322,3 +322,44 @@ describe("mailcrab", () => {
     })
   })
 })
+
+describe("reading what JSON could not carry", () => {
+  it("returns the raw RFC 5322 document as text", async () => {
+    const raw = "From: a@b.com\r\nSubject: hi\r\n\r\nbody"
+    const calls: string[] = []
+    const stub = (async (url: string | URL) => {
+      calls.push(String(url))
+      return new Response(raw, { headers: { "content-type": "text/plain" } })
+    }) as unknown as typeof fetch
+
+    const inbox = mailcrab({ fetch: stub }).getInstance()
+    const result = await inbox.raw("abc")
+
+    expect(result.data).toBe(raw)
+    expect(calls[0]).toBe("http://localhost:1080/api/message/abc/raw")
+  })
+
+  it("returns an attachment's bytes", async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47])
+    const calls: string[] = []
+    const stub = (async (url: string | URL) => {
+      calls.push(String(url))
+      return new Response(png)
+    }) as unknown as typeof fetch
+
+    const inbox = mailcrab({ fetch: stub }).getInstance()
+    const result = await inbox.attachment("abc", 1)
+
+    expect([...(result.data ?? [])]).toEqual([0x89, 0x50, 0x4e, 0x47])
+    expect(calls[0]).toBe("http://localhost:1080/api/message/abc/attachment/1")
+  })
+
+  it("reports a missing message as a Result, not a throw", async () => {
+    const stub = (async () =>
+      new Response("message not found", { status: 404 })) as unknown as typeof fetch
+    const inbox = mailcrab({ fetch: stub }).getInstance()
+    const result = await inbox.raw("nope")
+    expect(result.data).toBeNull()
+    expect(result.error?.message).toContain("message not found")
+  })
+})

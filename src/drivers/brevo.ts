@@ -14,7 +14,8 @@ import { defineDriver } from "../core/define.ts"
 import { createError, createRequiredError } from "../core/error.ts"
 import { err, ok } from "../core/result.ts"
 import { attachmentToBase64 } from "./_base64.ts"
-import { batchIdempotencyKey, chunk } from "./_chunk.ts"
+import { chunk } from "./_chunk.ts"
+import { toUuid } from "./_uuid.ts"
 import { classifyStatus, httpJson, resolveFetch } from "./_fetch.ts"
 
 export interface BrevoOptions {
@@ -262,7 +263,7 @@ function sharedEnvelope(msg: NormalizedMessage): string {
     msg.stream ?? null,
     // Attachments are per request, not per version — differing ones would
     // reach every recipient in the batch.
-    msg.attachments.map((a) => a.filename + ":" + a.content.length),
+    msg.attachments.map((a) => `${a.filename}:${a.url ?? a.content?.length}`),
   ])
 }
 
@@ -359,8 +360,6 @@ function missingId(body: unknown) {
   return createError(DRIVER, "PROVIDER", "response did not contain a messageId", { cause: body })
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 /**
  * Brevo rejects an idempotency key that is not a UUID, and the library's
  * keys are free-form strings. A key that already looks like a UUID is
@@ -368,22 +367,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
  * for the same key and distinct for any other.
  */
 async function idempotencyKey(keys: readonly (string | undefined)[]): Promise<string | undefined> {
-  const only = keys.length === 1 ? keys[0] : undefined
-  if (only && UUID.test(only)) return only
-  const hashed = await batchIdempotencyKey(keys)
-  return hashed ? toUuid(hashed.replace(/^batch_/, "")) : undefined
-}
-
-function toUuid(hex: string): string {
-  const value = hex.padEnd(32, "0").slice(0, 32)
-  const variant = "89ab"[Number.parseInt(value[16]!, 16) % 4]
-  return [
-    value.slice(0, 8),
-    value.slice(8, 12),
-    `4${value.slice(13, 16)}`,
-    `${variant}${value.slice(17, 20)}`,
-    value.slice(20, 32),
-  ].join("-")
+  const present = keys.filter((key): key is string => key != null)
+  if (present.length === 0) return undefined
+  // One key stands for itself; several are folded into one value that is
+  // stable for the same batch and different for any other.
+  return toUuid(present.length === 1 ? present[0]! : present.join("\n"))
 }
 
 function toState(status?: string): SendState {

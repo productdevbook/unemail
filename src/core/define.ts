@@ -200,6 +200,9 @@ function unsupportedFor(driver: EmailDriver, msg: NormalizedMessage): EmailError
   if (msg.attachments.length > 0 && features.attachments === false) {
     return createUnsupportedError(driver.name, "`attachments`")
   }
+  if (!features.remoteAttachments && msg.attachments.some((file) => file.url != null)) {
+    return createUnsupportedError(driver.name, "`attachments[].url`")
+  }
   return null
 }
 

@@ -11,7 +11,7 @@ import { defineDriver } from "../core/define.ts"
 import { createError } from "../core/error.ts"
 import { getHeader } from "../core/message.ts"
 import { err, ok } from "../core/result.ts"
-import { httpJson, resolveFetch } from "./_fetch.ts"
+import { httpBytes, httpJson, httpText, resolveFetch } from "./_fetch.ts"
 import smtp from "./smtp.ts"
 
 export interface MailcrabOptions {
@@ -113,6 +113,13 @@ export interface MailcrabInbox {
   byMessageId: (messageId: string) => Promise<Result<MailcrabMessage | null>>
   delete: (id: string) => Promise<Result<void>>
   clear: () => Promise<Result<void>>
+  /** The message exactly as it arrived over SMTP — headers, boundaries and
+   *  encodings intact. The parsed view drops what it could not read, so
+   *  this is what to assert against when the wire format is the point. */
+  raw: (id: string) => Promise<Result<string>>
+  /** An attachment's bytes, by its index in `message.attachments`. The
+   *  listing carries only the metadata. */
+  attachment: (id: string, index: number) => Promise<Result<Uint8Array>>
   /** Mailcrab's backend version, which doubles as a liveness check. */
   version: () => Promise<Result<string>>
 }
@@ -163,14 +170,18 @@ const mailcrab: (options?: MailcrabOptions) => DriverWithInstance<MailcrabInbox>
     commandTimeoutMs: opts.commandTimeoutMs ?? 5_000,
   } satisfies SmtpOptions)
 
-  function api(path: string, method: "GET" | "POST" = "GET"): Promise<Result<unknown>> {
-    return httpJson({
+  function request(path: string, method: "GET" | "POST" = "GET") {
+    return {
       fetch: fetchImpl,
       driver: DRIVER,
       url: `${base}${prefix}${path}`,
       method,
       timeoutMs: opts.timeoutMs ?? 10_000,
-    })
+    }
+  }
+
+  function api(path: string, method: "GET" | "POST" = "GET"): Promise<Result<unknown>> {
+    return httpJson(request(path, method))
   }
 
   const inbox: MailcrabInbox = {
@@ -220,6 +231,16 @@ const mailcrab: (options?: MailcrabOptions) => DriverWithInstance<MailcrabInbox>
         if (getHeader(full.data.headers, "message-id") === messageId) return ok(full.data)
       }
       return ok(null)
+    },
+
+    async raw(id) {
+      // `/raw` answers with the RFC 5322 document as text/plain, which the
+      // JSON reader would have thrown away.
+      return httpText(request(`/api/message/${encodeURIComponent(id)}/raw`))
+    },
+
+    async attachment(id, index) {
+      return httpBytes(request(`/api/message/${encodeURIComponent(id)}/attachment/${index}`))
     },
 
     async delete(id) {

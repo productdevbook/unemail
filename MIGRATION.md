@@ -1,4 +1,4 @@
-# Migrating from 0.5 to 0.6
+# Migrating from 0.5 to 0.7
 
 0.6 is a rewrite. The driver idea survives; almost every signature around it
 changed. Read the two sections that apply to you and skip the rest.
@@ -22,6 +22,38 @@ Four defects came out with the old design:
   quietly accumulated `html` and `text` between sends.
 - A driver that did not support `personalizations` had all but the first
   silently dropped.
+
+## What 0.7 changed on top of 0.6
+
+Seven more drivers — mailjet, smtp2go, scaleway, mailbreeze,
+azure-communication, ahasend and mailpit — and four core changes they each
+would otherwise have worked around.
+
+**`subject` is now optional when `template` is set.** A template carries its
+own subject, and an always-present one overrides it. If you were passing a
+subject alongside a template to satisfy the type, you can stop — and should,
+unless you meant to override.
+
+```diff
+-await email.send({ to, subject: "ignored anyway", template: { alias: "welcome" } })
++await email.send({ to, template: { alias: "welcome" } })
+```
+
+**An attachment can be a URL the provider fetches.** Exactly one of
+`content` and `url`. A driver has to claim `features.remoteAttachments`, or
+the core refuses the message rather than sending it with the attachment
+quietly missing. SMTP2GO is the first that can.
+
+```ts
+attachments: [{ filename: "invoice.pdf", url: "https://acme.com/i/1.pdf" }]
+```
+
+**`cancel` and `retrieve` receive the instance's `AbortSignal`.** Additive —
+a driver that ignores the second parameter is unaffected. It matters for
+Azure, where `retrieve` is a poll of a long-running operation.
+
+**`httpText` and `httpBytes` join `httpJson`** in the shared driver layer.
+Only relevant if you write your own driver against a non-JSON endpoint.
 
 ## Scope
 

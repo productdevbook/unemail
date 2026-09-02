@@ -121,6 +121,114 @@ export async function httpJson(request: HttpRequest): Promise<Result<unknown>> {
   return ok(parsed)
 }
 
+/**
+ * Issue a request and return the response body as text.
+ *
+ * `httpJson` parses and discards anything that is not JSON, which makes a
+ * raw RFC 5322 message or a plain-text endpoint unreachable — the Mailcrab
+ * driver has to leave `/api/message/{id}/raw` unexposed for exactly that
+ * reason. Classification, timeout, abort and the `onResponse` hook are the
+ * same; only the decoding differs.
+ */
+export async function httpText(request: HttpRequest): Promise<Result<string>> {
+  const response = await httpRaw(request)
+  if (response.error) return err(response.error)
+  try {
+    return ok(await response.data.text())
+  } catch (error) {
+    return err(readFailure(request.driver, response.data.status, error))
+  }
+}
+
+/**
+ * Issue a request and return the response body as bytes. For an attachment
+ * read back out of a mail catcher, or any endpoint that answers with a
+ * file rather than a document.
+ */
+export async function httpBytes(request: HttpRequest): Promise<Result<Uint8Array>> {
+  const response = await httpRaw(request)
+  if (response.error) return err(response.error)
+  try {
+    return ok(new Uint8Array(await response.data.arrayBuffer()))
+  } catch (error) {
+    return err(readFailure(request.driver, response.data.status, error))
+  }
+}
+
+/**
+ * The part every variant shares: build the request, send it, classify a
+ * failure. Returns the `Response` with its body still unread, so the caller
+ * decides how to decode it.
+ *
+ * A failure body is always read as text here, because an error is a
+ * diagnostic and a caller asking for bytes still wants a readable reason.
+ */
+async function httpRaw(request: HttpRequest): Promise<Result<Response>> {
+  const headers: Record<string, string> = { accept: "*/*", ...request.headers }
+  const raw = request.bodyInit
+  if (raw != null) delete headers["content-type"]
+  else if (request.body != null && !hasHeader(headers, "content-type")) {
+    headers["content-type"] = "application/json"
+  }
+
+  const timeout = AbortSignal.timeout(request.timeoutMs ?? 30_000)
+  const signal = request.signal ? anySignal([request.signal, timeout]) : timeout
+
+  let response: Response
+  try {
+    response = await request.fetch(request.url, {
+      method: request.method ?? "GET",
+      headers,
+      body:
+        raw ??
+        (request.body == null
+          ? undefined
+          : typeof request.body === "string"
+            ? request.body
+            : JSON.stringify(request.body)),
+      signal,
+    })
+  } catch (error) {
+    return err(toEmailError(request.driver, error))
+  }
+
+  request.onResponse?.(response)
+
+  if (response.ok) return ok(response)
+
+  let text = ""
+  try {
+    text = await response.text()
+  } catch {
+    // The reason is gone; the status still says something.
+  }
+  const parsed = text ? safeJson(text) : null
+  const custom = request.classify?.(response.status, parsed ?? text)
+  const code = custom?.code ?? classifyStatus(response.status)
+  return err(
+    createError(
+      request.driver,
+      code,
+      custom?.message ??
+        extractMessage(parsed) ??
+        (text.slice(0, 200) || `HTTP ${response.status}`),
+      {
+        status: response.status,
+        ...(custom?.retryable == null ? {} : { retryable: custom.retryable }),
+        cause: { headers: response.headers, body: parsed ?? text },
+      },
+    ),
+  )
+}
+
+function readFailure(driver: string, status: number, error: unknown) {
+  return createError(driver, "NETWORK", "connection closed while reading the response", {
+    status,
+    retryable: true,
+    cause: error,
+  })
+}
+
 /** Default status → code mapping. Anything 5xx or 429 is retryable; a 4xx
  *  is the caller's problem and retrying it just burns quota. */
 export function classifyStatus(status: number): EmailErrorCode {

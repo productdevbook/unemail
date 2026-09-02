@@ -10,14 +10,14 @@ const defaults = { from: "hi@acme.com" }
 const noSleep = { sleep: async () => {}, random: () => 0.5 }
 
 /** A driver whose per-call outcome the test dictates. */
-function scripted(script: (msgs: readonly { subject: string }[], call: number) => boolean[]) {
+function scripted(script: (msgs: readonly { subject?: string }[], call: number) => boolean[]) {
   let call = 0
   const calls: string[][] = []
   const driver: EmailDriver = {
     name: "scripted",
     async sendBatch(msgs) {
       const outcomes = script(msgs, call++)
-      calls.push(msgs.map((m) => m.subject))
+      calls.push(msgs.map((m) => m.subject ?? ""))
       return msgs.map((m, index) =>
         outcomes[index]
           ? ok({ id: `id_${m.subject}`, driver: "scripted", at: new Date() })
