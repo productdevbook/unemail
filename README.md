@@ -1,6 +1,6 @@
 <!-- prettier-ignore-start -->
 <p align="center">
-  <img src=".github/assets/cover.svg" alt="unemail" width="100%">
+  <img src=".github/assets/cover.png" alt="unemail" width="100%">
 </p>
 <!-- prettier-ignore-end -->
 
