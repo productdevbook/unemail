@@ -276,8 +276,8 @@ describe("cloudflare-email-service (Email Sending)", () => {
     expect(send.mock.calls[0]![0]).toMatchObject({
       from: { email: "hi@acme.com", name: "Acme" },
       to: [{ email: "ada@example.com", name: "Ada" }],
-      cc: [{ email: "cc@x.com" }],
-      replyTo: { email: "reply@acme.com" },
+      cc: ["cc@x.com"],
+      replyTo: "reply@acme.com",
       html: "<p>hi</p>",
       headers: { "X-Campaign": "welcome" },
       attachments: [
@@ -285,6 +285,39 @@ describe("cloudflare-email-service (Email Sending)", () => {
         // that expects base64 unencoded.
         { filename: "a.txt", content: "aGVsbG8=", type: "text/plain", disposition: "attachment" },
       ],
+    })
+  })
+
+  it("hands over a nameless address as a bare string", async () => {
+    // workerd's check: an address object must carry a string `name`.
+    const send = vi.fn(async (message: CloudflareEmailServiceMessage) => {
+      const addresses = [message.from, ...message.to, ...(message.cc ?? []), message.replyTo]
+      for (const address of addresses) {
+        if (typeof address === "object" && typeof address.name !== "string") {
+          throw new TypeError(
+            "Incorrect type for the 'name' field on 'EmailAddress': the provided value is not of type 'string'.",
+          )
+        }
+      }
+      return { messageId: "cf_2" }
+    })
+    const { error } = await createEmail({
+      driver: cloudflareEmailService({ binding: { send } }),
+    }).send({
+      from: "hi@acme.com",
+      to: [{ email: "ada@example.com" }, "Bob <bob@example.com>"],
+      cc: "cc@x.com",
+      replyTo: { email: "reply@acme.com" },
+      subject: "s",
+      text: "t",
+    })
+
+    expect(error).toBeNull()
+    expect(send.mock.calls[0]![0]).toMatchObject({
+      from: "hi@acme.com",
+      to: ["ada@example.com", { email: "bob@example.com", name: "Bob" }],
+      cc: ["cc@x.com"],
+      replyTo: "reply@acme.com",
     })
   })
 

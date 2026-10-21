@@ -23,17 +23,22 @@ export interface CloudflareEmailServiceBinding {
  *  needs neither `@cloudflare/workers-types` nor the `cloudflare:email`
  *  virtual module; prefer those types at the call site when you have them. */
 export interface CloudflareEmailServiceMessage {
-  from: EmailAddress
-  to: EmailAddress[]
+  from: CloudflareEmailServiceAddress
+  to: CloudflareEmailServiceAddress[]
   subject: string
   text?: string
   html?: string
-  cc?: EmailAddress[]
-  bcc?: EmailAddress[]
-  replyTo?: EmailAddress
+  cc?: CloudflareEmailServiceAddress[]
+  bcc?: CloudflareEmailServiceAddress[]
+  replyTo?: CloudflareEmailServiceAddress
   headers?: Record<string, string>
   attachments?: CloudflareEmailServiceAttachment[]
 }
+
+/** A bare address, or one with a display name. The binding rejects an
+ *  object without `name` ("Incorrect type for the 'name' field on
+ *  'EmailAddress'"), so a nameless address must go as a string. */
+export type CloudflareEmailServiceAddress = string | { email: string; name: string }
 
 export interface CloudflareEmailServiceAttachment {
   content: string | Uint8Array
@@ -151,14 +156,14 @@ const cloudflareEmailService: DriverFactory<CloudflareEmailServiceOptions> =
         let result: CloudflareEmailSendResult | void
         try {
           result = await options.binding.send({
-            from: msg.from,
-            to: [...msg.to],
+            from: toCloudflareAddress(msg.from),
+            to: msg.to.map(toCloudflareAddress),
             subject: msg.subject ?? "",
             ...(msg.text == null ? {} : { text: msg.text }),
             ...(msg.html == null ? {} : { html: msg.html }),
-            ...(msg.cc.length > 0 ? { cc: [...msg.cc] } : {}),
-            ...(msg.bcc.length > 0 ? { bcc: [...msg.bcc] } : {}),
-            ...(msg.replyTo[0] ? { replyTo: msg.replyTo[0] } : {}),
+            ...(msg.cc.length > 0 ? { cc: msg.cc.map(toCloudflareAddress) } : {}),
+            ...(msg.bcc.length > 0 ? { bcc: msg.bcc.map(toCloudflareAddress) } : {}),
+            ...(msg.replyTo[0] ? { replyTo: toCloudflareAddress(msg.replyTo[0]) } : {}),
             ...(Object.keys(msg.headers).length > 0 ? { headers: { ...msg.headers } } : {}),
             ...(msg.attachments.length > 0
               ? { attachments: msg.attachments.map(toCloudflareAttachment) }
@@ -190,6 +195,10 @@ function toDriverError(error: unknown) {
   const code = ERROR_CODES[String((error as { code?: unknown })?.code ?? "")]
   if (!code) return toEmailError(DRIVER, error)
   return createError(DRIVER, code, (error as Error).message, { cause: error })
+}
+
+function toCloudflareAddress({ email, name }: EmailAddress): CloudflareEmailServiceAddress {
+  return name ? { email, name } : email
 }
 
 /** Email Service takes structured attachments rather than MIME parts, so
