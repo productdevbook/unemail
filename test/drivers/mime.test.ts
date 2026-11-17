@@ -81,6 +81,24 @@ describe("buildMime", () => {
     expect(Buffer.from(encoded, "base64").toString("utf8")).toBe("Merhaba dünya")
   })
 
+  it("folds a long non-ASCII subject without ending the header block", () => {
+    const subject = "Your order is on its way („Wireless headphones – black“)"
+    const mime = build({ ...base, subject, text: "body text" })
+
+    // The first empty line is where a receiver stops reading headers.
+    const [head, ...rest] = mime.body.split("\r\n\r\n")
+    expect(rest.join("\r\n\r\n")).toBe("body text")
+    expect(head).toContain("Message-ID: <id@test>")
+
+    const unfolded = head!.replace(/\r\n(?=[ \t])/g, "")
+    const words = /^Subject: (.*)$/m.exec(unfolded)![1]!.split(" ")
+    expect(words.length).toBeGreaterThan(1)
+    const decoded = Buffer.concat(
+      words.map((word) => Buffer.from(word.slice("=?utf-8?B?".length, -2), "base64")),
+    ).toString("utf8")
+    expect(decoded).toBe(subject)
+  })
+
   it("leaves an ASCII subject alone", () => {
     expect(build({ ...base, text: "x" }).headers.Subject).toBe("hi")
   })

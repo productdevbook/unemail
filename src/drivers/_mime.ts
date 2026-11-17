@@ -230,8 +230,11 @@ function foldHeader(value: string, max = 76): string {
  * Split into several words rather than one: RFC 2047 §2 caps an
  * encoded-word at 75 characters, and `foldHeader` cannot break a single
  * long one because base64 contains no spaces — a long subject would go out
- * as one line past RFC 5322's 998-octet limit. Words are joined with CRLF
- * and a space, which is how a decoder is told to concatenate them.
+ * as one line past RFC 5322's 998-octet limit. Words are joined with a
+ * single space and left for `foldHeader` to break there: a decoder drops
+ * the whitespace between adjacent encoded-words, and folding here as well
+ * would make `foldHeader` add a second CRLF, an empty line that ends the
+ * header block.
  */
 function encodeHeaderValue(value: string): string {
   if (/^[\x20-\x7E]*$/.test(value)) return value
@@ -252,7 +255,7 @@ function encodeHeaderValue(value: string): string {
     words.push(`=?utf-8?B?${bytesToBase64(bytes.subarray(start, end))}?=`)
     start = end
   }
-  return words.join("\r\n ")
+  return words.join(" ")
 }
 
 /**
